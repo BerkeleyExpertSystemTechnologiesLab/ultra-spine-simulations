@@ -4,6 +4,13 @@ function [x_ref, u_ref, M] = simulate_reference_traj(controller, systemStates, r
 % Simulate the MPC controller and find reference trajectory to follow
 % provided waypoints. 
 
+% This function calls the following functions related to the spine
+% dynamics:
+%   linearize_dynamics
+%   simulate_dynamics
+
+disp('Simulating reference trajectory')
+
 x_initial = [];
 for k = 1:links
     x_initial = [x_initial; x(k); y(k); z(k); T(k); G(k); P(k); dx(k); dy(k); dz(k); dT(k); dG(k); dP(k)];
@@ -16,6 +23,7 @@ M = 1;
 
 prev_in = u_initial;
 for index = 1:(size(traj, 2) - N)
+    disp(strcat('Simulating reference trajectory iteration (index):',num2str(index)));
     for k = 1:links
         systemStates(k, 1) = x(k); systemStates(k, 2) = y(k); systemStates(k, 3) = z(k);
         systemStates(k, 4) = T(k); systemStates(k, 5) = G(k); systemStates(k, 6) = P(k);

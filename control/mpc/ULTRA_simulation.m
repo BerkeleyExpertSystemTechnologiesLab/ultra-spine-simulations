@@ -1,32 +1,62 @@
 % ULTRA_simulation.m
-% Abishek Akella
+% Abishek Akella, Andrew P. Sabelhaus
 % This is the primary file for running the ULTRA Spine Model Predictive
 % Control work.
 
 %% Initialize system parameters
-clear variables
-close all
-clc
+%clear variables;
+clear all;
+close all;
+clc;
 
-dt = 0.001; % Time step for dynamics
-frame = 3; % Animation Frame Divisor
-stringEnable = 1; % Enable string plotting
-rad = 0.01; % Radius of Link
-g = 9.81; % Gravity
-h = 0.15; % Height of Link
-l = 0.15; % Length of leg
-leg = (l^2 - (h/2)^2)^.5; % Projection of leg length
-links = 3; % Number of links in addition to base link
+% The MATLAB functions that calculate the dynamics of the robot must be in
+% the current path. If this file is being run outside the
+% ultra-spine-simulations repository, change this path.
+% Note that the files here are not directly called from this script, but
+% instead are used in the following files (or those they call):
+%   - simulate_reference_trajectory
+%   - simulate_dynamics
+%   - linearize_dynamics
 
-time = 0:dt:500; % Simulation time
+path_to_dynamics = '../../dynamics/3d-dynamics-symbolicsolver';
+addpath(path_to_dynamics);
+
+% Time step for dynamics
+dt = 0.001;
+
+% Parameters for plotting:
+% NOTE that the lengths and sizes here are only used for plotting, 
+% since the dynamics used in this work is a point-mass model.
+% Animation Frame Divisor
+frame = 3;
+ % Enable string plotting
+stringEnable = 1;
+% Radius of Link.
+rad = 0.01;
+% Gravitational force
+g = 9.81;
+% Height of Link
+h = 0.15;
+% Length of leg
+l = 0.15;
+% Projection of leg length
+leg = (l^2 - (h/2)^2)^.5;
+
+% Number of links in addition to base link.
+% NOTE that this must be consistent with the dynamics defined in
+% duct_accel.m and associated files! Those dynamics are 
+links = 3;
+
+ % Simulation time
+time = 0:dt:500;
 
 % To save a video, uncomment:
 % - the following three initialization lines
 % - the getframe call within the last loop
 % - the open, save, and close lines at the end of this script
-videoObject = VideoWriter('../videos/UTLTRASpineMPC4TetraCircular.avi');
-videoObject.Quality = 100;
-videoObject.FrameRate = 5;
+%videoObject = VideoWriter('../videos/UTLTRASpineMPC4TetraCircular.avi');
+%videoObject.Quality = 100;
+%videoObject.FrameRate = 5;
 
 %% Initialize Plot
 Figs = figure('Units','Normalized', 'outerposition', [0 0 1 1]);
@@ -82,11 +112,25 @@ Tetra{links+1} = Tetra{links};
 L = 180;
 theta = linspace(-pi, pi, L);
 r = .04;
-traj = [r*cos(theta) + r; zeros(1, L); r*sin(theta) + 0.3; zeros(1, L); zeros(1, L); zeros(1, L); zeros(1, L); ...
-    zeros(1, L); zeros(1, L); zeros(1, L); zeros(1, L); zeros(1, L)];
+traj = [r*cos(theta) + r; ...
+        zeros(1, L); ...
+        r*sin(theta) + 0.3; ...
+        zeros(1, L); ...
+        zeros(1, L); ... 
+        zeros(1, L); ...
+        zeros(1, L); ...
+        zeros(1, L); ...
+        zeros(1, L); ...
+        zeros(1, L); ...
+        zeros(1, L); ...
+        zeros(1, L)];
 plot3(traj(1, :), zeros(1, L), traj(3, :), 'r', 'LineWidth', 2);
 
 %% Controller Initialization
+disp('Controller Initialization')
+pause(0.5)
+disp('unpaused')
+
 N = 10; % Horizon length
 inputs = sdpvar(repmat(8*links, 1, N-1), repmat(1, 1, N-1));
 states = sdpvar(repmat(12*links, 1, N), repmat(1, 1, N));
@@ -134,6 +178,10 @@ solutions_out = {[inputs{:}], [states{:}]};
 controller = optimizer(constraints, objective, sdpsettings('solver', 'gurobi', 'verbose', 1), parameters_in, solutions_out);
 
 %% Forward simulate trajectory
+disp('Forward simulate trajectory')
+pause(0.5)
+disp('unpaused')
+
 [x_ref, u_ref, M] = simulate_reference_traj(controller, systemStates, restLengths, links, dt, x, y, z, T, G, P, ...
     dx, dy, dz, dT, dG, dP, traj, N);
 
@@ -141,6 +189,10 @@ refx = [x_ref{:}];
 plot3(refx(25, :), refx(26, :), refx(27, :), 'b-.', 'LineWidth', 2);
 
 %% Build Iterative LQR Controller
+disp('Build Iterative LQR Controller')
+pause(0.5)
+disp('unpaused')
+
 Q = zeros(12);
 Q(1:6, 1:6) = eye(6);
 Q_lqr = 5*kron(eye(3), Q);
@@ -152,6 +204,7 @@ P0 = zeros(36);
 K{1} = -((R_lqr + B'*P0*B)^-1)*B'*P0*A;
 P_lqr{1} = Q_lqr + K{1}'*R_lqr*K{1} + (A + B*K{1})'*P0*(A + B*K{1});
 for k = (M-1):-1:1
+    disp(strcat('Controller Build iteration:',num2str(k)))
     [A, B, ~] = linearize_dynamics(x_ref{k}, u_ref{k}, restLengths, links, dt);
     K{M-k+1} = -((R_lqr + B'*P_lqr{M-k}*B)^-1)*B'*P_lqr{M-k}*A;
     P_lqr{M-k+1} = Q_lqr + K{M-k+1}'*R_lqr*K{M-k+1} + (A + B*K{M-k+1})'*P_lqr{M-k}*(A + B*K{M-k+1});
@@ -241,6 +294,6 @@ end
 plot3(actual_traj(1, :), actual_traj(2, :), actual_traj(3, :), 'g', 'LineWidth', 2);
 
 % Uncomment these lines to save the video.
-open(videoObject);
-writeVideo(videoObject, videoFrames);
-close(videoObject);
+%open(videoObject);
+%writeVideo(videoObject, videoFrames);
+%close(videoObject);
