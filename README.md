@@ -2,6 +2,9 @@
 
 Copyright 2015 Berkeley Emergent Space Technologies Lab.
 
+*THIS IS AN EXPERIMENTAL BRANCH FOR INCOMPLETE WORK, PLEASE DO NOT USE UNLESS ACTIVELY DEVELOPING.
+The work in this branch on the 3D analytical model of the ULTRA Spine dynamics is unverified as of 2016-02-23.
+
 Simulations work for the Underactuated Lightweight Tensegrity Robotic Assistive Spine. This repository includes code for the kinematics, dynamics, and control system simulations for the robot.
 
 Please see the repository ultra-spine-hardware for code relating to the hardware implementation of controllers.
