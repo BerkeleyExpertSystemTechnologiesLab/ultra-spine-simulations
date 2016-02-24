@@ -1,4 +1,4 @@
-% ULTRA_simulation.m
+% ultra_spine_mpc.m
 % Abishek Akella, Andrew P. Sabelhaus
 % This is the primary file for running the ULTRA Spine Model Predictive
 % Control work.
