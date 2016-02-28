@@ -12,10 +12,10 @@ x_c = rad*2*x + spineMean(1);
 y_c = rad*2*y + spineMean(2);
 z_c = rad*2*z + spineMean(3);
 
-[x0, y0, z0] = cylinder2P(r,20,spineCoord(1,:),spineMean)
-[x1, y1, z1] = cylinder2P(r,20,spineCoord(2,:),spineMean)
-[x2, y2, z2] = cylinder2P(r,20,spineCoord(3,:),spineMean)
-[x3, y3, z3] = cylinder2P(r,20,spineCoord(4,:),spineMean)
+[x0, y0, z0] = cylinder2P(r,20,spineCoord(1,:),spineMean);
+[x1, y1, z1] = cylinder2P(r,20,spineCoord(2,:),spineMean);
+[x2, y2, z2] = cylinder2P(r,20,spineCoord(3,:),spineMean);
+[x3, y3, z3] = cylinder2P(r,20,spineCoord(4,:),spineMean);
 
 
 [x, y, z] = sphere;

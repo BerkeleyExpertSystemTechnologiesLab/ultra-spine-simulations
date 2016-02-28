@@ -27,28 +27,54 @@ dt = 0.001;
 % Parameters for plotting:
 % NOTE that the lengths and sizes here are only used for plotting, 
 % since the dynamics used in this work is a point-mass model.
-% Animation Frame Divisor
-frame = 3;
- % Enable string plotting
-stringEnable = 1;
-% Radius of Link.
-rad = 0.01;
+
+% Load parameters in from the saved file that accompanies the dynamics
+spine_geometric_parameters_path = strcat(path_to_dynamics, '/spine_geometric_parameters.mat');
+load(spine_geometric_parameters_path);
+% Unroll this struct into individual variables. See the dynamics generation script for more information.
 % Gravitational force
-g = 9.81;
-% Height of Link
-h = 0.15;
-% Length of leg
-l = 0.15;
-% Projection of leg length
+g = spine_geometric_parameters.g;
+% Total number of spine tetrahedrons
+N = spine_geometric_parameters.N;
+% Length of one "leg" of the tetrahedron (straight-line distance from center to outer point)
+l = spine_geometric_parameters.l;
+% Height of one tetrahedtron
+h = spine_geometric_parameters.h;
+% total mass of one whole tetrahedron
+m_t = spine_geometric_parameters.m_t;
+% Factor-of-safety with respect to tetrahedron mass (note: this is unused in this script)
+FoS = spine_geometric_parameters.FoS;
+% mass of one node of the tetrahedron (there are five point masses per tetra)
+%m = spine_geometric_parameters.m;
+% Radius of Link.
+%rad = spine_geometric_parameters.r;
+rad = 0.01;
+
+% Number of links in addition to base link.
+% NOTE that this must be consistent with the dynamics defined in
+% duct_accel.m and associated files! Those dynamics are pre-calculated,
+% and this parameter does NOT change them - it only affects the controller.
+links = N-1; % Here, this is going to be 4-1 = 3.
+
+% Tetrahedron vertical spacing. The initial z-distance between successive tetrahedra
+tetra_vertical_spacing = 0.1; % meters
+
+% Projection of leg length (e.g., the x or y coordinate of an endpoint of a node. See spineDynamics for more information.)
 leg = (l^2 - (h/2)^2)^.5;
 
 % Number of links in addition to base link.
 % NOTE that this must be consistent with the dynamics defined in
-% duct_accel.m and associated files! Those dynamics are 
+% duct_accel.m and associated files! Those dynamics are pre-calculated,
+% and this parameter does NOT change them - it only affects the controller.
 links = 3;
 
  % Simulation time
 time = 0:dt:500;
+
+% Animation Frame Divisor
+frame = 3;
+ % Enable string plotting
+stringEnable = 1;
 
 % To save a video, uncomment:
 % - the following three initialization lines
@@ -92,17 +118,41 @@ restLengths(6) = 0.187;
 restLengths(7) = 0.187;
 restLengths(8) = 0.187;
 
+% There are 36 states in this simulation, as it stands: 3 bodies * 12 states each.
 systemStates = zeros(links, 12);
 
+% The initial state for all of these 36 variables.
 x_initial = [];
+
+% Initialize all the states of the system
 for k = 1:links
-    x(k) = 0; y(k) = 0.0; z(k) = 0.1*k; T(k) = 0.0; G(k) = 0.0; P(k) = 0.0;
-    dx(k) = 0; dy(k) = 0; dz(k) = 0; dT(k) = 0; dG(k) = 0; dP(k) = 0;
+    % For this tetrahedron, it starts completely still, centered at (x,y) = (0,0) with a z-offset
+    x(k) = 0; 
+    y(k) = 0.0; 
+    z(k) = tetra_vertical_spacing * k; 
+    T(k) = 0.0; 
+    G(k) = 0.0; 
+    P(k) = 0.0;
+    dx(k) = 0; 
+    dy(k) = 0; 
+    dz(k) = 0; 
+    dT(k) = 0; 
+    dG(k) = 0; 
+    dP(k) = 0;
     
-    Tetra{k} = [(leg + rad/2), 0, -h/2; -(leg + rad/2), 0, -h/2; 0, (leg + rad/2), h/2; 0, -(leg + rad/2), h/2];
+    % This variable represents the location of the outer 4 nodes per tetrahedron (the 5th is the centerpoint.)
+    % Each tetra is moved up by its z-offset here.
+    Tetra{k} = [(leg + rad/2), 0, -h/2; ...
+                -(leg + rad/2), 0, -h/2; ...
+                0, (leg + rad/2), h/2; ...
+                0, -(leg + rad/2), h/2];
+            
+    % Plot a visualization of this spine tetrahedron
     [transform{k}, handle{k}] = plotSpineLink(Tetra{k}, rad, ax);
     
+    % The first state of this tetrahedron is at this starting location defined above
     systemStates(k, :) = [x(k), y(k), z(k), T(k), G(k), P(k), dx(k), dy(k), dz(k), dT(k), dG(k), dP(k)];
+    % Append this state to the vector of initial states.
     x_initial = [x_initial; x(k); y(k); z(k); T(k); G(k); P(k); dx(k); dy(k); dz(k); dT(k); dG(k); dP(k)];
 end
 Tetra{links+1} = Tetra{links};
@@ -128,8 +178,6 @@ plot3(traj(1, :), zeros(1, L), traj(3, :), 'r', 'LineWidth', 2);
 
 %% Controller Initialization
 disp('Controller Initialization')
-pause(0.5)
-disp('unpaused')
 
 N = 10; % Horizon length
 inputs = sdpvar(repmat(8*links, 1, N-1), repmat(1, 1, N-1));
@@ -179,8 +227,6 @@ controller = optimizer(constraints, objective, sdpsettings('solver', 'gurobi', '
 
 %% Forward simulate trajectory
 disp('Forward simulate trajectory')
-pause(0.5)
-disp('unpaused')
 
 [x_ref, u_ref, M] = simulate_reference_traj(controller, systemStates, restLengths, links, dt, x, y, z, T, G, P, ...
     dx, dy, dz, dT, dG, dP, traj, N);
@@ -190,8 +236,6 @@ plot3(refx(25, :), refx(26, :), refx(27, :), 'b-.', 'LineWidth', 2);
 
 %% Build Iterative LQR Controller
 disp('Build Iterative LQR Controller')
-pause(0.5)
-disp('unpaused')
 
 Q = zeros(12);
 Q(1:6, 1:6) = eye(6);

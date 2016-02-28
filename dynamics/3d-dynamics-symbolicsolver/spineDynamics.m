@@ -1,4 +1,5 @@
-% Jeff Friesen, Abishek Akella
+% Jeff Friesen, Abishek Akella, Andrew P. Sabelhaus
+% Copyright 2016
 % This script generates multiple m-files:
 %   duct_accel
 %   dlengths_dt
@@ -9,14 +10,57 @@ clc
 clear variables
 close all
 
-%% Model Parameters
-N = 4; % Number of Spine Links
-g = 9.81; % Gravity
-rad = 0.002; % Radius of Link
+%% Geometric and physical parameters of the spine robot
 
-h = 0.15; % Height of Link
-l = 0.15; % Length of spine "leg"
-m = (0.142/5) * 1.2; % Mass of each link over 5 point masses * FoS
+% There are 5 total point masses in this model: one at the center, and one
+% at each of the 4 outer points at the end of the "legs."
+% The geometry of the spine is defined by the bounding box for the 4 outer
+% points of the tetrahedron. The center of the tetra is located at (0,0,0).
+% So, for example, the z location of each of the outer 4 spine nodes will
+% be at (height/2).
+% All units are in SI.
+% NOTE that this script is not currently parameterized by N. Future
+% work will need to change all of the hardcoded N=4 usages below.
+% NOTE that since the output functions from this script do not involve the
+% springs or the ways the forces are applied between tetra, those constants
+% are not included here. (e.g., see other scripts for k, and damping.)
+% Parameters are, in order:
+%   g, gravitational constant used in the dynamics. (m^3 / (kg s^2))
+%   N, number of spine links. (unitless)
+%   l, length of spine "leg". The straight-line dist from center to node.
+%       in (m).
+%   h, total height of one spine tetrahedron. (m) 
+%   m_t, total mass of one spine tetrahedron. (kg)
+%   FoS, factor-of-safety in the mass of the model. Because we use this
+%       model for control, amplifying the mass of the tetrahedron nodes
+%       lends some sense of robustness (informally.) (unitless)
+%   m, mass of one node of the tetrahedron. = (m_t / 5)*FoS, because there
+%       are 5 point masses in this model. Includes FoS too. (kg).
+%   r, radius of the spine leg. NOTE that this is ONLY for visualization,
+%       since the dynamics are for point-masses only, not rigid bodies. So,
+%       this parameter is not used in this script at all, but combined here
+%       for ease. (m)
+
+g = 9.81;
+N = 4;
+l = 0.15;
+h = 0.15;
+m_t = 0.142;
+FoS = 1.2;
+m = (m_t/5) * FoS;
+r = 0.002;
+
+% Store all these parameters as a struct for later use.
+spine_geometric_parameters.g = g;
+spine_geometric_parameters.N = N;
+spine_geometric_parameters.l = l;
+spine_geometric_parameters.h = h;
+spine_geometric_parameters.m_t = m_t;
+spine_geometric_parameters.FoS = FoS;
+spine_geometric_parameters.m = m;
+spine_geometric_parameters.r = r;
+% The path where we want to save these parameters as a .mat file:
+spine_geometric_parameters_path = 'spine_geometric_parameters';
 
 % Creating Parallel Pools for Computing
 pools = gcp;
@@ -654,6 +698,10 @@ D2G = fetchOutputs(pf5);
 disp('86%')
 D2T = fetchOutputs(pf6);
 disp('90%')
+
+%% Save the spine geometric parameters to a .mat file for use later
+save(spine_geometric_parameters_path, 'spine_geometric_parameters');
+
 %% Generate MATLAB functions
 Dyn_eqn = [D2x(2); D2y(2); D2z(2); D2T(2); D2G(2); D2P(2); D2x(3); D2y(3); D2z(3); D2T(3); D2G(3); D2P(3); D2x(4); D2y(4); D2z(4); D2T(4); D2G(4); D2P(4)];
 
