@@ -35,7 +35,7 @@ load(spine_geometric_parameters_path);
 % Gravitational force
 g = spine_geometric_parameters.g;
 % Total number of spine tetrahedrons
-N = spine_geometric_parameters.N;
+N_tetras = spine_geometric_parameters.N;
 % Length of one "leg" of the tetrahedron (straight-line distance from center to outer point)
 l = spine_geometric_parameters.l;
 % Height of one tetrahedtron
@@ -54,7 +54,7 @@ rad = 0.007;
 % NOTE that this must be consistent with the dynamics defined in
 % duct_accel.m and associated files! Those dynamics are pre-calculated,
 % and this parameter does NOT change them - it only affects the controller.
-links = N-1; % Here, this is going to be 4-1 = 3.
+links = N_tetras-1; % Here, this is going to be 4-1 = 3.
 
 % Tetrahedron vertical spacing. The initial z-distance between successive tetrahedra
 tetra_vertical_spacing = 0.1; % meters
@@ -80,9 +80,9 @@ stringEnable = 1;
 % - the following three initialization lines
 % - the getframe call within the last loop
 % - the open, save, and close lines at the end of this script
-videoObject = VideoWriter('../../videos/ultra-spine-mpc-topbending1.avi');
-videoObject.Quality = 100;
-videoObject.FrameRate = 5;
+%videoObject = VideoWriter('../../videos/ultra-spine-mpc-topbending1.avi');
+%videoObject.Quality = 100;
+%videoObject.FrameRate = 5;
 
 %% Initialize Plot
 Figs = figure('Units','Normalized', 'outerposition', [0 0 1 1]);
@@ -181,9 +181,10 @@ Tetra{links+1} = Tetra{links};
 % Load in one of the trajectories
 
 %[traj, L] = get_ref_traj_circletop();
-%[traj, L] = get_ref_traj_quartercircletop();
-[traj, L] = get_ref_traj_topbending1();
+[traj, L] = get_ref_traj_quartercircletop();
+%[traj, L] = get_ref_traj_topbending1(); %OPTIMIZATION FAILS AS OF 2016-02-27
 %[traj, L] = get_ref_traj_topbending2();
+%[traj, L] = get_ref_traj_toprotationtest(); %OPTIMIZATION FAILS AS OF 2016-02-27
 
 % Plot this trajectory, for a visualization
 plot3(traj(1, :), traj(2,:), traj(3, :), 'r', 'LineWidth', 2);
@@ -200,42 +201,8 @@ c_t = sdpvar(36, 1);
 prev_in = sdpvar(8*links, 1);
 reference = sdpvar(repmat(12, 1, N), repmat(1, 1, N));
 
-input_lim = .07*ones(24, 1); % Limit on length of cable allowed
-
-constraints = [norm(inputs{1} - prev_in, inf) <= 0.02]; % Deviation from previous applied input to current input
-for k = 1:(N-2)
-    constraints = [constraints, states{k+1} == [A_t{:}]*states{k} + [B_t{:}]*inputs{k} + c_t, ...
-        -input_lim <= inputs{k} <= input_lim, ...
-        norm(inputs{k}(1:8) - inputs{1}(1:8), inf) <= 0.01, ... % Minimize deviation from first input (minimize linearization error)
-        norm(inputs{k}(9:16) - inputs{1}(9:16), inf) <= 0.01, ...
-        norm(inputs{k}(17:24) - inputs{1}(17:24), inf) <= 0.01];
-end
-constraints = [constraints, norm(inputs{N-1}(1:8) - inputs{1}(1:8), 2) <= 0.1, ...% Final input is given a wider tolerance
-    norm(inputs{N-1}(9:16) - inputs{1}(9:16), 2) <= 0.1, ...
-    norm(inputs{N-1}(17:24) - inputs{1}(17:24), 2) <= 0.1];
-constraints = [constraints, states{N} == [A_t{:}]*states{N-1} + [B_t{:}]*inputs{N-1} + c_t, -input_lim <= inputs{N-1} <= input_lim];
-
-for j = 1:(N-1)
-    constraints = [constraints, norm(states{j}(1:6) - states{j+1}(1:6), inf) <= 0.02, ... % Minimize deviation from first state (minimize linearization error)
-        norm(states{j}(13:18) - states{j+1}(13:18), inf) <= 0.03, ...
-        norm(states{j}(25:30) - states{j+1}(25:30), inf) <= 0.04, ...
-        states{j}(3) + .02 <= states{j}(15), ... % Maintain some distance between links to prevent collision
-        states{j}(15) + .02 <= states{j}(27)];
-end
-constraints = [constraints, states{N}(3) + .02 <= states{N}(15), states{N}(15) + .02 <= states{N}(27)];
-
-objective = 25*norm(states{1}(25:27) - reference{1}(1:3), 2); % Minimize deviations along trajectory
-for k = 2:(N-1)
-    objective = objective + (1/2)*(25^k)*norm(states{k}(25:27) - reference{k}(1:3), 2) + (1/24)*(3^k)*norm(inputs{k} - inputs{k-1}, inf) ...
-        + (3^k)*(norm(states{k}(25:27) - states{k-1}(25:27))); % Also minimize change in state/input for smooth motion
-end
-objective = objective + (1/2)*(25^N)*norm(states{N}(25:27) - reference{N}(1:3), 2) + (3^N)*norm(states{N}(25:27) - states{N-1}(25:27));
-
-parameters_in = {prev_in, states{1}, [A_t{:}], [B_t{:}], c_t, [reference{:}]};
-solutions_out = {[inputs{:}], [states{:}]};
-
-% Build controller object for faster computation during iteration
-controller = optimizer(constraints, objective, sdpsettings('solver', 'gurobi', 'verbose', 1), parameters_in, solutions_out);
+% Create the YALMIP controller for computation of the actual MPC optimizations.
+[controller, ~, ~, ~, ~] = get_yalmip_controller_no_rotation(N, inputs, states, A_t, B_t, c_t, prev_in, reference);
 
 %% Forward simulate trajectory
 disp('Forward simulate trajectory')
@@ -247,7 +214,7 @@ refx = [x_ref{:}];
 plot3(refx(25, :), refx(26, :), refx(27, :), 'b-.', 'LineWidth', 2);
 
 %% Build Iterative LQR Controller
-disp('Build Iterative LQR Controller')
+disp('Build LQR Controllers for each timestep')
 
 Q = zeros(12);
 Q(1:6, 1:6) = eye(6);
@@ -374,6 +341,6 @@ end
 plot3(actual_traj(1, :), actual_traj(2, :), actual_traj(3, :), 'g', 'LineWidth', 2);
 
 % Uncomment these lines to save the video.
-open(videoObject);
-writeVideo(videoObject, videoFrames);
-close(videoObject);
+%open(videoObject);
+%writeVideo(videoObject, videoFrames);
+%close(videoObject);
