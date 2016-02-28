@@ -46,9 +46,9 @@ m_t = spine_geometric_parameters.m_t;
 FoS = spine_geometric_parameters.FoS;
 % mass of one node of the tetrahedron (there are five point masses per tetra)
 %m = spine_geometric_parameters.m;
-% Radius of Link.
-%rad = spine_geometric_parameters.r;
-rad = 0.01;
+
+% Radius of a "leg" of the tetrahedron. NOTE that since this is a point-mass model, this parameter is only for visualization.
+rad = 0.007;
 
 % Number of links in addition to base link.
 % NOTE that this must be consistent with the dynamics defined in
@@ -80,9 +80,9 @@ stringEnable = 1;
 % - the following three initialization lines
 % - the getframe call within the last loop
 % - the open, save, and close lines at the end of this script
-%videoObject = VideoWriter('../videos/UTLTRASpineMPC4TetraCircular.avi');
-%videoObject.Quality = 100;
-%videoObject.FrameRate = 5;
+videoObject = VideoWriter('../../videos/ultra-spine-mpc-topbending1.avi');
+videoObject.Quality = 100;
+videoObject.FrameRate = 5;
 
 %% Initialize Plot
 Figs = figure('Units','Normalized', 'outerposition', [0 0 1 1]);
@@ -108,7 +108,7 @@ view(3)
 title('ULTRA Spine Model')
 m = 256;
 
-%% Simulation
+%% Initialize the simulation
 restLengths(1) = 0.1; % Vertical cable rest length
 restLengths(2) = 0.1;
 restLengths(3) = 0.1;
@@ -125,6 +125,19 @@ systemStates = zeros(links, 12);
 x_initial = [];
 
 % Initialize all the states of the system
+% This script currently (2016-02-27) considers "k" to be a different index in different circumstances.
+% Here, it's used for the system states as k=1 for the first moving tetrahedron, and k=links (k=3) for the topmost one.
+% But, for plotting, each of these is shifted up: Tetra{1} is for the first (unmoving) tetra, and Tetra{4} is the topmost.
+
+% Plot the first tetra (k=1 in the Tetra{} usage)
+% Tetra{1} = [(l^2 - (h/2)^2)^.5, 0, -h/2; ...
+%             -(l^2 - (h/2)^2)^.5, 0, -h/2; ...
+%             0, (l^2 - (h/2)^2)^.5, h/2; ...
+%             0, -(l^2 - (h/2)^2)^.5, h/2];
+
+% Plot a visualization of this spine tetrahedron
+%[transform{1}, ~] = plotSpineLink(Tetra{1}, rad, ax);
+
 for k = 1:links
     % For this tetrahedron, it starts completely still, centered at (x,y) = (0,0) with a z-offset
     x(k) = 0; 
@@ -142,39 +155,38 @@ for k = 1:links
     
     % This variable represents the location of the outer 4 nodes per tetrahedron (the 5th is the centerpoint.)
     % Each tetra is moved up by its z-offset here.
-    Tetra{k} = [(leg + rad/2), 0, -h/2; ...
-                -(leg + rad/2), 0, -h/2; ...
-                0, (leg + rad/2), h/2; ...
-                0, -(leg + rad/2), h/2];
+%     Tetra{k} = [(l^2 - (h/2)^2)^.5, 0, -h/2 + z(k); ...
+%                 -(l^2 - (h/2)^2)^.5, 0, -h/2 + z(k); ...
+%                 0, (l^2 - (h/2)^2)^.5, h/2 + z(k); ...
+%                 0, -(l^2 - (h/2)^2)^.5, h/2 + z(k)];
+    Tetra{k} = [(l^2 - (h/2)^2)^.5, 0, -h/2; ...
+                -(l^2 - (h/2)^2)^.5, 0, -h/2; ...
+                0, (l^2 - (h/2)^2)^.5, h/2; ...
+                0, -(l^2 - (h/2)^2)^.5, h/2];
             
     % Plot a visualization of this spine tetrahedron
-    [transform{k}, handle{k}] = plotSpineLink(Tetra{k}, rad, ax);
+    [transform{k}, ~] = plotSpineLink(Tetra{k}, rad, ax);
     
     % The first state of this tetrahedron is at this starting location defined above
     systemStates(k, :) = [x(k), y(k), z(k), T(k), G(k), P(k), dx(k), dy(k), dz(k), dT(k), dG(k), dP(k)];
     % Append this state to the vector of initial states.
     x_initial = [x_initial; x(k); y(k); z(k); T(k); G(k); P(k); dx(k); dy(k); dz(k); dT(k); dG(k); dP(k)];
 end
+
+% This was leftover: (2016-02-27)
 Tetra{links+1} = Tetra{links};
-[transform{links+1}, handle{links+1}] = plotSpineLink(Tetra{links+1}, rad, ax);
+[transform{links+1}, ~] = plotSpineLink(Tetra{links+1}, rad, ax);
 
 %% Reference Trajectory
-L = 180;
-theta = linspace(-pi, pi, L);
-r = .04;
-traj = [r*cos(theta) + r; ...
-        zeros(1, L); ...
-        r*sin(theta) + 0.3; ...
-        zeros(1, L); ...
-        zeros(1, L); ... 
-        zeros(1, L); ...
-        zeros(1, L); ...
-        zeros(1, L); ...
-        zeros(1, L); ...
-        zeros(1, L); ...
-        zeros(1, L); ...
-        zeros(1, L)];
-plot3(traj(1, :), zeros(1, L), traj(3, :), 'r', 'LineWidth', 2);
+% Load in one of the trajectories
+
+%[traj, L] = get_ref_traj_circletop();
+%[traj, L] = get_ref_traj_quartercircletop();
+[traj, L] = get_ref_traj_topbending1();
+%[traj, L] = get_ref_traj_topbending2();
+
+% Plot this trajectory, for a visualization
+plot3(traj(1, :), traj(2,:), traj(3, :), 'r', 'LineWidth', 2);
 
 %% Controller Initialization
 disp('Controller Initialization')
@@ -272,9 +284,21 @@ end
 plot_dt = 0.01; % Slow down the animation slightly
 offset = 30; % Used for animation so it stays still for a few seconds
 
+% Reset all tetrahedra to their beginning states.
 for k = 1:links
-    x(k) = 0; y(k) = 0.0; z(k) = 0.1*k; T(k) = 0.0; G(k) = 0.0; P(k) = 0.0;
-    dx(k) = 0; dy(k) = 0; dz(k) = 0; dT(k) = 0; dG(k) = 0; dP(k) = 0;
+    % Each tetrahedron starts out where it was in the beginning. See code above in the initialization section.
+    x(k) = 0; 
+    y(k) = 0.0; 
+    z(k) = tetra_vertical_spacing * k; 
+    T(k) = 0.0; 
+    G(k) = 0.0; 
+    P(k) = 0.0;
+    dx(k) = 0; 
+    dy(k) = 0; 
+    dz(k) = 0; 
+    dT(k) = 0; 
+    dG(k) = 0; 
+    dP(k) = 0;
 end
 
 s = 1;
@@ -294,7 +318,10 @@ for t = 1:((M-1)+offset)
         
         if (stringEnable)
             for k = 2:(links+1)
-                Tetra{k} = [(l^2 - (h/2)^2)^.5, 0, -h/2, 1; -(l^2 - (h/2)^2)^.5, 0, -h/2, 1; 0, (l^2 - (h/2)^2)^.5, h/2, 1; 0, -(l^2 - (h/2)^2)^.5, h/2, 1];
+                Tetra{k} = [(l^2 - (h/2)^2)^.5, 0, -h/2, 1; ...
+                            -(l^2 - (h/2)^2)^.5, 0, -h/2, 1; ...
+                            0, (l^2 - (h/2)^2)^.5, h/2, 1; ...
+                            0, -(l^2 - (h/2)^2)^.5, h/2, 1];
                 Tetra{k} = RR{k-1}*Tetra{k}';
                 Tetra{k} = Tetra{k}';
                 Tetra{k} = Tetra{k}(:,1:3);
@@ -338,6 +365,6 @@ end
 plot3(actual_traj(1, :), actual_traj(2, :), actual_traj(3, :), 'g', 'LineWidth', 2);
 
 % Uncomment these lines to save the video.
-%open(videoObject);
-%writeVideo(videoObject, videoFrames);
-%close(videoObject);
+open(videoObject);
+writeVideo(videoObject, videoFrames);
+close(videoObject);

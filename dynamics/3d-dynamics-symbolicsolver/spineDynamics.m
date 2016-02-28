@@ -36,10 +36,6 @@ close all
 %       lends some sense of robustness (informally.) (unitless)
 %   m, mass of one node of the tetrahedron. = (m_t / 5)*FoS, because there
 %       are 5 point masses in this model. Includes FoS too. (kg).
-%   r, radius of the spine leg. NOTE that this is ONLY for visualization,
-%       since the dynamics are for point-masses only, not rigid bodies. So,
-%       this parameter is not used in this script at all, but combined here
-%       for ease. (m)
 
 g = 9.81;
 N = 4;
@@ -48,7 +44,6 @@ h = 0.15;
 m_t = 0.142;
 FoS = 1.2;
 m = (m_t/5) * FoS;
-r = 0.002;
 
 % Store all these parameters as a struct for later use.
 spine_geometric_parameters.g = g;
@@ -58,7 +53,6 @@ spine_geometric_parameters.h = h;
 spine_geometric_parameters.m_t = m_t;
 spine_geometric_parameters.FoS = FoS;
 spine_geometric_parameters.m = m;
-spine_geometric_parameters.r = r;
 % The path where we want to save these parameters as a .mat file:
 spine_geometric_parameters_path = 'spine_geometric_parameters';
 

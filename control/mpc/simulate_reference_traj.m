@@ -23,7 +23,7 @@ M = 1;
 
 prev_in = u_initial;
 for index = 1:(size(traj, 2) - N)
-    disp(strcat('Simulating reference trajectory iteration (index):',num2str(index)));
+    disp(strcat('Simulating reference trajectory, timestep no.:',num2str(index)));
     for k = 1:links
         systemStates(k, 1) = x(k); systemStates(k, 2) = y(k); systemStates(k, 3) = z(k);
         systemStates(k, 4) = T(k); systemStates(k, 5) = G(k); systemStates(k, 6) = P(k);

@@ -1,3 +1,7 @@
+% transforms.m
+% Copyright 2015 Abishek Akella
+% Creates the function getHG_Tform.m, which generates a symbolic rotation matrix for moving around tetrahedrons
+
 syms x y z T G P
 assume(x,'real');
 assume(y,'real');
