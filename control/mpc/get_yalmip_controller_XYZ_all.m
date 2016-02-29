@@ -1,9 +1,12 @@
-% get_yalmip_controller_XYZ.m
+% get_yalmip_controller_XYZ_all.m
 % Copyright 2015 Abishek Akella, Andrew P. Sabelhaus
 % This function contains the objective and constraints that work for the ULTRA Spine MPC when the reference trajectory has only nonzeros in X,Y,Z.
+% This controller is for trajectories in (x,y,z) for ALL THREE moving tetrahedra.
 % Note that this is for a 4-vertebra (link == 3) spine system
 
-function [controller, constraints, objective, parameters_in, solutions_out] = get_yalmip_controller_XYZ(N, inputs, states, ...
+% THIS FUNCTION HAS NOT BEEN BUILT YET as of 2016-02-28
+
+function [controller, constraints, objective, parameters_in, solutions_out] = get_yalmip_controller_XYZ_all(N, inputs, states, ...
     A_t, B_t, c_t, prev_in, reference)
 
 % Inputs:
@@ -60,6 +63,8 @@ for j = 1:(N-1)
         states{j}(15) + .02 <= states{j}(27)];
 end
 constraints = [constraints, states{N}(3) + .02 <= states{N}(15), states{N}(15) + .02 <= states{N}(27)];
+
+% NOTE: AS OF 2016-02-28, THIS FUNCTION HAS NOT BEEN UPDATED FROM THE ONLY-TOP-TETRA VERSION.
 
 % Build up the objective
 % First, minimize deviations along trajectory for the topmost tetrahedron

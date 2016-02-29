@@ -61,9 +61,6 @@ links = N_tetras-1; % Here, this is going to be 4-1 = 3.
 % Tetrahedron vertical spacing. The initial z-distance between successive tetrahedra
 tetra_vertical_spacing = 0.1; % meters
 
-% Projection of leg length (e.g., the x or y coordinate of an endpoint of a node. See spineDynamics for more information.)
-leg = (l^2 - (h/2)^2)^.5;
-
 % Number of links in addition to base link.
 % NOTE that this must be consistent with the dynamics defined in
 % duct_accel.m and associated files! Those dynamics are pre-calculated,
@@ -84,9 +81,9 @@ anchor = [0 0 rad];
 % - the following three initialization lines
 % - the getframe call within the last loop
 % - the open, save, and close lines at the end of this script
-%videoObject = VideoWriter('../../videos/ultra-spine-mpc-topbending1.avi');
-%videoObject.Quality = 100;
-%videoObject.FrameRate = 5;
+videoObject = VideoWriter('../../videos/ultra-spine-mpc-toprotationtest.avi');
+videoObject.Quality = 100;
+videoObject.FrameRate = 5;
 
 %% Initialize Plot
 Figs = figure('Units','Normalized', 'outerposition', [0 0 1 1]);
@@ -209,10 +206,10 @@ end
 
 %[traj, L] = get_ref_traj_circletop();
 %[traj, L] = get_ref_traj_quartercircletop();
-%[traj, L] = get_ref_traj_topbending1(); %OPTIMIZATION FAILS AS OF 2016-02-27
+%[traj, L] = get_ref_traj_topbending1(); % Requires using the XYZT controller. NOT WORKING WELL as of 2016-02-28...
 %[traj, L] = get_ref_traj_topbending2();
-%[traj, L] = get_ref_traj_toprotationtest(); %OPTIMIZATION FAILS AS OF 2016-02-27
-[traj, L]  = get_ref_traj_zero();
+[traj, L] = get_ref_traj_toprotationtest(); % Requires using a controller with angles, like XYZT ot XYZG. Check inside this function to see more.
+%[traj, L]  = get_ref_traj_zero();
 
 % Plot this trajectory, for a visualization
 plot3(traj(1, :), traj(2,:), traj(3, :), 'r', 'LineWidth', 2);
@@ -230,15 +227,15 @@ A_t = sdpvar(repmat(12*links, 1, 12*links), repmat(1, 1, 12*links));
 B_t = sdpvar(repmat(12*links, 1, 8*links), repmat(1, 1, 8*links));
 c_t = sdpvar(36, 1);
 prev_in = sdpvar(8*links, 1);
+% The reference trajectory here is only for the top tetrahedron (12 states, one rigid body.)
 reference = sdpvar(repmat(12, 1, N), repmat(1, 1, N));
 
 % Create the YALMIP controller for computation of the actual MPC optimizations.
 % This function contains all the definitions of the constraints on the optimization, as well as the objective function.
-[controller, ~, ~, ~, ~] = get_yalmip_controller_XYZ(N, inputs, states, A_t, B_t, c_t, prev_in, reference);
-%[controller, ~, ~, ~, ~] = get_yalmip_controller_XYZT(N, inputs, states, A_t, B_t, c_t, prev_in, reference);
 
-% Build controller object for faster computation during iteration
-controller = optimizer(constraints, objective, sdpsettings('solver', 'gurobi', 'verbose', 1), parameters_in, solutions_out);
+%[controller, ~, ~, ~, ~] = get_yalmip_controller_XYZ(N, inputs, states, A_t, B_t, c_t, prev_in, reference);
+%[controller, ~, ~, ~, ~] = get_yalmip_controller_XYZT(N, inputs, states, A_t, B_t, c_t, prev_in, reference);
+[controller, ~, ~, ~, ~] = get_yalmip_controller_XYZG(N, inputs, states, A_t, B_t, c_t, prev_in, reference);
 
 %% Forward simulate trajectory
 disp('Forward simulate trajectory')
@@ -404,6 +401,6 @@ end
 plot3(actual_traj(1, :), actual_traj(2, :), actual_traj(3, :), 'g', 'LineWidth', 2);
 
 % Uncomment these lines to save the video.
-%open(videoObject);
-%writeVideo(videoObject, videoFrames);
-%close(videoObject);
+open(videoObject);
+writeVideo(videoObject, videoFrames);
+close(videoObject);
