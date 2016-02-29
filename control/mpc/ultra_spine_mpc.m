@@ -77,37 +77,56 @@ stringEnable = 1;
 % Position of the anchor location of the cables on a tetra node
 anchor = [0 0 rad];
 
-% To save a video, uncomment:
-% - the following three initialization lines
-% - the getframe call within the last loop
-% - the open, save, and close lines at the end of this script
-videoObject = VideoWriter('../../videos/ultra-spine-mpc-toprotationtest.avi');
-videoObject.Quality = 100;
-videoObject.FrameRate = 5;
+% To save a video, set this flag to 1, and change the name of the output file.
+save_video = 1;
+
+if(save_video)
+    videoObject = VideoWriter('../../videos/ultra-spine-mpc-topbending1_XYZonly.avi');
+    videoObject.Quality = 100;
+    videoObject.FrameRate = 5;
+end
+
+
 
 %% Initialize Plot
-Figs = figure('Units','Normalized', 'outerposition', [0 0 1 1]);
+% Note that this is performed at the beginning so the visualization of the terahedra bodies can be loaded properly.
+
+% Create the figure window
+figure_handle = figure('position', [100, 100, 700 800],'Color','w');
+
 M = struct('cdata', cell(1,round(length(time)/10)), 'colormap', cell(1,round(length(time)/10)));
 
+% Set the color map
 cmaps = summer(512);
+colormap(cmaps(1:256,:))
+%colormap(cool);
 ax = axes();
 
 grid on;
 axis equal;
-xlim([-0.25 0.25])
-ylim([-0.25 0.25])
-zlim([-0.1, 0.5])
-xlabel('x (m)')
-ylabel('y (m)')
-zlabel('z (m)')
-colormap(cmaps(1:256,:))
+
+hold on;
+
+% Rotate for a better visualization
+view([-20, 14]);
+
+% Labels
+xlabel('X (m)')
+ylabel('Y (m)')
+zlabel('Z (m)')
+title('ULTRA Spine Model')
+
+% Size everything properly
+xlim([-0.2 0.2])
+ylim([-0.2 0.2])
+zlim([-0.1, 0.4])
+set(gca,'FontSize',24)
+
 shading interp
 light
 lighting phong
-hold on
-view(3)
-title('ULTRA Spine Model')
-m = 256;
+
+%m = 256;
 
 %% Initialize the simulation
 restLengths(1) = 0.1; % Vertical cable rest length
@@ -198,21 +217,21 @@ if (stringEnable)
     % Get the endpoints of the cables
     String_pts = get_spine_cable_points(Tetra, anchor);
     % Plot. Save the handle so we can delete this set of cables later
-    string_handle=plot3(String_pts(:,1),String_pts(:,2),String_pts(:,3),'LineWidth',2,'Color','m');
+    string_handle=plot3(String_pts(:,1),String_pts(:,2),String_pts(:,3),'LineWidth',2,'Color','r');
 end
 
 %% Reference Trajectory
 % Load in one of the trajectories
 
-%[traj, L] = get_ref_traj_circletop();
-%[traj, L] = get_ref_traj_quartercircletop();
-%[traj, L] = get_ref_traj_topbending1(); % Requires using the XYZT controller. NOT WORKING WELL as of 2016-02-28...
-%[traj, L] = get_ref_traj_topbending2();
-[traj, L] = get_ref_traj_toprotationtest(); % Requires using a controller with angles, like XYZT ot XYZG. Check inside this function to see more.
-%[traj, L]  = get_ref_traj_zero();
+%[traj, ~] = get_ref_traj_circletop();
+%[traj, ~] = get_ref_traj_quartercircletop();
+[traj, ~] = get_ref_traj_topbending1(); % Has trajectories along angles. NOT WORKING WELL as of 2016-02-28...
+%[traj, ~] = get_ref_traj_topbending2();
+%[traj, ~] = get_ref_traj_toprotationtest(); % Has trajectories along angles.
+%[traj, ~]  = get_ref_traj_zero();
 
 % Plot this trajectory, for a visualization
-plot3(traj(1, :), traj(2,:), traj(3, :), 'r', 'LineWidth', 2);
+plot3(traj(1, :), traj(2,:), traj(3, :), 'b', 'LineWidth', 2);
 
 % Force the figure to draw. The figure at this point includes: tetra bodies, tetra cables, reference trajectory in (x,y,z).
 drawnow;
@@ -233,9 +252,9 @@ reference = sdpvar(repmat(12, 1, N), repmat(1, 1, N));
 % Create the YALMIP controller for computation of the actual MPC optimizations.
 % This function contains all the definitions of the constraints on the optimization, as well as the objective function.
 
-%[controller, ~, ~, ~, ~] = get_yalmip_controller_XYZ(N, inputs, states, A_t, B_t, c_t, prev_in, reference);
+[controller, ~, ~, ~, ~] = get_yalmip_controller_XYZ(N, inputs, states, A_t, B_t, c_t, prev_in, reference);
 %[controller, ~, ~, ~, ~] = get_yalmip_controller_XYZT(N, inputs, states, A_t, B_t, c_t, prev_in, reference);
-[controller, ~, ~, ~, ~] = get_yalmip_controller_XYZG(N, inputs, states, A_t, B_t, c_t, prev_in, reference);
+%[controller, ~, ~, ~, ~] = get_yalmip_controller_XYZG(N, inputs, states, A_t, B_t, c_t, prev_in, reference);
 
 %% Forward simulate trajectory
 disp('Forward simulate trajectory')
@@ -277,7 +296,7 @@ if (stringEnable)
     % Get the endpoints of the cables
     String_pts = get_spine_cable_points(Tetra, anchor);
     % Plot. Save the handle so we can delete these strings later.
-    string_handle=plot3(String_pts(:,1),String_pts(:,2),String_pts(:,3),'LineWidth',2,'Color','m');
+    string_handle=plot3(String_pts(:,1),String_pts(:,2),String_pts(:,3),'LineWidth',2,'Color','r');
 end
 
 plot_dt = 0.01; % Slow down the animation slightly
@@ -345,7 +364,7 @@ for t = 1:((M-1)+offset)
             % Get the coordinates of the spine cables
             String_pts = get_spine_cable_points(Tetra, anchor);
             % Plot the new strings
-            string_handle=plot3(String_pts(:,1),String_pts(:,2),String_pts(:,3),'LineWidth',2,'Color','m');
+            string_handle=plot3(String_pts(:,1),String_pts(:,2),String_pts(:,3),'LineWidth',2,'Color','r');
         end
         drawnow;
     end
@@ -400,7 +419,17 @@ end
 % Plot the resultant trajectory, in full.
 plot3(actual_traj(1, :), actual_traj(2, :), actual_traj(3, :), 'g', 'LineWidth', 2);
 
-% Uncomment these lines to save the video.
-open(videoObject);
-writeVideo(videoObject, videoFrames);
-close(videoObject);
+% Save the last frame, now with full trajectory plotted.
+% Save a few of them in a row for a better visualization.
+% for frames = 1:5
+%     videoFrames(t + frame) = getframe(gcf)
+% end
+
+% Save the video, if the save_video flag is set
+if(save_video)
+    open(videoObject);
+    writeVideo(videoObject, videoFrames);
+    close(videoObject);
+end
+
+% End script.

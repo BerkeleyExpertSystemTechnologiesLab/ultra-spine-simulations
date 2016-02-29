@@ -38,7 +38,7 @@ function [controller, constraints, objective, parameters_in, solutions_out] = ge
 
 %% Define weights
 % Power-function weight for the objectives, used on the reference-tracking terms, for the longitudinal coordinates x,y,z
-obj_w_r = 5;
+obj_w_r = 10; %used to be 5
 % Power-function weight for the objectives, used on the reference-tracking terms, for the angle G
 obj_w_ra = 25;
 % Multiplicative weight for the objectives, used on the successive-states terms (smooth motion)
