@@ -1,9 +1,9 @@
-% get_yalmip_controller_no_rotation.m
+% get_yalmip_controller_XYZ.m
 % Copyright 2015 Abishek Akella, Andrew P. Sabelhaus
-% This function contains the objective and constraints that work for the ULTRA Spine MPC when the reference trajectory does not contain rotations.
+% This function contains the objective and constraints that work for the ULTRA Spine MPC when the reference trajectory has only nonzeros in X,Y,Z,T.
 % Note that this is for a 4-vertebra (link == 3) spine system
 
-function [controller, constraints, objective, parameters_in, solutions_out] = get_yalmip_controller_no_rotation(N, inputs, states, ...
+function [controller, constraints, objective, parameters_in, solutions_out] = get_yalmip_controller_XYZT(N, inputs, states, ...
     A_t, B_t, c_t, prev_in, reference)
 
 % Inputs:
