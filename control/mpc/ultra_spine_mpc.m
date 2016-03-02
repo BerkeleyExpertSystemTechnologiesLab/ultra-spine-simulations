@@ -78,11 +78,12 @@ stringEnable = 1;
 anchor = [0 0 rad];
 
 % To save a video, set this flag to 1, and change the name of the output file.
-save_video = 1;
+save_video = 0;
 
 if(save_video)
-    videoObject = VideoWriter('../../videos/ultra-spine-mpc-topbending1_XYZonly.avi');
-    videoObject.Quality = 100;
+    break;
+    videoObject = VideoWriter('../../videos/ultra-spine');
+    videoObject.Quality = 90;
     videoObject.FrameRate = 5;
 end
 
@@ -223,9 +224,9 @@ end
 %% Reference Trajectory
 % Load in one of the trajectories
 
-%[traj, ~] = get_ref_traj_circletop();
+[traj, ~] = get_ref_traj_circletop();
 %[traj, ~] = get_ref_traj_quartercircletop();
-[traj, ~] = get_ref_traj_topbending1(); % Has trajectories along angles. NOT WORKING WELL as of 2016-02-28...
+%[traj, ~] = get_ref_traj_topbending1(); % Has trajectories along angles. NOT WORKING WELL as of 2016-02-28...
 %[traj, ~] = get_ref_traj_topbending2();
 %[traj, ~] = get_ref_traj_toprotationtest(); % Has trajectories along angles.
 %[traj, ~]  = get_ref_traj_zero();
@@ -268,20 +269,41 @@ plot3(refx(25, :), refx(26, :), refx(27, :), 'b-.', 'LineWidth', 2);
 %% Build Iterative LQR Controller
 disp('Build LQR Controllers for each timestep')
 
+% Create the weighting matrices Q and R
+
+% Version 1: weight on the position states for each tetrahedron equally (no weight on velocity)
 Q = zeros(12);
 Q(1:6, 1:6) = eye(6);
 Q_lqr = 5*kron(eye(3), Q);
 R_lqr = 5*eye(8*links);
 
+% Version 2: weight only on the position of the top tetrahedron
+% Q = zeros(36);
+% Q(25:30, 25:30) = 50 * eye(6);
+% Q_lqr = Q;
+% R_lqr = 2*eye(8*links);
+
+% Version 3: weight on all states
+% Q = 20 * eye(36);
+% Q_lqr = Q;
+% R_lqr = 2*eye(8*links);
+
 tic;
 P0 = zeros(36);
+% Linearize the dynamics around the final point in the trajectory (timestep M.)
 [A, B, ~] = linearize_dynamics(x_ref{M}, u_ref{M}, restLengths, links, dt);
+% Calculate the gain K for this timestep (at the final timestep, P == the 0 matrix.)
 K{1} = -((R_lqr + B'*P0*B)^-1)*B'*P0*A;
+% Calculate the first matrix P for use in the finite-horizon LQR below
 P_lqr{1} = Q_lqr + K{1}'*R_lqr*K{1} + (A + B*K{1})'*P0*(A + B*K{1});
+% Iterate in creating the finite-horizon LQRs, moving backwards from the end state
 for k = (M-1):-1:1
     disp(strcat('Controller Build iteration:',num2str(k)))
+    % Linearize the dynamics around this timestep
     [A, B, ~] = linearize_dynamics(x_ref{k}, u_ref{k}, restLengths, links, dt);
+    % Calculate the gain K for this timestep, using the prior step's P
     K{M-k+1} = -((R_lqr + B'*P_lqr{M-k}*B)^-1)*B'*P_lqr{M-k}*A;
+    % Calculate the P for this step using the gain K from this step.
     P_lqr{M-k+1} = Q_lqr + K{M-k+1}'*R_lqr*K{M-k+1} + (A + B*K{M-k+1})'*P_lqr{M-k}*(A + B*K{M-k+1});
 end
 toc;
@@ -389,11 +411,15 @@ for t = 1:((M-1)+offset)
 
     if ((t > offset) && (t < M + offset))
         % Calculate the input to the system dynamics
+        % A general representation of u(t) = K(t) * (x(t) - x_{ref}(t)) + u_{ref}(t)
         control = K{M+offset-t}*(reshape(systemStates', 36, 1) - x_ref{t-offset}) + u_ref{t-offset};
         % Forward simulate using that control input
         systemStates = simulate_dynamics(systemStates, restLengths, reshape(control, 8, 3)', dt, links, noise);
         % Save the result as the next point in the performed trajectory
-        actual_traj(:, s) = systemStates(links, :); s = s + 1;
+        actual_traj(:, s) = systemStates(links, :); 
+        % Save the control results for examination later
+        actual_control_inputs(:,s) = control;
+        s = s + 1;
     end
     
     % Unfoil the new system states back into the series of individual variables

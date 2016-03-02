@@ -13,7 +13,8 @@ r = 0.04; % meters
 % z-height offset for the circle
 circle_height = 0.3; % meters
 
-num_points = 180;
+% Multiplier here: used to be just 180
+num_points = 100;
 theta = linspace(-pi, pi, num_points);
 
 traj = [r*cos(theta) + r; ...
