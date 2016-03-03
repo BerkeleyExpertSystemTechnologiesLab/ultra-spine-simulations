@@ -11,17 +11,25 @@ function [x_ref, u_ref, M] = simulate_reference_traj(controller, systemStates, r
 
 disp('Simulating reference trajectory')
 
+% Initializing states for each link based on default resting location of
+% each individual link. Initial input to linearize around is u = {0}.
 x_initial = [];
 for k = 1:links
     x_initial = [x_initial; x(k); y(k); z(k); T(k); G(k); P(k); dx(k); dy(k); dz(k); dT(k); dG(k); dP(k)];
 end
 u_initial = zeros(8*links, 1);
 
+% Linearize model around initial state/input.
 [A, B, c] = linearize_dynamics(x_initial, u_initial, restLengths, links, dt);
 
 M = 1;
 
 prev_in = u_initial;
+
+% Begin running MPC controller on the desired trajectory. The controller
+% generates a dynamically feasible input and state trajectory which can
+% later be followed using a faster control strategy.
+
 for index = 1:(size(traj, 2) - N)
     disp(strcat('Simulating reference trajectory, timestep no.:',num2str(index)));
     for k = 1:links

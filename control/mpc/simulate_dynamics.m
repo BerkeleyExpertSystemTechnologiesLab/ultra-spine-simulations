@@ -25,12 +25,12 @@ function systemStates = simulate_dynamics(systemStates, restLengths, inputs, dt,
 %
 % systemStates{t+1} = systemStates{t} + (dt/6)*(K1 + 2*K2 + 2*K3 + K4)
 
-stateX{1} = 0; % First link is fixed (Placeholder for state info)
+tempState{1} = 0; % First link is fixed (Placeholder for state info)
 Te{1} = 0;
 initial_states = [];
 for k = 2:(links+1)
-    stateX{k} = systemStates(k-1, :);
-    initial_states = [initial_states; stateX{k}'];
+    tempState{k} = systemStates(k-1, :);
+    initial_states = [initial_states; tempState{k}'];
 end
 
 % Runge-Kutta step 1
@@ -39,9 +39,9 @@ end
 % their corresponding accelerations for the second six states.
 
 for k = 2:(links+1)
-    Te{k} = getTensions(stateX{2}(1),stateX{2}(2),stateX{2}(3),stateX{2}(4),stateX{2}(5),stateX{2}(6),stateX{2}(7),stateX{2}(8),stateX{2}(9),stateX{2}(10),stateX{2}(11),stateX{2}(12), ...
-        stateX{3}(1),stateX{3}(2),stateX{3}(3),stateX{3}(4),stateX{3}(5),stateX{3}(6),stateX{3}(7),stateX{3}(8),stateX{3}(9),stateX{3}(10),stateX{3}(11),stateX{3}(12), ...
-        stateX{4}(1),stateX{4}(2),stateX{4}(3),stateX{4}(4),stateX{4}(5),stateX{4}(6),stateX{4}(7),stateX{4}(8),stateX{4}(9),stateX{4}(10),stateX{4}(11),stateX{4}(12), ...
+    Te{k} = getTensions(tempState{2}(1),tempState{2}(2),tempState{2}(3),tempState{2}(4),tempState{2}(5),tempState{2}(6),tempState{2}(7),tempState{2}(8),tempState{2}(9),tempState{2}(10),tempState{2}(11),tempState{2}(12), ...
+        tempState{3}(1),tempState{3}(2),tempState{3}(3),tempState{3}(4),tempState{3}(5),tempState{3}(6),tempState{3}(7),tempState{3}(8),tempState{3}(9),tempState{3}(10),tempState{3}(11),tempState{3}(12), ...
+        tempState{4}(1),tempState{4}(2),tempState{4}(3),tempState{4}(4),tempState{4}(5),tempState{4}(6),tempState{4}(7),tempState{4}(8),tempState{4}(9),tempState{4}(10),tempState{4}(11),tempState{4}(12), ...
         inputs(k-1, 1),inputs(k-1, 2),inputs(k-1, 3),inputs(k-1, 4),inputs(k-1, 5),inputs(k-1, 6),inputs(k-1, 7),inputs(k-1, 8), ...
         restLengths(1), restLengths(2), restLengths(3), restLengths(4), restLengths(5), restLengths(6), restLengths(7), restLengths(8), k);
 end
@@ -52,15 +52,15 @@ end
 % subsequently built from the last six states of the state vector and these
 % six acceleration components.
 
-K = duct_accel(stateX{2}(1),stateX{2}(2),stateX{2}(3),stateX{2}(4),stateX{2}(5),stateX{2}(6),stateX{2}(7),stateX{2}(8),stateX{2}(9),stateX{2}(10),stateX{2}(11),stateX{2}(12),Te{2}(1),Te{2}(2),Te{2}(3),Te{2}(4),Te{2}(5),Te{2}(6),Te{2}(7),Te{2}(8), ...
-    stateX{3}(1),stateX{3}(2),stateX{3}(3),stateX{3}(4),stateX{3}(5),stateX{3}(6),stateX{3}(7),stateX{3}(8),stateX{3}(9),stateX{3}(10),stateX{3}(11),stateX{3}(12),Te{3}(1),Te{3}(2),Te{3}(3),Te{3}(4),Te{3}(5),Te{3}(6),Te{3}(7),Te{3}(8), ...
-    stateX{4}(1),stateX{4}(2),stateX{4}(3),stateX{4}(4),stateX{4}(5),stateX{4}(6),stateX{4}(7),stateX{4}(8),stateX{4}(9),stateX{4}(10),stateX{4}(11),stateX{4}(12),Te{4}(1),Te{4}(2),Te{4}(3),Te{4}(4),Te{4}(5),Te{4}(6),Te{4}(7),Te{4}(8));
+K = duct_accel(tempState{2}(1),tempState{2}(2),tempState{2}(3),tempState{2}(4),tempState{2}(5),tempState{2}(6),tempState{2}(7),tempState{2}(8),tempState{2}(9),tempState{2}(10),tempState{2}(11),tempState{2}(12),Te{2}(1),Te{2}(2),Te{2}(3),Te{2}(4),Te{2}(5),Te{2}(6),Te{2}(7),Te{2}(8), ...
+    tempState{3}(1),tempState{3}(2),tempState{3}(3),tempState{3}(4),tempState{3}(5),tempState{3}(6),tempState{3}(7),tempState{3}(8),tempState{3}(9),tempState{3}(10),tempState{3}(11),tempState{3}(12),Te{3}(1),Te{3}(2),Te{3}(3),Te{3}(4),Te{3}(5),Te{3}(6),Te{3}(7),Te{3}(8), ...
+    tempState{4}(1),tempState{4}(2),tempState{4}(3),tempState{4}(4),tempState{4}(5),tempState{4}(6),tempState{4}(7),tempState{4}(8),tempState{4}(9),tempState{4}(10),tempState{4}(11),tempState{4}(12),Te{4}(1),Te{4}(2),Te{4}(3),Te{4}(4),Te{4}(5),Te{4}(6),Te{4}(7),Te{4}(8));
 
 K1 = zeros(1, links*12);
 for k = 2:(links+1)
     kn = 12*(k-2)+1; % Indexing
     kk = 6*(k-2)+1;
-    K1(kn:(kn+5)) = stateX{k}(7:12);
+    K1(kn:(kn+5)) = tempState{k}(7:12);
     K1((kn+6):(kn+11)) = K(kk:(kk+5));
 end 
 
@@ -71,16 +71,16 @@ end
 % first-order estimate of the states at this point (systemStates + K1*dt/2).
 
 for k = 2:(links+1)
-    Te{k} = getTensions(stateX{2}(1),stateX{2}(2),stateX{2}(3),stateX{2}(4),stateX{2}(5),stateX{2}(6),stateX{2}(7),stateX{2}(8),stateX{2}(9),stateX{2}(10),stateX{2}(11),stateX{2}(12), ...
-        stateX{3}(1),stateX{3}(2),stateX{3}(3),stateX{3}(4),stateX{3}(5),stateX{3}(6),stateX{3}(7),stateX{3}(8),stateX{3}(9),stateX{3}(10),stateX{3}(11),stateX{3}(12), ...
-        stateX{4}(1),stateX{4}(2),stateX{4}(3),stateX{4}(4),stateX{4}(5),stateX{4}(6),stateX{4}(7),stateX{4}(8),stateX{4}(9),stateX{4}(10),stateX{4}(11),stateX{4}(12), ...
+    Te{k} = getTensions(tempState{2}(1),tempState{2}(2),tempState{2}(3),tempState{2}(4),tempState{2}(5),tempState{2}(6),tempState{2}(7),tempState{2}(8),tempState{2}(9),tempState{2}(10),tempState{2}(11),tempState{2}(12), ...
+        tempState{3}(1),tempState{3}(2),tempState{3}(3),tempState{3}(4),tempState{3}(5),tempState{3}(6),tempState{3}(7),tempState{3}(8),tempState{3}(9),tempState{3}(10),tempState{3}(11),tempState{3}(12), ...
+        tempState{4}(1),tempState{4}(2),tempState{4}(3),tempState{4}(4),tempState{4}(5),tempState{4}(6),tempState{4}(7),tempState{4}(8),tempState{4}(9),tempState{4}(10),tempState{4}(11),tempState{4}(12), ...
         inputs(k-1, 1),inputs(k-1, 2),inputs(k-1, 3),inputs(k-1, 4),inputs(k-1, 5),inputs(k-1, 6),inputs(k-1, 7),inputs(k-1, 8), ...
         restLengths(1), restLengths(2), restLengths(3), restLengths(4), restLengths(5), restLengths(6), restLengths(7), restLengths(8), k);
 end
 
 for k = 2:(links+1)
-    n = 12*(k-2)+1;
-    stateX{k} = stateX{k} + (K1(n:(11+n))*dt/2);
+    n = 12*(k-2)+1; % Indexing
+    tempState{k} = tempState{k} + (K1(n:(11+n))*dt/2);
 end
 
 % Duct_accel solves for the six accelerations for X, Y, Z and orientation
@@ -89,15 +89,15 @@ end
 % subsequently built from the last six states of the state vector and these
 % six acceleration components.
 
-K = duct_accel(stateX{2}(1),stateX{2}(2),stateX{2}(3),stateX{2}(4),stateX{2}(5),stateX{2}(6),stateX{2}(7),stateX{2}(8),stateX{2}(9),stateX{2}(10),stateX{2}(11),stateX{2}(12),Te{2}(1),Te{2}(2),Te{2}(3),Te{2}(4),Te{2}(5),Te{2}(6),Te{2}(7),Te{2}(8), ...
-    stateX{3}(1),stateX{3}(2),stateX{3}(3),stateX{3}(4),stateX{3}(5),stateX{3}(6),stateX{3}(7),stateX{3}(8),stateX{3}(9),stateX{3}(10),stateX{3}(11),stateX{3}(12),Te{3}(1),Te{3}(2),Te{3}(3),Te{3}(4),Te{3}(5),Te{3}(6),Te{3}(7),Te{3}(8), ...
-    stateX{4}(1),stateX{4}(2),stateX{4}(3),stateX{4}(4),stateX{4}(5),stateX{4}(6),stateX{4}(7),stateX{4}(8),stateX{4}(9),stateX{4}(10),stateX{4}(11),stateX{4}(12),Te{4}(1),Te{4}(2),Te{4}(3),Te{4}(4),Te{4}(5),Te{4}(6),Te{4}(7),Te{4}(8));
+K = duct_accel(tempState{2}(1),tempState{2}(2),tempState{2}(3),tempState{2}(4),tempState{2}(5),tempState{2}(6),tempState{2}(7),tempState{2}(8),tempState{2}(9),tempState{2}(10),tempState{2}(11),tempState{2}(12),Te{2}(1),Te{2}(2),Te{2}(3),Te{2}(4),Te{2}(5),Te{2}(6),Te{2}(7),Te{2}(8), ...
+    tempState{3}(1),tempState{3}(2),tempState{3}(3),tempState{3}(4),tempState{3}(5),tempState{3}(6),tempState{3}(7),tempState{3}(8),tempState{3}(9),tempState{3}(10),tempState{3}(11),tempState{3}(12),Te{3}(1),Te{3}(2),Te{3}(3),Te{3}(4),Te{3}(5),Te{3}(6),Te{3}(7),Te{3}(8), ...
+    tempState{4}(1),tempState{4}(2),tempState{4}(3),tempState{4}(4),tempState{4}(5),tempState{4}(6),tempState{4}(7),tempState{4}(8),tempState{4}(9),tempState{4}(10),tempState{4}(11),tempState{4}(12),Te{4}(1),Te{4}(2),Te{4}(3),Te{4}(4),Te{4}(5),Te{4}(6),Te{4}(7),Te{4}(8));
 
 K2 = zeros(1, links*12);
 for k = 2:(links+1)
     kn = 12*(k-2)+1;
     kk = 6*(k-2)+1;
-    K2(kn:(kn+5)) = stateX{k}(7:12);
+    K2(kn:(kn+5)) = tempState{k}(7:12);
     K2((kn+6):(kn+11)) = K(kk:(kk+5));
 end 
 
@@ -107,16 +107,16 @@ end
 % first-order estimate of the states at this point (systemStates + K2*dt/2).
 
 for k = 2:(links+1)
-    Te{k} = getTensions(stateX{2}(1),stateX{2}(2),stateX{2}(3),stateX{2}(4),stateX{2}(5),stateX{2}(6),stateX{2}(7),stateX{2}(8),stateX{2}(9),stateX{2}(10),stateX{2}(11),stateX{2}(12), ...
-        stateX{3}(1),stateX{3}(2),stateX{3}(3),stateX{3}(4),stateX{3}(5),stateX{3}(6),stateX{3}(7),stateX{3}(8),stateX{3}(9),stateX{3}(10),stateX{3}(11),stateX{3}(12), ...
-        stateX{4}(1),stateX{4}(2),stateX{4}(3),stateX{4}(4),stateX{4}(5),stateX{4}(6),stateX{4}(7),stateX{4}(8),stateX{4}(9),stateX{4}(10),stateX{4}(11),stateX{4}(12), ...
+    Te{k} = getTensions(tempState{2}(1),tempState{2}(2),tempState{2}(3),tempState{2}(4),tempState{2}(5),tempState{2}(6),tempState{2}(7),tempState{2}(8),tempState{2}(9),tempState{2}(10),tempState{2}(11),tempState{2}(12), ...
+        tempState{3}(1),tempState{3}(2),tempState{3}(3),tempState{3}(4),tempState{3}(5),tempState{3}(6),tempState{3}(7),tempState{3}(8),tempState{3}(9),tempState{3}(10),tempState{3}(11),tempState{3}(12), ...
+        tempState{4}(1),tempState{4}(2),tempState{4}(3),tempState{4}(4),tempState{4}(5),tempState{4}(6),tempState{4}(7),tempState{4}(8),tempState{4}(9),tempState{4}(10),tempState{4}(11),tempState{4}(12), ...
         inputs(k-1, 1),inputs(k-1, 2),inputs(k-1, 3),inputs(k-1, 4),inputs(k-1, 5),inputs(k-1, 6),inputs(k-1, 7),inputs(k-1, 8), ...
         restLengths(1), restLengths(2), restLengths(3), restLengths(4), restLengths(5), restLengths(6), restLengths(7), restLengths(8), k);
 end
 
 for k = 2:(links+1)
-    n = 12*(k-2)+1;
-    stateX{k} = stateX{k} + (K2(n:(11+n))*dt/2);
+    n = 12*(k-2)+1; % Indexing
+    tempState{k} = tempState{k} + (K2(n:(11+n))*dt/2);
 end
 
 % Duct_accel solves for the six accelerations for X, Y, Z and orientation
@@ -125,15 +125,15 @@ end
 % subsequently built from the last six states of the state vector and these
 % six acceleration components.
 
-K = duct_accel(stateX{2}(1),stateX{2}(2),stateX{2}(3),stateX{2}(4),stateX{2}(5),stateX{2}(6),stateX{2}(7),stateX{2}(8),stateX{2}(9),stateX{2}(10),stateX{2}(11),stateX{2}(12),Te{2}(1),Te{2}(2),Te{2}(3),Te{2}(4),Te{2}(5),Te{2}(6),Te{2}(7),Te{2}(8), ...
-    stateX{3}(1),stateX{3}(2),stateX{3}(3),stateX{3}(4),stateX{3}(5),stateX{3}(6),stateX{3}(7),stateX{3}(8),stateX{3}(9),stateX{3}(10),stateX{3}(11),stateX{3}(12),Te{3}(1),Te{3}(2),Te{3}(3),Te{3}(4),Te{3}(5),Te{3}(6),Te{3}(7),Te{3}(8), ...
-    stateX{4}(1),stateX{4}(2),stateX{4}(3),stateX{4}(4),stateX{4}(5),stateX{4}(6),stateX{4}(7),stateX{4}(8),stateX{4}(9),stateX{4}(10),stateX{4}(11),stateX{4}(12),Te{4}(1),Te{4}(2),Te{4}(3),Te{4}(4),Te{4}(5),Te{4}(6),Te{4}(7),Te{4}(8));
+K = duct_accel(tempState{2}(1),tempState{2}(2),tempState{2}(3),tempState{2}(4),tempState{2}(5),tempState{2}(6),tempState{2}(7),tempState{2}(8),tempState{2}(9),tempState{2}(10),tempState{2}(11),tempState{2}(12),Te{2}(1),Te{2}(2),Te{2}(3),Te{2}(4),Te{2}(5),Te{2}(6),Te{2}(7),Te{2}(8), ...
+    tempState{3}(1),tempState{3}(2),tempState{3}(3),tempState{3}(4),tempState{3}(5),tempState{3}(6),tempState{3}(7),tempState{3}(8),tempState{3}(9),tempState{3}(10),tempState{3}(11),tempState{3}(12),Te{3}(1),Te{3}(2),Te{3}(3),Te{3}(4),Te{3}(5),Te{3}(6),Te{3}(7),Te{3}(8), ...
+    tempState{4}(1),tempState{4}(2),tempState{4}(3),tempState{4}(4),tempState{4}(5),tempState{4}(6),tempState{4}(7),tempState{4}(8),tempState{4}(9),tempState{4}(10),tempState{4}(11),tempState{4}(12),Te{4}(1),Te{4}(2),Te{4}(3),Te{4}(4),Te{4}(5),Te{4}(6),Te{4}(7),Te{4}(8));
 
 K3 = zeros(1, links*12);
 for k = 2:(links+1)
-    kn = 12*(k-2)+1;
-    kk = 6*(k-2)+1;
-    K3(kn:(kn+5)) = stateX{k}(7:12);
+    kn = 12*(k-2)+1; % Indexing
+    kk = 6*(k-2)+1; % Indexing
+    K3(kn:(kn+5)) = tempState{k}(7:12);
     K3((kn+6):(kn+11)) = K(kk:(kk+5));
 end 
 
@@ -143,16 +143,16 @@ end
 % first-order estimate of the states at this point (systemStates + K4*dt).
 
 for k = 2:(links+1)
-    Te{k} = getTensions(stateX{2}(1),stateX{2}(2),stateX{2}(3),stateX{2}(4),stateX{2}(5),stateX{2}(6),stateX{2}(7),stateX{2}(8),stateX{2}(9),stateX{2}(10),stateX{2}(11),stateX{2}(12), ...
-        stateX{3}(1),stateX{3}(2),stateX{3}(3),stateX{3}(4),stateX{3}(5),stateX{3}(6),stateX{3}(7),stateX{3}(8),stateX{3}(9),stateX{3}(10),stateX{3}(11),stateX{3}(12), ...
-        stateX{4}(1),stateX{4}(2),stateX{4}(3),stateX{4}(4),stateX{4}(5),stateX{4}(6),stateX{4}(7),stateX{4}(8),stateX{4}(9),stateX{4}(10),stateX{4}(11),stateX{4}(12), ...
+    Te{k} = getTensions(tempState{2}(1),tempState{2}(2),tempState{2}(3),tempState{2}(4),tempState{2}(5),tempState{2}(6),tempState{2}(7),tempState{2}(8),tempState{2}(9),tempState{2}(10),tempState{2}(11),tempState{2}(12), ...
+        tempState{3}(1),tempState{3}(2),tempState{3}(3),tempState{3}(4),tempState{3}(5),tempState{3}(6),tempState{3}(7),tempState{3}(8),tempState{3}(9),tempState{3}(10),tempState{3}(11),tempState{3}(12), ...
+        tempState{4}(1),tempState{4}(2),tempState{4}(3),tempState{4}(4),tempState{4}(5),tempState{4}(6),tempState{4}(7),tempState{4}(8),tempState{4}(9),tempState{4}(10),tempState{4}(11),tempState{4}(12), ...
         inputs(k-1, 1),inputs(k-1, 2),inputs(k-1, 3),inputs(k-1, 4),inputs(k-1, 5),inputs(k-1, 6),inputs(k-1, 7),inputs(k-1, 8), ...
         restLengths(1), restLengths(2), restLengths(3), restLengths(4), restLengths(5), restLengths(6), restLengths(7), restLengths(8), k);
 end
 
 for k = 2:(links+1)
-    n = 12*(k-2)+1;
-    stateX{k} = stateX{k} + (K3(n:(11+n))*dt);
+    n = 12*(k-2)+1; % Indexing
+    tempState{k} = tempState{k} + (K3(n:(11+n))*dt);
 end
 
 % Duct_accel solves for the six accelerations for X, Y, Z and orientation
@@ -161,15 +161,15 @@ end
 % subsequently built from the last six states of the state vector and these
 % six acceleration components.
 
-K = duct_accel(stateX{2}(1),stateX{2}(2),stateX{2}(3),stateX{2}(4),stateX{2}(5),stateX{2}(6),stateX{2}(7),stateX{2}(8),stateX{2}(9),stateX{2}(10),stateX{2}(11),stateX{2}(12),Te{2}(1),Te{2}(2),Te{2}(3),Te{2}(4),Te{2}(5),Te{2}(6),Te{2}(7),Te{2}(8), ...
-    stateX{3}(1),stateX{3}(2),stateX{3}(3),stateX{3}(4),stateX{3}(5),stateX{3}(6),stateX{3}(7),stateX{3}(8),stateX{3}(9),stateX{3}(10),stateX{3}(11),stateX{3}(12),Te{3}(1),Te{3}(2),Te{3}(3),Te{3}(4),Te{3}(5),Te{3}(6),Te{3}(7),Te{3}(8), ...
-    stateX{4}(1),stateX{4}(2),stateX{4}(3),stateX{4}(4),stateX{4}(5),stateX{4}(6),stateX{4}(7),stateX{4}(8),stateX{4}(9),stateX{4}(10),stateX{4}(11),stateX{4}(12),Te{4}(1),Te{4}(2),Te{4}(3),Te{4}(4),Te{4}(5),Te{4}(6),Te{4}(7),Te{4}(8));
+K = duct_accel(tempState{2}(1),tempState{2}(2),tempState{2}(3),tempState{2}(4),tempState{2}(5),tempState{2}(6),tempState{2}(7),tempState{2}(8),tempState{2}(9),tempState{2}(10),tempState{2}(11),tempState{2}(12),Te{2}(1),Te{2}(2),Te{2}(3),Te{2}(4),Te{2}(5),Te{2}(6),Te{2}(7),Te{2}(8), ...
+    tempState{3}(1),tempState{3}(2),tempState{3}(3),tempState{3}(4),tempState{3}(5),tempState{3}(6),tempState{3}(7),tempState{3}(8),tempState{3}(9),tempState{3}(10),tempState{3}(11),tempState{3}(12),Te{3}(1),Te{3}(2),Te{3}(3),Te{3}(4),Te{3}(5),Te{3}(6),Te{3}(7),Te{3}(8), ...
+    tempState{4}(1),tempState{4}(2),tempState{4}(3),tempState{4}(4),tempState{4}(5),tempState{4}(6),tempState{4}(7),tempState{4}(8),tempState{4}(9),tempState{4}(10),tempState{4}(11),tempState{4}(12),Te{4}(1),Te{4}(2),Te{4}(3),Te{4}(4),Te{4}(5),Te{4}(6),Te{4}(7),Te{4}(8));
 
 K4 = zeros(1, links*12);
 for k = 2:(links+1)
-    kn = 12*(k-2)+1;
-    kk = 6*(k-2)+1;
-    K4(kn:(kn+5)) = stateX{k}(7:12);
+    kn = 12*(k-2)+1; % Indexing
+    kk = 6*(k-2)+1; % Indexing
+    K4(kn:(kn+5)) = tempState{k}(7:12);
     K4((kn+6):(kn+11)) = K(kk:(kk+5));
 end 
 

@@ -5,25 +5,28 @@
 function [transform,h] = plotSpineLink(spineCoord,rad,ax)
 r = rad*ones(40,1);
 
-% Plotting Center sphere of link
+% Acquiring coordinates for center sphere of each spine link
 spineMean = mean(spineCoord, 1);
-[x, y, z] = sphere(20);
+[x, y, z] = sphere(20); % Defining sphere for center of spine link
 x_c = rad*2*x + spineMean(1);
 y_c = rad*2*y + spineMean(2);
 z_c = rad*2*z + spineMean(3);
 
-[x0, y0, z0] = cylinder2P(r,20,spineCoord(1,:),spineMean);
+[x0, y0, z0] = cylinder2P(r,20,spineCoord(1,:),spineMean); % Defining cylinders for each of the spine legs
 [x1, y1, z1] = cylinder2P(r,20,spineCoord(2,:),spineMean);
 [x2, y2, z2] = cylinder2P(r,20,spineCoord(3,:),spineMean);
 [x3, y3, z3] = cylinder2P(r,20,spineCoord(4,:),spineMean);
 
-
-[x, y, z] = sphere;
+% Defining spheres for the ends of each cylindrical legs. Superimposing
+% spheres on the ends of each cylinder produces the closed-off smooth
+% surface.
+[x, y, z] = sphere; 
 x4 = rad*x + spineCoord(1,1); y4 = rad*y + spineCoord(1,2); z4 = rad*z + spineCoord(1,3);
 x5 = rad*x + spineCoord(2,1); y5 = rad*y + spineCoord(2,2); z5 = rad*z + spineCoord(2,3);
 x6 = rad*x + spineCoord(3,1); y6 = rad*y + spineCoord(3,2); z6 = rad*z + spineCoord(3,3);
 x7 = rad*x + spineCoord(4,1); y7 = rad*y + spineCoord(4,2); z7 = rad*z + spineCoord(4,3);
 
+% Plotting all cylinders and spheres associated with each spine link
 hold on
 h(1) = surf(ax,x_c,y_c,z_c,'LineStyle', 'none');
 h(2) = surf(ax,x0,y0,z0,'LineStyle', 'none');
@@ -36,13 +39,12 @@ h(8) = surf(ax,x6,y6,z6,'LineStyle', 'none');
 h(9) = surf(ax,x7,y7,z7,'LineStyle', 'none');
 TT = hgtransform('Parent',ax);
 
+% Apply rotation transform to the entire link
 transform = hgtransform('Parent',TT);
 for i = 1:9
-set(h(i),'Parent',transform)
+    set(h(i),'Parent',transform)
 end
 end
-
-%set(transform,'Matrix',Rflip*T2*Rx)
 
 function [X, Y, Z] = cylinder2P(R, N,r1,r2)
 
