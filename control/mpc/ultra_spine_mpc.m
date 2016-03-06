@@ -78,11 +78,11 @@ stringEnable = 1;
 anchor = [0 0 rad];
 
 % To save a video, set this flag to 1, and change the name of the output file.
-save_video = 0;
+save_video = 1;
 
 if(save_video)
-    break;
-    videoObject = VideoWriter('../../videos/ultra-spine');
+    %break;
+    videoObject = VideoWriter('../../videos/ultra-spine-mpc_topbending_YZ');
     videoObject.Quality = 90;
     videoObject.FrameRate = 5;
 end
@@ -93,7 +93,8 @@ end
 % Note that this is performed at the beginning so the visualization of the terahedra bodies can be loaded properly.
 
 % Create the figure window
-figure_handle = figure('position', [100, 100, 700 800],'Color','w');
+%figure_handle = figure('position', [100, 100, 700 800],'Color','w');
+figure_handle = figure('position', [0, 0, 600 700],'Color','w');
 
 M = struct('cdata', cell(1,round(length(time)/10)), 'colormap', cell(1,round(length(time)/10)));
 
@@ -224,10 +225,11 @@ end
 %% Reference Trajectory
 % Load in one of the trajectories
 
-[traj, ~] = get_ref_traj_circletop();
+%[traj, ~] = get_ref_traj_circletop();
 %[traj, ~] = get_ref_traj_quartercircletop();
 %[traj, ~] = get_ref_traj_topbending1(); % Has trajectories along angles. NOT WORKING WELL as of 2016-02-28...
 %[traj, ~] = get_ref_traj_topbending2();
+[traj, ~] = get_ref_traj_topbending_YZ();
 %[traj, ~] = get_ref_traj_toprotationtest(); % Has trajectories along angles.
 %[traj, ~]  = get_ref_traj_zero();
 
