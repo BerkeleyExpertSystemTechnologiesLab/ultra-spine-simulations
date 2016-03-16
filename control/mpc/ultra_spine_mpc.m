@@ -242,12 +242,14 @@ drawnow;
 %% Controller Initialization
 disp('Controller Initialization')
 
-N = 10; % Horizon length
+% Initialize yalmip variables for changing controller parameters
+N = 10;
 inputs = sdpvar(repmat(8*links, 1, N-1), repmat(1, 1, N-1));
 states = sdpvar(repmat(12*links, 1, N), repmat(1, 1, N));
 A_t = sdpvar(repmat(12*links, 1, 12*links), repmat(1, 1, 12*links));
 B_t = sdpvar(repmat(12*links, 1, 8*links), repmat(1, 1, 8*links));
 c_t = sdpvar(36, 1);
+
 prev_in = sdpvar(8*links, 1);
 % The reference trajectory here is only for the top tetrahedron (12 states, one rigid body.)
 reference = sdpvar(repmat(12, 1, N), repmat(1, 1, N));
@@ -255,9 +257,13 @@ reference = sdpvar(repmat(12, 1, N), repmat(1, 1, N));
 % Create the YALMIP controller for computation of the actual MPC optimizations.
 % This function contains all the definitions of the constraints on the optimization, as well as the objective function.
 
-[controller, ~, ~, ~, ~] = get_yalmip_controller_XYZ(N, inputs, states, A_t, B_t, c_t, prev_in, reference);
-%[controller, ~, ~, ~, ~] = get_yalmip_controller_XYZT(N, inputs, states, A_t, B_t, c_t, prev_in, reference);
-%[controller, ~, ~, ~, ~] = get_yalmip_controller_XYZG(N, inputs, states, A_t, B_t, c_t, prev_in, reference);
+% Cell array of controllers are generated from 2-step to N-step horizon to
+% deal with situations at the end of the reference trajectory
+for k = 2:N
+    [controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZ(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
+    %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZT(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
+    %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZG(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
+end
 
 %% Forward simulate trajectory
 disp('Forward simulate trajectory')

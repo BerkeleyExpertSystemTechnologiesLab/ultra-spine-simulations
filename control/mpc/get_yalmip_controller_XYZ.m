@@ -7,12 +7,11 @@ function [controller, constraints, objective, parameters_in, solutions_out] = ge
     A_t, B_t, c_t, prev_in, reference)
 
 % Inputs:
-% N, horizon length
 % inputs, sdpvar of inputs to the system
 % states, sdpvar of the system states
-% A_t, sdpvar of (FILL IN)
-% B_t, sdpvar of (FILL IN)
-% c_t, sdpvar of (FILL IN)
+% A_t, sdpvar of linearized state matrix at time t
+% B_t, sdpvar of linearized input matrix at time t
+% c_t, sdpvar of linearized output matrix at time t
 % prev_in, sdpvar of the input at the previous timestep
 % reference, sdpvar of the reference trajectory
 
@@ -40,6 +39,7 @@ function [controller, constraints, objective, parameters_in, solutions_out] = ge
 input_lim = .07*ones(24, 1); % Limit on length of cable allowed
 
 constraints = [norm(inputs{1} - prev_in, inf) <= 0.02]; % Deviation from previous applied input to current input
+
 for k = 1:(N-2)
     constraints = [constraints, states{k+1} == [A_t{:}]*states{k} + [B_t{:}]*inputs{k} + c_t, ...
         -input_lim <= inputs{k} <= input_lim, ...
@@ -47,7 +47,7 @@ for k = 1:(N-2)
         norm(inputs{k}(9:16) - inputs{1}(9:16), inf) <= 0.01, ...
         norm(inputs{k}(17:24) - inputs{1}(17:24), inf) <= 0.01];
 end
-constraints = [constraints, norm(inputs{N-1}(1:8) - inputs{1}(1:8), 2) <= 0.1, ...% Final input is given a wider tolerance
+constraints = [constraints, norm(inputs{N-1}(1:8) - inputs{1}(1:8), 2) <= 0.1, ...% N input is given a wider tolerance
     norm(inputs{N-1}(9:16) - inputs{1}(9:16), 2) <= 0.1, ...
     norm(inputs{N-1}(17:24) - inputs{1}(17:24), 2) <= 0.1];
 constraints = [constraints, states{N} == [A_t{:}]*states{N-1} + [B_t{:}]*inputs{N-1} + c_t, -input_lim <= inputs{N-1} <= input_lim];
