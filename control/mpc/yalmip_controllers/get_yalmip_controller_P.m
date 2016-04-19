@@ -1,9 +1,9 @@
-% get_yalmip_controller_XYZT.m
+% get_yalmip_controller_P.m
 % Copyright 2015 Abishek Akella, Andrew P. Sabelhaus
-% This function contains the objective and constraints that work for the ULTRA Spine MPC when the reference trajectory has only nonzeros in X,Y,Z,T.
+% This function contains the objective and constraints that work for the ULTRA Spine MPC when the reference trajectory has only nonzeros in P.
 % Note that this is for a 4-vertebra (link == 3) spine system
 
-function [controller, constraints, objective, parameters_in, solutions_out] = get_yalmip_controller_XYZT(N, inputs, states, ...
+function [controller, constraints, objective, parameters_in, solutions_out] = get_yalmip_controller_P(N, inputs, states, ...
     A_t, B_t, c_t, prev_in, reference)
 
 % Inputs:
@@ -36,7 +36,19 @@ function [controller, constraints, objective, parameters_in, solutions_out] = ge
 % 12: dP
 % repeated: x,y,z,T are then states 25:28 for the topmost tetrahedron
 
-% Build up the constraints
+%% Define weights
+% Power-function weight for the objectives, used on the reference-tracking terms, for the longitudinal coordinates x,y,z
+%obj_w_r = 10; %used to be 5
+% Power-function weight for the objectives, used on the reference-tracking terms, for the angle G
+obj_w_ref_p = 25;
+% Multiplicative weight for the objectives, used on the successive-states terms (smooth motion)
+obj_w_s = 3;
+% Power-function weight for the objectives, used on the successive-input terms (control authority, how-strong-is-the-motor)
+obj_w_ip = 1.5;
+% Multiplicative weight for the objectives, used on the successive-input terms (control authority, how-strong-is-the-motor)
+obj_w_im = 1/24;
+
+%% Build up the constraints
 input_lim = .09*ones(24, 1); % Limit on length of cable allowed
 
 constraints = [norm(inputs{1} - prev_in, inf) <= 0.02]; % Deviation from previous applied input to current input
@@ -61,19 +73,30 @@ for j = 1:(N-1)
 end
 constraints = [constraints, states{N}(3) + .02 <= states{N}(15), states{N}(15) + .02 <= states{N}(27)];
 
-% Build up the objective
+%% Build up the objective
+
 % First, minimize deviations along trajectory for the topmost tetrahedron
-% This controller is working on the first *four* states here, xyzT, which are reference{}(1:4) and states{}(25:28).
-% For this current state:
-objective = 25*norm(states{1}(25:28) - reference{1}(1:4), 2); 
+% Objectives are also constructed for the 6th variable, P, which is reference{}(6) and states{}(30).
+
+% For this current state (the first one in the set that are given to the optimizer):
+objective = obj_w_ref_p * norm(states{1}(30) - reference{1}(6), 2); % note that obj_w is raised to the power of k, but k=1 here.
+
 % For the remaining states in this horizon:
 for k = 2:(N-1)
-    objective = objective + (1/2)*(25^k)*norm(states{k}(25:28) - reference{k}(1:4), 2) + (1/24)*(3^k)*norm(inputs{k} - inputs{k-1}, inf) ...
-        + (3^k)*(norm(states{k}(25:28) - states{k-1}(25:28))); % Also minimize change in state/input for smooth motion
+    objective = objective ... % Add terms onto the objective, successively.
+                + (1/2)*(obj_w_ref_p^k) * norm(states{k}(30) - reference{k}(6), 2) ...      % Tracking P
+                + (obj_w_im)*(obj_w_ip^k) * norm(inputs{k} - inputs{k-1}, inf) ...      % Deviation of inputs, control authority
+                + (obj_w_s^k) * norm(states{k}(30) - states{k-1}(30), 2);               % Smooth motion, P
+%                + (obj_w_s^k) * norm(states{k}(25:27) - states{k-1}(25:27), 2) ...      % Smooth motion, x,y,z
 end
-% Add the objective for the last state in this horizon. There are no inputs for index k ==  N.
-objective = objective + (1/2)*(25^N)*norm(states{N}(25:28) - reference{N}(1:4), 2) + (3^N)*norm(states{N}(25:28) - states{N-1}(25:28));
 
+% Add the objective for the last state in this horizon. There are no inputs for index k == N.
+objective = objective ...
+            + (1/2)*(obj_w_ref_p^N) * norm(states{N}(30) - reference{N}(6), 2) ...      % Tracking P
+            + (obj_w_s^N) * norm(states{N}(30) - states{N-1}(30));                  % Smooth motion, P
+%            + (obj_w_s^N) * norm(states{N}(25:27) - states{N-1}(25:27)) ...         % Smooth motion, x,y,z        
+
+% For the controller, need to include input parameters variables and solutions output variables
 parameters_in = {prev_in, states{1}, [A_t{:}], [B_t{:}], c_t, [reference{:}]};
 solutions_out = {[inputs{:}], [states{:}]};
 

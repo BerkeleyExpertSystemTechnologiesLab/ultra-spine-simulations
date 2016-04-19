@@ -20,11 +20,30 @@ clc;
 path_to_dynamics = '../../dynamics/3d-dynamics-symbolicsolver';
 addpath(path_to_dynamics);
 
+% Reference trajectories and controllers are now in subfolders:
+path_to_reference_trajectories = './reference_trajectories';
+addpath(path_to_reference_trajectories);
+path_to_yalmip_controllers = './yalmip_controllers';
+addpath(path_to_yalmip_controllers);
+
 % Time step for dynamics
 dt = 0.001;
 
+% FLAGS
+
 % Flag for adding noise to the forward simulation of the dynamics. noise = 1 turns it on.
 noise = 0;
+
+% To save a video, set this flag to 1, and change the name of the output file.
+save_video = 1;
+
+% Enable string plotting
+stringEnable = 1;
+
+% Create LQR controllers?
+% 0 = no, just run MPC
+% 1 = yes, run finite-horizon LQR too
+run_lqr = 0;
 
 % Parameters for plotting:
 % NOTE that the rod sizes here are only used for plotting, 
@@ -72,17 +91,14 @@ time = 0:dt:500;
 
 % Animation Frame Divisor
 frame = 3;
- % Enable string plotting
-stringEnable = 1;
+
 % Position of the anchor location of the cables on a tetra node
 anchor = [0 0 rad];
 
-% To save a video, set this flag to 1, and change the name of the output file.
-save_video = 1;
-
+% Initialize the video, if flagged.
 if(save_video)
     %break;
-    videoObject = VideoWriter('../../videos/ultra-spine-mpc_topbending_YZ');
+    videoObject = VideoWriter( strcat('../../videos/ultra-spine-mpc_', datestr(datetime('now'))) );
     videoObject.Quality = 90;
     videoObject.FrameRate = 5;
 end
@@ -130,6 +146,7 @@ lighting phong
 
 %m = 256;
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Initialize the simulation
 restLengths(1) = 0.1; % Vertical cable rest length
 restLengths(2) = 0.1;
@@ -225,12 +242,21 @@ end
 %% Reference Trajectory
 % Load in one of the trajectories
 
+% SOME NOTES ON ROTATION DIRECTION: these were found by changing ONLY these variables. Will not combine independently (recall, Euler angles.)
+% These are all from the perspective of a ray starting at zero looking down the positive axis. (I've denoted it X+, Y+, etc.)
+% T+ clockwise around the X+ axis (rotates in the Y,Z plane)
+% T- counterclockwise around the X+ axis (rotates in the Y,Z plane)
+% G+ clockwise around Y+ axis (rotates in the X,Z plane)
+% G- counterclockwise around Y+ axis (rotates in the X,Z plane)
+% P+ clockwise around the Z+ axis (rotates in the X,Y plane)
+% P- counterclockwise around the Z+ axis (rotates in the X,Y plane)
+
 %[traj, ~] = get_ref_traj_circletop();
 %[traj, ~] = get_ref_traj_quartercircletop();
 %[traj, ~] = get_ref_traj_topbending1(); % Has trajectories along angles. NOT WORKING WELL as of 2016-02-28...
 %[traj, ~] = get_ref_traj_topbending2();
-[traj, ~] = get_ref_traj_topbending_YZ();
-%[traj, ~] = get_ref_traj_toprotationtest(); % Has trajectories along angles.
+%[traj, ~] = get_ref_traj_topbending_YZ();
+[traj, ~] = get_ref_traj_toprotationtest(); % Has trajectories along angles.
 %[traj, ~]  = get_ref_traj_zero();
 
 % Plot this trajectory, for a visualization
@@ -260,62 +286,72 @@ reference = sdpvar(repmat(12, 1, N), repmat(1, 1, N));
 % Cell array of controllers are generated from 2-step to N-step horizon to
 % deal with situations at the end of the reference trajectory
 for k = 2:N
-    [controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZ(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
+    %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZ(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
     %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZT(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
     %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZG(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
+    %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_G(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
+    %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_T(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
+    [controller{k}, ~, ~, ~, ~] = get_yalmip_controller_P(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
 end
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Forward simulate trajectory
 disp('Forward simulate trajectory')
 
 [x_ref, u_ref, M] = simulate_reference_traj(controller, systemStates, restLengths, links, dt, x, y, z, T, G, P, ...
     dx, dy, dz, dT, dG, dP, traj, N);
 
+% Transform the x_ref matrix and plot it
 refx = [x_ref{:}];
 plot3(refx(25, :), refx(26, :), refx(27, :), 'b-.', 'LineWidth', 2);
 
 %% Build Iterative LQR Controller
-disp('Build LQR Controllers for each timestep')
+% This is now only done if flagged.
 
-% Create the weighting matrices Q and R
+if (run_lqr)
+    disp('Build LQR Controllers for each timestep')
 
-% Version 1: weight on the position states for each tetrahedron equally (no weight on velocity)
-Q = zeros(12);
-Q(1:6, 1:6) = eye(6);
-Q_lqr = 5*kron(eye(3), Q);
-R_lqr = 5*eye(8*links);
+    % Create the weighting matrices Q and R
+    % Version 1: weight on the position states for each tetrahedron equally (no weight on velocity)
+    Q = zeros(12);
+    Q(1:6, 1:6) = eye(6);
+    Q_lqr = 5*kron(eye(3), Q);
+    R_lqr = 5*eye(8*links);
 
-% Version 2: weight only on the position of the top tetrahedron
-% Q = zeros(36);
-% Q(25:30, 25:30) = 50 * eye(6);
-% Q_lqr = Q;
-% R_lqr = 2*eye(8*links);
+    % Version 2: weight only on the position of the top tetrahedron
+    % Q = zeros(36);
+    % Q(25:30, 25:30) = 50 * eye(6);
+    % Q_lqr = Q;
+    % R_lqr = 2*eye(8*links);
 
-% Version 3: weight on all states
-% Q = 20 * eye(36);
-% Q_lqr = Q;
-% R_lqr = 2*eye(8*links);
+    % Version 3: weight on all states
+    % Q = 20 * eye(36);
+    % Q_lqr = Q;
+    % R_lqr = 2*eye(8*links);
 
-tic;
-P0 = zeros(36);
-% Linearize the dynamics around the final point in the trajectory (timestep M.)
-[A, B, ~] = linearize_dynamics(x_ref{M}, u_ref{M}, restLengths, links, dt);
-% Calculate the gain K for this timestep (at the final timestep, P == the 0 matrix.)
-K{1} = -((R_lqr + B'*P0*B)^-1)*B'*P0*A;
-% Calculate the first matrix P for use in the finite-horizon LQR below
-P_lqr{1} = Q_lqr + K{1}'*R_lqr*K{1} + (A + B*K{1})'*P0*(A + B*K{1});
-% Iterate in creating the finite-horizon LQRs, moving backwards from the end state
-for k = (M-1):-1:1
-    disp(strcat('Controller Build iteration:',num2str(k)))
-    % Linearize the dynamics around this timestep
-    [A, B, ~] = linearize_dynamics(x_ref{k}, u_ref{k}, restLengths, links, dt);
-    % Calculate the gain K for this timestep, using the prior step's P
-    K{M-k+1} = -((R_lqr + B'*P_lqr{M-k}*B)^-1)*B'*P_lqr{M-k}*A;
-    % Calculate the P for this step using the gain K from this step.
-    P_lqr{M-k+1} = Q_lqr + K{M-k+1}'*R_lqr*K{M-k+1} + (A + B*K{M-k+1})'*P_lqr{M-k}*(A + B*K{M-k+1});
+    tic;
+    P0 = zeros(36);
+    % Linearize the dynamics around the final point in the trajectory (timestep M.)
+    [A, B, ~] = linearize_dynamics(x_ref{M}, u_ref{M}, restLengths, links, dt);
+    % Calculate the gain K for this timestep (at the final timestep, P == the 0 matrix.)
+    K{1} = -((R_lqr + B'*P0*B)^-1)*B'*P0*A;
+    % Calculate the first matrix P for use in the finite-horizon LQR below
+    P_lqr{1} = Q_lqr + K{1}'*R_lqr*K{1} + (A + B*K{1})'*P0*(A + B*K{1});
+    % Iterate in creating the finite-horizon LQRs, moving backwards from the end state
+    for k = (M-1):-1:1
+        disp(strcat('Controller Build iteration:',num2str(k)))
+        % Linearize the dynamics around this timestep
+        [A, B, ~] = linearize_dynamics(x_ref{k}, u_ref{k}, restLengths, links, dt);
+        % Calculate the gain K for this timestep, using the prior step's P
+        K{M-k+1} = -((R_lqr + B'*P_lqr{M-k}*B)^-1)*B'*P_lqr{M-k}*A;
+        % Calculate the P for this step using the gain K from this step.
+        P_lqr{M-k+1} = Q_lqr + K{M-k+1}'*R_lqr*K{M-k+1} + (A + B*K{M-k+1})'*P_lqr{M-k}*(A + B*K{M-k+1});
+    end
+    toc;
+
 end
-toc;
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 disp('Starting simulation')
 %% Perform forward simulation and plot results
 
@@ -415,19 +451,30 @@ for t = 1:((M-1)+offset)
         systemStates(k, 12) = dP(k);
     end
     
-    % Forward simulate using the controller
-
-    if ((t > offset) && (t < M + offset))
-        % Calculate the input to the system dynamics
-        % A general representation of u(t) = K(t) * (x(t) - x_{ref}(t)) + u_{ref}(t)
-        control = K{M+offset-t}*(reshape(systemStates', 36, 1) - x_ref{t-offset}) + u_ref{t-offset};
-        % Forward simulate using that control input
-        systemStates = simulate_dynamics(systemStates, restLengths, reshape(control, 8, 3)', dt, links, noise);
-        % Save the result as the next point in the performed trajectory
-        actual_traj(:, s) = systemStates(links, :); 
-        % Save the control results for examination later
-        actual_control_inputs(:,s) = control;
-        s = s + 1;
+    % If we are just doing straight MPC, replay the state trajectory directly.
+    if (~run_lqr)
+        if ((t > offset) && (t < M + offset))
+            % just update systemStates to x_ref at t, since x_ref here is the output of MPC.
+            systemStates = reshape(x_ref{t-offset}, 12, 3)';
+            % Save the result as the next point in the performed trajectory.
+            actual_traj(:, s) = systemStates(links, :);
+            s = s + 1;
+        end
+    else
+        % Run the LQR controllers.
+        % Forward simulate using the controller
+        if ((t > offset) && (t < M + offset))
+            % Calculate the input to the system dynamics
+            % A general representation of u(t) = K(t) * (x(t) - x_{ref}(t)) + u_{ref}(t)
+            control = K{M+offset-t}*(reshape(systemStates', 36, 1) - x_ref{t-offset}) + u_ref{t-offset};
+            % Forward simulate using that control input
+            systemStates = simulate_dynamics(systemStates, restLengths, reshape(control, 8, 3)', dt, links, noise);
+            % Save the result as the next point in the performed trajectory
+            actual_traj(:, s) = systemStates(links, :); 
+            % Save the control results for examination later
+            actual_control_inputs(:,s) = control;
+            s = s + 1;
+        end
     end
     
     % Unfoil the new system states back into the series of individual variables
@@ -451,7 +498,14 @@ for t = 1:((M-1)+offset)
 end
 
 % Plot the resultant trajectory, in full.
-plot3(actual_traj(1, :), actual_traj(2, :), actual_traj(3, :), 'g', 'LineWidth', 2);
+if (run_lqr)
+    plot3(actual_traj(1, :), actual_traj(2, :), actual_traj(3, :), 'g', 'LineWidth', 2);
+else
+    % just running MPC
+    % plot the x trajectory directly. Let's just do the top element:
+    %plot3(x_ref{
+    % this is going to require manipulating data. do it later.
+end
 
 % Save the last frame, now with full trajectory plotted.
 % Save a few of them in a row for a better visualization.

@@ -23,7 +23,7 @@ addpath(path_to_dynamics);
 % Time step for dynamics
 % Note that this is the time between two successive points in the trajectory.
 % So, the total time for this simulation is dt * length(trajectory).
-dt = 0.001;
+dt = 1e-4;
 
 % Flag for adding noise to the forward simulation of the dynamics. noise = 1 turns it on.
 noise = 0;
@@ -80,11 +80,11 @@ stringEnable = 1;
 anchor = [0 0 rad];
 
 % To save a video, set this flag to 1, and change the name of the output file.
-save_video = 0;
+save_video = 1;
 
 if(save_video)
     %break;
-    videoObject = VideoWriter('../../videos/ultra-spine-lqr_');
+    videoObject = VideoWriter( strcat('../../videos/ultra-spine-lqr_', datestr(datetime('now'))) );
     videoObject.Quality = 90;
     videoObject.FrameRate = 5;
 end
@@ -227,6 +227,9 @@ end
 %% Reference Trajectory
 % Load in one of the trajectories
 
+% TO-DO 2016-04-18: change these to be trajectories in the full state space!
+% For example, just something kinematic with all the tetrahedra.
+
 %[traj, ~] = get_ref_traj_circletop();
 %[traj, ~] = get_ref_traj_quartercircletop();
 %[traj, ~] = get_ref_traj_topbending1(); % Has trajectories along angles. NOT WORKING WELL as of 2016-02-28...
@@ -238,203 +241,186 @@ end
 % Plot this trajectory, for a visualization
 plot3(traj(1, :), traj(2,:), traj(3, :), 'b', 'LineWidth', 2);
 
+% On 2016-04-18:
+% Since we're only using a weighting matrix Q for the positions of the top tetrahedron, it *should* be OK to just pad the
+% trajectory with zeroes on all the other states. After all, we're not tracking those errors!
+% Pad with zeros for the middle two (links - 1) tetrahedra.
+full_traj = [ zeros( (links - 1)*12, size(traj,2)) ; traj];
+
 % Force the figure to draw. The figure at this point includes: tetra bodies, tetra cables, reference trajectory in (x,y,z).
 drawnow;
 
+%% Initialize the first controller, and get the first input u(0)
 
-%% Forward simulate trajectory
-disp('Forward simulate trajectory')
+% The controller we're solving for optimizes the object J = (1/2) \sum_{k_0}^{\inf} [x(k)' Q x(k) + u(k)' R u(k)]
+% Define our weighting matrices for the infinite-horizon LQR cost function.
 
-[x_ref, u_ref, M] = simulate_reference_traj(controller, systemStates, restLengths, links, dt, x, y, z, T, G, P, ...
-    dx, dy, dz, dT, dG, dP, traj, N);
-
-refx = [x_ref{:}];
-plot3(refx(25, :), refx(26, :), refx(27, :), 'b-.', 'LineWidth', 2);
-
-%% Build Iterative LQR Controller
-disp('Build LQR Controllers for each timestep')
-
-% Create the weighting matrices Q and R
-
+% For Q:
 % Version 1: weight on the position states for each tetrahedron equally (no weight on velocity)
-Q = zeros(12);
-Q(1:6, 1:6) = eye(6);
-Q_lqr = 5*kron(eye(3), Q);
-R_lqr = 5*eye(8*links);
+Q_single_tetra = zeros(12);
+Q_single_tetra(1:6, 1:6) = eye(6);
+% Expand to a big enough Q for all tetras.
+Q = 5*kron(eye(3), Q_single_tetra);
 
 % Version 2: weight only on the position of the top tetrahedron
-% Q = zeros(36);
-% Q(25:30, 25:30) = 50 * eye(6);
-% Q_lqr = Q;
-% R_lqr = 2*eye(8*links);
+%Q = zeros(36);
+%Q(25:30, 25:30) = 5 * eye(6); % I also tried to weight it as 50 * eye before...
 
 % Version 3: weight on all states
-% Q = 20 * eye(36);
-% Q_lqr = Q;
-% R_lqr = 2*eye(8*links);
+% Q = eye(36); % Drew also tried 20 * I at some point before...
 
-tic;
-P0 = zeros(36);
-% Linearize the dynamics around the final point in the trajectory (timestep M.)
-[A, B, ~] = linearize_dynamics(x_ref{M}, u_ref{M}, restLengths, links, dt);
-% Calculate the gain K for this timestep (at the final timestep, P == the 0 matrix.)
-K{1} = -((R_lqr + B'*P0*B)^-1)*B'*P0*A;
-% Calculate the first matrix P for use in the finite-horizon LQR below
-P_lqr{1} = Q_lqr + K{1}'*R_lqr*K{1} + (A + B*K{1})'*P0*(A + B*K{1});
-% Iterate in creating the finite-horizon LQRs, moving backwards from the end state
-for k = (M-1):-1:1
-    disp(strcat('Controller Build iteration:',num2str(k)))
-    % Linearize the dynamics around this timestep
-    [A, B, ~] = linearize_dynamics(x_ref{k}, u_ref{k}, restLengths, links, dt);
-    % Calculate the gain K for this timestep, using the prior step's P
-    K{M-k+1} = -((R_lqr + B'*P_lqr{M-k}*B)^-1)*B'*P_lqr{M-k}*A;
-    % Calculate the P for this step using the gain K from this step.
-    P_lqr{M-k+1} = Q_lqr + K{M-k+1}'*R_lqr*K{M-k+1} + (A + B*K{M-k+1})'*P_lqr{M-k}*(A + B*K{M-k+1});
-end
-toc;
+% For R:
+R = eye(8*links); % used to be 5*eye
 
-disp('Starting simulation')
-%% Perform forward simulation and plot results
+% reshape the states
+% Actually just use x_initial here, it's the same as reshape(systemStates', 36, 1).
 
-% Plot the cables for this spine position
-if (stringEnable)    
-    % delete the previous plotted cables
+% The inputs here will be zero to start
+% TO-DO: change this to have a better start. Use the cable lengths from the inverse kinematics script(s).
+% There are 8*links inputs. 2016-04-18 that's 24 cables. In this simulation, the inputs are changes to rest length.
+% NOTE that u_initial is ONLY used for the initial linearization: it's never actually applied to the system.
+% It's really sort of u_(-1).
+u_initial = zeros(8*links,1);
+
+% All trajectories start at x_initial. So, there will be size(traj,2)-1 number of linearizations (we won't need a control input for the final state.)
+%A_t = zeros(12*links, 12*links, size(traj,2)-1);
+% Similarly, construct B, with 8 inputs :
+%B_t = zeros(12*links, 8*
+
+% For now, just use a variable that will change at each iteration, don't record.
+[A_t, B_t, ~] = linearize_dynamics(x_initial, u_initial, restLengths, links, dt);
+
+% Use MATLAB's built in infinite-horizon LQR solver to calculate our gain matrices.
+%[K_t, P_t, ~] = dlqr(A_t, B_t, Q, R);
+
+% Since MATLAB's dlqr throw errors when the system is unstable (we want to still try and run a control if that's the case, since stability
+% may change with successive linearizations), let's try and use MATLAB's discrete algebrai riccati equation solver directly.
+% The DARE is A'PA - P + Q = A'PB[R + B'PB]^(-1) * B'PA
+[P_t, ~, G_t] = dare(A_t, B_t, Q, R);
+
+% The control input can then be calculated from P_t. G_t is the proportional gain matrix, G = [R + B'PB]^(-1) * B'PA
+% Since we're doing trajectory tracking, the first input is then
+%u_t = K_t * (x_initial - full_traj(:,1));
+
+% Let's just try regulation for now, trajectory tracking later.
+u_t = -G_t * x_initial;
+
+% well, u_1 should be zero. TO-DO: justify this?
+
+% and t+1 is (i.e., timestep 1, the second in the trajectory, since our notation starts at zero but MATLAB doesn't)
+%x_tp1 = simulate_dynamics(x_initial, restLengths, reshape(u_t, 8, 3)', dt, links, noise);
+% Has to be in the form of:
+x_tp1 = simulate_dynamics(reshape(x_initial, 12, links)', restLengths, reshape(u_t, 8, links)', dt, links, noise);
+
+% Reshape x_tp1 to the state vector we require
+x_tp1 = reshape(x_tp1',36,1);
+
+% Save the result as the next point in the performed trajectory
+% NOTE: This will be one state behind full_traj. E.g, the first column of actual_traj will be state 1, while the first colunm of traj is state zero.
+% Actually, just augment it now, that's easier. Now it's on the same numbering.
+actual_traj = x_initial;
+actual_traj(:, 2) = x_tp1; 
+% Save the control results for examination later
+actual_control_inputs = u_t;
+
+% There are num_timesteps points in our trajectory:
+num_timesteps = size(full_traj,2);
+
+%% Then, run LQR on the rest of the trajectory
+
+for k = 2:num_timesteps-1 % Start from the second point in the trajectory, and go up until the end: then x_tp1 will be state num_timesteps.
+    
+    disp(k);
+    
+    % This is for timestep tp1. Calculate the input u_tp1.
+    % Re-linearize. Use last timestep's input. TO-DO: formalize this use of input.
+    [A_t, B_t, ~] = linearize_dynamics(x_tp1, u_t, restLengths, links, dt);
+    % Calculate this step's LQR constants
+    %[K_t, P_t, ~] = dlqr(A_t, B_t, Q, R);
+    % Like above, try out matlab's DARE solver instead:
+    [P_t, ~, G_t] = dare(A_t, B_t, Q, R);
+    
+    % Then, the u_t+1 input will be:
+    %u_tp1 = K_t * (x_tp1 - full_traj(:,k));
+    % Like above, let's just try regulation.
+    u_tp1 = -G_t* x_tp1;
+    
+    % Update our variables, since now we have the tp1 timestep for both x and u.
+    x_t = x_tp1;
+    u_t = u_tp1;
+    
+    % Apply this control input and get a new x_tp1.
+    x_tp1 = simulate_dynamics(reshape(x_t, 12, links)', restLengths, reshape(u_t, 8, links)', dt, links, noise);
+    
+    % (For plotting later): Unfoil the new system states back into the series of individual variables
+    for i = 1:links
+        x(i) = x_tp1(i, 1); 
+        y(i) = x_tp1(i, 2); 
+        z(i) = x_tp1(i, 3);
+        T(i) = x_tp1(i, 4); 
+        G(i) = x_tp1(i, 5); 
+        P(i) = x_tp1(i, 6);
+        dx(i) = x_tp1(i, 7); 
+        dy(i) = x_tp1(i, 8); 
+        dz(i) = x_tp1(i, 9);
+        dT(i) = x_tp1(i, 10); 
+        dG(i) = x_tp1(i, 11); 
+        dP(i) = x_tp1(i, 12);
+    end
+    
+    % Reshape x_tp1 to the state vector we require
+    x_tp1 = reshape(x_tp1',36,1);
+    
+    % Save these values. Remember that at the end of this loop, k+1 will be the final timestep, and x_tp1 will be x_{num_timesteps}.
+    actual_traj(:,k+1) = x_tp1;
+    actual_control_inputs(:,k) = u_t;
+    
+    % Plot:
+    
+    % Update the visualization of the tetrahedra.
+    % This is done by setting the matrix of "transform{k}" for each tetra.
+    for i = 1:links
+        % The function below is generated by transforms.m
+        RR{i} =  getHG_Tform(x(i),y(i),z(i),T(i),G(i),P(i)); % Build graphical model of each link
+        %set(transform{i},'Matrix',RR{i});
+        set(transform{i+1},'Matrix',RR{i});
+    end
+    
+    % First, delete the old cables
     delete(string_handle);
-    % Get the endpoints of the cables
+
+    % Calculate the new position of the tetra's coordinates, for plotting, based on the transform from the current system states.
+    % This section of code is the same as that in the initialization section, but instead, directly indexes the Tetra{} array.
+    for i = 2:(links+1)
+        % Reset this specific tetrahedron to the initial state of the bottom tetra.
+        Tetra{i} = [(l^2 - (h/2)^2)^.5, 0, -h/2, 1; ...
+                    -(l^2 - (h/2)^2)^.5, 0, -h/2, 1; ...
+                    0, (l^2 - (h/2)^2)^.5, h/2, 1; ...
+                    0, -(l^2 - (h/2)^2)^.5, h/2, 1];
+        % Move the coordinates of the string points of this tetra into position. 
+        % Note that the transforms are indexed as per the system states: set k=1 is for the first moving tetra,
+        % AKA the second tetra graphically.
+        Tetra{i} = RR{i-1}*Tetra{i}';
+        % Needs a transpose!
+        Tetra{i} = Tetra{i}';
+        % Remove the trailing "1" from the position vectors.
+        Tetra{i} = Tetra{i}(:,1:3);
+    end
+
+    % Get the coordinates of the spine cables
     String_pts = get_spine_cable_points(Tetra, anchor);
-    % Plot. Save the handle so we can delete these strings later.
+    % Plot the new strings
     string_handle=plot3(String_pts(:,1),String_pts(:,2),String_pts(:,3),'LineWidth',2,'Color','r');
-end
-
-plot_dt = 0.01; % Slow down the animation slightly
-offset = 30; % Used for animation so it stays still for a few seconds
-
-% Reset all tetrahedra to their beginning states.
-for k = 1:links
-    % Each tetrahedron starts out where it was in the beginning. See code above in the initialization section.
-    x(k) = 0; 
-    y(k) = 0.0; 
-    z(k) = tetra_vertical_spacing * k; 
-    T(k) = 0.0; 
-    G(k) = 0.0; 
-    P(k) = 0.0;
-    dx(k) = 0; 
-    dy(k) = 0; 
-    dz(k) = 0; 
-    dT(k) = 0; 
-    dG(k) = 0; 
-    dP(k) = 0;
-end
-
-% Loop through each timestep, using the controller and plotting.
-s = 1;
-for t = 1:((M-1)+offset)
-    if mod(t, frame) == 0
-        tic
-        
-        while toc < (plot_dt*frame)
-            % Wait until time has passed
-        end
-        
-        % Update the visualization of the tetrahedra.
-        % This is done by setting the matrix of "transform{k}" for each tetra.
-        for k = 1:links
-            % The function below is generated by transforms.m
-            RR{k} =  getHG_Tform(x(k),y(k),z(k),T(k),G(k),P(k)); % Build graphical model of each link
-            %set(transform{k},'Matrix',RR{k});
-            set(transform{k+1},'Matrix',RR{k});
-        end
-        
-        % Plot the cables
-        if (stringEnable)
-            % First, delete the old cables
-            delete(string_handle);
-            
-            % Calculate the new position of the tetra's coordinates, for plotting, based on the transform from the current system states.
-            % This section of code is the same as that in the initialization section, but instead, directly indexes the Tetra{} array.
-            for k = 2:(links+1)
-                % Reset this specific tetrahedron to the initial state of the bottom tetra.
-                Tetra{k} = [(l^2 - (h/2)^2)^.5, 0, -h/2, 1; ...
-                            -(l^2 - (h/2)^2)^.5, 0, -h/2, 1; ...
-                            0, (l^2 - (h/2)^2)^.5, h/2, 1; ...
-                            0, -(l^2 - (h/2)^2)^.5, h/2, 1];
-                % Move the coordinates of the string points of this tetra into position. 
-                % Note that the transforms are indexed as per the system states: set k=1 is for the first moving tetra,
-                % AKA the second tetra graphically.
-                Tetra{k} = RR{k-1}*Tetra{k}';
-                % Needs a transpose!
-                Tetra{k} = Tetra{k}';
-                % Remove the trailing "1" from the position vectors.
-                Tetra{k} = Tetra{k}(:,1:3);
-            end
-            
-            % Get the coordinates of the spine cables
-            String_pts = get_spine_cable_points(Tetra, anchor);
-            % Plot the new strings
-            string_handle=plot3(String_pts(:,1),String_pts(:,2),String_pts(:,3),'LineWidth',2,'Color','r');
-        end
-        drawnow;
-    end
     
-    % Update the systemStates matrix with the current states that are saved as individual variables
-    for k = 1:links
-        systemStates(k, 1) = x(k); 
-        systemStates(k, 2) = y(k); 
-        systemStates(k, 3) = z(k);
-        systemStates(k, 4) = T(k); 
-        systemStates(k, 5) = G(k); 
-        systemStates(k, 6) = P(k);
-        systemStates(k, 7) = dx(k); 
-        systemStates(k, 8) = dy(k); 
-        systemStates(k, 9) = dz(k);
-        systemStates(k, 10) = dT(k); 
-        systemStates(k, 11) = dG(k); 
-        systemStates(k, 12) = dP(k);
-    end
-    
-    % Forward simulate using the controller
-
-    if ((t > offset) && (t < M + offset))
-        % Calculate the input to the system dynamics
-        % A general representation of u(t) = K(t) * (x(t) - x_{ref}(t)) + u_{ref}(t)
-        control = K{M+offset-t}*(reshape(systemStates', 36, 1) - x_ref{t-offset}) + u_ref{t-offset};
-        % Forward simulate using that control input
-        systemStates = simulate_dynamics(systemStates, restLengths, reshape(control, 8, 3)', dt, links, noise);
-        % Save the result as the next point in the performed trajectory
-        actual_traj(:, s) = systemStates(links, :); 
-        % Save the control results for examination later
-        actual_control_inputs(:,s) = control;
-        s = s + 1;
-    end
-    
-    % Unfoil the new system states back into the series of individual variables
-    for k = 1:links
-        x(k) = systemStates(k, 1); 
-        y(k) = systemStates(k, 2); 
-        z(k) = systemStates(k, 3);
-        T(k) = systemStates(k, 4); 
-        G(k) = systemStates(k, 5); 
-        P(k) = systemStates(k, 6);
-        dx(k) = systemStates(k, 7); 
-        dy(k) = systemStates(k, 8); 
-        dz(k) = systemStates(k, 9);
-        dT(k) = systemStates(k, 10); 
-        dG(k) = systemStates(k, 11); 
-        dP(k) = systemStates(k, 12);
-    end
+    drawnow;
     
     % Record this frame for a video
-    videoFrames(t) = getframe(gcf);
+    videoFrames(k-1) = getframe(gcf);
+    
 end
 
 % Plot the resultant trajectory, in full.
 plot3(actual_traj(1, :), actual_traj(2, :), actual_traj(3, :), 'g', 'LineWidth', 2);
-
-% Save the last frame, now with full trajectory plotted.
-% Save a few of them in a row for a better visualization.
-% for frames = 1:5
-%     videoFrames(t + frame) = getframe(gcf)
-% end
 
 % Save the video, if the save_video flag is set
 if(save_video)
@@ -443,4 +429,5 @@ if(save_video)
     close(videoObject);
 end
 
-% End script.
+%% End script.
+

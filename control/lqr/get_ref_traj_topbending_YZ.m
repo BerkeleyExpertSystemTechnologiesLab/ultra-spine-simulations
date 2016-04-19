@@ -20,7 +20,8 @@ max_deg = pi/3;
 % Number of points to have in this trajectory. 
 % Note that it's been estimated that timesteps should only be about 0.0014 units distance away from each other for the optimization to work.
 % For pi/3 end: (0.3 * pi/6) / 0.0014
-num_points = 115;
+%num_points = 115;
+num_points = 50;
 
 % Create a sequence of successive angles between min and max
 theta = linspace(start_deg, max_deg, num_points);

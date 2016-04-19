@@ -1,9 +1,9 @@
-% get_yalmip_controller_XYZG.m
+% get_yalmip_controller_G.m
 % Copyright 2015 Abishek Akella, Andrew P. Sabelhaus
-% This function contains the objective and constraints that work for the ULTRA Spine MPC when the reference trajectory has only nonzeros in X,Y,Z,G.
+% This function contains the objective and constraints that work for the ULTRA Spine MPC when the reference trajectory has only nonzeros in G.
 % Note that this is for a 4-vertebra (link == 3) spine system
 
-function [controller, constraints, objective, parameters_in, solutions_out] = get_yalmip_controller_XYZG(N, inputs, states, ...
+function [controller, constraints, objective, parameters_in, solutions_out] = get_yalmip_controller_G(N, inputs, states, ...
     A_t, B_t, c_t, prev_in, reference)
 
 % Inputs:
@@ -38,9 +38,9 @@ function [controller, constraints, objective, parameters_in, solutions_out] = ge
 
 %% Define weights
 % Power-function weight for the objectives, used on the reference-tracking terms, for the longitudinal coordinates x,y,z
-obj_w_r = 10; %used to be 5
+%obj_w_r = 10; %used to be 5
 % Power-function weight for the objectives, used on the reference-tracking terms, for the angle G
-obj_w_ra = 25;
+obj_w_ref_g = 25;
 % Multiplicative weight for the objectives, used on the successive-states terms (smooth motion)
 obj_w_s = 3;
 % Power-function weight for the objectives, used on the successive-input terms (control authority, how-strong-is-the-motor)
@@ -76,28 +76,25 @@ constraints = [constraints, states{N}(3) + .02 <= states{N}(15), states{N}(15) +
 %% Build up the objective
 
 % First, minimize deviations along trajectory for the topmost tetrahedron
-% This controller is working on the first *three* states here, xyz, which are reference{}(1:3) and states{}(25:27).
-% However, objectives are also constructed for the 5th variable, G, which is reference{}(5) and states{}(29).
+% Objectives are also constructed for the 5th variable, G, which is reference{}(5) and states{}(29).
 
 % For this current state (the first one in the set that are given to the optimizer):
-objective = obj_w_r * norm(states{1}(25:27) - reference{1}(1:3), 2) + obj_w_r * norm(states{1}(29) - reference{1}(5), 2); 
+objective = obj_w_ref_g * norm(states{1}(29) - reference{1}(5), 2); % note that obj_w is raised to the power of k, but k=1 here.
 
 % For the remaining states in this horizon:
 for k = 2:(N-1)
     objective = objective ... % Add terms onto the objective, successively.
-                + (1/2)*(obj_w_r^k) * norm(states{k}(25:27) - reference{k}(1:3), 2) ... % Tracking x,y,z
-                + (1/2)*(obj_w_ra^k) * norm(states{k}(29) - reference{k}(5), 2) ...      % Tracking G
+                + (1/2)*(obj_w_ref_g^k) * norm(states{k}(29) - reference{k}(5), 2) ...      % Tracking G
                 + (obj_w_im)*(obj_w_ip^k) * norm(inputs{k} - inputs{k-1}, inf) ...      % Deviation of inputs, control authority
-                + (obj_w_s^k) * norm(states{k}(25:27) - states{k-1}(25:27), 2) ...      % Smooth motion, x,y,z
                 + (obj_w_s^k) * norm(states{k}(29) - states{k-1}(29), 2);               % Smooth motion, G
+%                + (obj_w_s^k) * norm(states{k}(25:27) - states{k-1}(25:27), 2) ...      % Smooth motion, x,y,z
 end
 
 % Add the objective for the last state in this horizon. There are no inputs for index k == N.
 objective = objective ...
-            + (1/2)*(obj_w_r^N) * norm(states{N}(25:27) - reference{N}(1:3), 2) ... % Tracking x,y,z
-            + (1/2)*(obj_w_ra^N) * norm(states{N}(29) - reference{N}(5), 2) ...      % Tracking G
-            + (obj_w_s^N) * norm(states{N}(25:27) - states{N-1}(25:27)) ...         % Smooth motion, x,y,z
+            + (1/2)*(obj_w_ref_g^N) * norm(states{N}(29) - reference{N}(5), 2) ...      % Tracking G
             + (obj_w_s^N) * norm(states{N}(29) - states{N-1}(29));                  % Smooth motion, G
+%            + (obj_w_s^N) * norm(states{N}(25:27) - states{N-1}(25:27)) ...         % Smooth motion, x,y,z        
 
 % For the controller, need to include input parameters variables and solutions output variables
 parameters_in = {prev_in, states{1}, [A_t{:}], [B_t{:}], c_t, [reference{:}]};

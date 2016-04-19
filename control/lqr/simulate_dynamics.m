@@ -38,6 +38,8 @@ end
 % correspond to linear/angular velocities for the first six states and
 % their corresponding accelerations for the second six states.
 
+%size(tempState{2})
+
 for k = 2:(links+1)
     Te{k} = getTensions(tempState{2}(1),tempState{2}(2),tempState{2}(3),tempState{2}(4),tempState{2}(5),tempState{2}(6),tempState{2}(7),tempState{2}(8),tempState{2}(9),tempState{2}(10),tempState{2}(11),tempState{2}(12), ...
         tempState{3}(1),tempState{3}(2),tempState{3}(3),tempState{3}(4),tempState{3}(5),tempState{3}(6),tempState{3}(7),tempState{3}(8),tempState{3}(9),tempState{3}(10),tempState{3}(11),tempState{3}(12), ...
