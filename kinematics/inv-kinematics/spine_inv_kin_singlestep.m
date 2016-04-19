@@ -6,7 +6,7 @@
 % Contact Jeff at: jfriesen222@gmail.com
 % Contact Drew at: apsabelhaus@berkeley.edu
 
-function [lengths] = spine_inv_kin_singlestep(tetra_vertical_spacing, spine_geometric_parameters)
+function [node_distances, final_lengths] = spine_inv_kin_singlestep(tetra_vertical_spacing, spine_geometric_parameters)
 
 % This function calculates the required cable lengths in the spine robot for a given kinematic position: it does a single step of inverse kinematics.
 % Inputs:
@@ -42,7 +42,7 @@ m_t = spine_geometric_parameters.m_t;
 
 % Hard code the spring constant from the dynamics scripts. TO-DO: roll this into another struct or something.
 % Note that this is from getTensions.m in the dynamics folder.
-K = 2000; % N/m
+%K = 2000; % N/m
 
 %w is a vector used to navigate the nullspace of cable force densities
 w=ones(20,1)*10;
@@ -59,7 +59,10 @@ B_base=[ 1  1  1  0  0  0;   %A
 % BUT, changing pretension won't change the fact that the spine will be in equilibrium... maybe?
 % Test out: will we have the same behavior (equilibrium), but different cable forces, for different pretension?
 %pretension = 200; %force density N/m
-pretension = 0;
+
+% On 2016-04-18, ultra-spine-lqr had cable rest lengths of 0.1 for vertical and 0.187 for horizontal.
+% That corresponds to a pretension of zero: the vertical cables are exactly as long as the z_translation between tetrahedra.
+pretension = 400;
 
 %This is the string connetivity matrix for Any two tetrahedra
      %   1  2  3  4  5  6  7  8   
@@ -101,22 +104,6 @@ K_scale=eye((N-1)*8);
 %Mass= 1; %mass of single tetra kg
 Mass = m_t;
 
-% Jeff's usage:
-%L=0.2; Edge of tetra 
-%h=sqrt(L^2-1/2*L^2); % height of tetrahedron... I made this equation a while ago I should double check it. 
-
-%Standard Tetrahedron Coord (Jeff)
-%tetraNodesPreTransform = [L/2   0     -h/2  1; %A
-%                          -L/2   0     -h/2  1; %B                 
-%                          0    -L/2    h/2  1; %C
-%                          0     L/2    h/2  1];%D
-
-% Here's how we use these geometric parameters in ultra_spine_lqr to define the outer coordinates of a vertebra tetrahedron.
-% In this usage, l is the length of the leg of the tetra (the hypotenuse of the triangle), NOT the longitudinal length.
-% Tetra{1} = [(l^2 - (h/2)^2)^.5, 0, -h/2; ...
-%             -(l^2 - (h/2)^2)^.5, 0, -h/2; ...
-%             0, (l^2 - (h/2)^2)^.5, h/2; ...
-%             0, -(l^2 - (h/2)^2)^.5, h/2];
 
 tetraNodesPreTransform = [(l^2 - (h/2)^2)^.5, 0, -h/2; ...
              -(l^2 - (h/2)^2)^.5, 0, -h/2; ...
@@ -131,19 +118,10 @@ tetraNodesPreTransform = [tetraNodesPreTransform, ones(4,1)];
 % Store a copy of tetraNodesPreTransform to use in copying later.
 single_tetra_nodes_atzero=tetraNodesPreTransform;                           
 
-%These are coordinates for the first tetrahedron. All subsequent
-%tetrahedron are multiplied by the same translations repeatedly... this way
-%coupled actuation is straightforward if you kinematically constrain
-%yourself to these 4 degrees of freedom
-%z = 0.075; %vertical height
-%xR = 0;    %x rotation bending
-%yR = 0;    %y rotation bending
-%zR = 0;    %torsional rotation
 
-%Cable stiffnesses, only used for back calculating cable length from force
-%densities
-% TO-DO: fix this with K above.
-K=1000*ones((N-1)*8,1); %N/m
+%Cable stiffnesses, only used for back calculating cable length from force densities
+%K=1000*ones((N-1)*8,1); %N/m
+K=2000*ones((N-1)*8,1); %N/m
  
 % The options for the optimization solver
 options = optimoptions('quadprog','Algorithm','interior-point-convex','Display','off');     
@@ -231,7 +209,8 @@ q=A_g*F + V*w;
 
 stringLengths=getLengths(stringPts(:,1),stringPts(:,2),stringPts(:,3));
 Lengths= stringLengths(1:2:end);
-L0=Lengths-Lengths.*q(1:(N-1)*8)./K;
+L0=Lengths-(Lengths.*q(1:(N-1)*8))./K;
+%L0 = Lengths.*q(1:(N-1)*8)./K;
 
 
 % Calculate the forces in the cables, and record the color differently
@@ -247,7 +226,8 @@ for i=1:(N-1)*8
     end
 end
 
-lengths = L0;
+node_distances = Lengths;
+final_lengths = Lengths.*q(1:(N-1)*8)./K;
 
 end
     
