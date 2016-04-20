@@ -26,6 +26,11 @@ addpath(path_to_reference_trajectories);
 path_to_yalmip_controllers = './yalmip_controllers';
 addpath(path_to_yalmip_controllers);
 
+% The path to our videos repository now needs to be set, since we're no longer pushing videos to this simulations repository.
+% Drew (on 2016-04-19) put the ultra-spine-videos repository in the same folder as ultra-spine-simulations, which means
+% the path to the MPC videos folder will be:
+path_to_videos_folder = '../../../ultra-spine-videos/simulations/control/mpc/';
+
 % Time step for dynamics
 dt = 0.001;
 
@@ -98,7 +103,10 @@ anchor = [0 0 rad];
 % Initialize the video, if flagged.
 if(save_video)
     %break;
-    videoObject = VideoWriter( strcat('../../videos/ultra-spine-mpc_', datestr(datetime('now'))) );
+    % create the filename for this video by concatenating with the path to the video folders, defined above
+    videoPath = strcat( path_to_videos_folder, 'ultra-spine-mpc_', datestr(datetime('now')) );
+    %videoObject = VideoWriter( strcat('../../videos/ultra-spine-mpc_', datestr(datetime('now'))) );
+    videoObject = VideoWriter( videoPath );
     videoObject.Quality = 90;
     videoObject.FrameRate = 5;
 end
@@ -251,6 +259,7 @@ end
 % P+ clockwise around the Z+ axis (rotates in the X,Y plane)
 % P- counterclockwise around the Z+ axis (rotates in the X,Y plane)
 
+% Trajectories for *top tetrahedron only*
 %[traj, ~] = get_ref_traj_circletop();
 %[traj, ~] = get_ref_traj_quartercircletop();
 %[traj, ~] = get_ref_traj_topbending1(); % Has trajectories along angles. NOT WORKING WELL as of 2016-02-28...
@@ -259,8 +268,35 @@ end
 [traj, ~] = get_ref_traj_toprotationtest(); % Has trajectories along angles.
 %[traj, ~]  = get_ref_traj_zero();
 
+% Trajectories for *all tetrahedra*
+%[traj, ~] = get_ref_traj_allbending_cw_XZG(tetra_vertical_spacing);
+
+% Automatically check if the trajectory that was loaded is for the full spine (3 vertebrae) or just the top one.
+% Declare a flag variable:
+traj_is_full_system = 0;
+if ( size(traj,1) == 12)
+    % Small system, top vertebra only
+    traj_is_full_system = 0;
+    disp('Reference trajectory is for the top vertebra only (12 states.)');
+elseif ( size(traj, 1) == 36)
+    % large system, 3 vertebrae
+    traj_is_full_system = 1;
+    disp('Reference trajectory is for all three vertebra (36 states.)');
+else
+    disp('Script currently only configured for trajectories of size 12 and 36! Loaded trajectory is not.');
+    break; % TO-DO: double break to really stop the script? This might only break out of the current if/else.
+end
+
 % Plot this trajectory, for a visualization
-plot3(traj(1, :), traj(2,:), traj(3, :), 'b', 'LineWidth', 2);
+% If traj is for top tetra only:
+if ( ~traj_is_full_system)
+    plot3(traj(1, :), traj(2,:), traj(3, :), 'b', 'LineWidth', 2);
+else
+    % for the full-trajectory version:
+    plot3(traj(1, :), traj(2,:), traj(3, :), 'b', 'LineWidth', 2);
+    plot3(traj(13, :), traj(14,:), traj(15, :), 'b', 'LineWidth', 2);
+    plot3(traj(25, :), traj(26,:), traj(27, :), 'b', 'LineWidth', 2);
+end
 
 % Force the figure to draw. The figure at this point includes: tetra bodies, tetra cables, reference trajectory in (x,y,z).
 drawnow;
@@ -269,7 +305,9 @@ drawnow;
 disp('Controller Initialization')
 
 % Initialize yalmip variables for changing controller parameters
+% Horizon length:
 N = 10;
+% YALMIP variables:
 inputs = sdpvar(repmat(8*links, 1, N-1), repmat(1, 1, N-1));
 states = sdpvar(repmat(12*links, 1, N), repmat(1, 1, N));
 A_t = sdpvar(repmat(12*links, 1, 12*links), repmat(1, 1, 12*links));
@@ -277,11 +315,19 @@ B_t = sdpvar(repmat(12*links, 1, 8*links), repmat(1, 1, 8*links));
 c_t = sdpvar(36, 1);
 
 prev_in = sdpvar(8*links, 1);
-% The reference trajectory here is only for the top tetrahedron (12 states, one rigid body.)
-reference = sdpvar(repmat(12, 1, N), repmat(1, 1, N));
+
+% Two different behaviors here: reference trajectory variables will be smaller if the trajectory is only the top tetra.
+if( ~traj_is_full_system)
+    reference = sdpvar(repmat(12, 1, N), repmat(1, 1, N));
+else
+    % all 36 states (3 vertebra) are present in the trajectory to track
+    reference = sdpvar(repmat(36, 1, N), repmat(1, 1, N));
+end
 
 % Create the YALMIP controller for computation of the actual MPC optimizations.
 % This function contains all the definitions of the constraints on the optimization, as well as the objective function.
+
+% *TO-DO* have the controllers throw an error if the reference passed in is the wrong size?
 
 % Cell array of controllers are generated from 2-step to N-step horizon to
 % deal with situations at the end of the reference trajectory
@@ -298,8 +344,17 @@ end
 %% Forward simulate trajectory
 disp('Forward simulate trajectory')
 
-[x_ref, u_ref, M] = simulate_reference_traj(controller, systemStates, restLengths, links, dt, x, y, z, T, G, P, ...
-    dx, dy, dz, dT, dG, dP, traj, N);
+% Again, use one version for tracking of top vertebra only, a different one for all vertebrae.
+
+if( ~traj_is_full_system)
+    % Use the version that takes a traj of size 12 x whatever
+    [x_ref, u_ref, M] = simulate_reference_traj(controller, systemStates, restLengths, links, dt, x, y, z, T, G, P, ...
+        dx, dy, dz, dT, dG, dP, traj, N);
+else
+    % Use the version that simulates with all 36 states
+    [x_ref, u_ref, M] = simulate_reference_traj_allvertebra(controller, systemStates, restLengths, links, dt, x, y, z, T, G, P, ...
+        dx, dy, dz, dT, dG, dP, traj, N);
+end
 
 % Transform the x_ref matrix and plot it
 refx = [x_ref{:}];

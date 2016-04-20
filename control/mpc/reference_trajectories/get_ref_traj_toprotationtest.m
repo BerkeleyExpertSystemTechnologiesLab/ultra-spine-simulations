@@ -11,7 +11,7 @@ function [traj, num_points] = get_ref_traj_toprotationtest()
 % The top tetra will rotate around one axis.
 % Let's have it go 0 to pi/3.
 start_deg = 0;
-max_deg = -pi/3;
+max_deg = pi/3;
 
 % Number of points to have in this trajectory. 
 % Note that it's been estimated that timesteps should only put the top tetras about 0.0014 units distance away from each other (in sequential
