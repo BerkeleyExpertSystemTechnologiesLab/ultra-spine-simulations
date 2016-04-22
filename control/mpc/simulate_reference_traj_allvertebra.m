@@ -27,7 +27,8 @@ function [x_ref, u_ref, M] = simulate_reference_traj_allvertebra(controller, sys
 %   linearize_dynamics
 %   simulate_dynamics
 
-disp('Simulating reference trajectory')
+disp('Simulating reference trajectory, 36-input system.')
+assert(size(traj,1) == 36, 'Input reference trajectory is not 36 states!');
 
 % Initializing states for each link based on default resting location of
 % each individual link. Initial input to linearize around is u = {0}.
@@ -98,7 +99,7 @@ for index = M:(size(traj, 2)-1)
     tic;
     % Calculate number of states in traj from current state onwards
     shrinking_horizon = size(traj, 2) - M + 1;
-    ref_traj = zeros(12, N);
+    ref_traj = zeros(size(traj,1), N);    % THIS WAS CHANGED FROM 12 TO size(traj,1) ON 2016-04-22
     % Zero-pad reference trajectory passed into the controller (zero states
     % are ignored)
     ref_traj(:, 1:shrinking_horizon) = traj(:, index:end);

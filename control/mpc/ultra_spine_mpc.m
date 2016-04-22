@@ -123,7 +123,8 @@ figure_handle = figure('position', [0, 0, 600 700],'Color','w');
 M = struct('cdata', cell(1,round(length(time)/10)), 'colormap', cell(1,round(length(time)/10)));
 
 % Set the color map
-cmaps = summer(512);
+%cmaps = summer(512);
+cmaps = gray(512);
 colormap(cmaps(1:256,:))
 %colormap(cool);
 ax = axes();
@@ -265,11 +266,11 @@ end
 %[traj, ~] = get_ref_traj_topbending1(); % Has trajectories along angles. NOT WORKING WELL as of 2016-02-28...
 %[traj, ~] = get_ref_traj_topbending2();
 %[traj, ~] = get_ref_traj_topbending_YZ();
-[traj, ~] = get_ref_traj_toprotationtest(); % Has trajectories along angles.
+%[traj, ~] = get_ref_traj_toprotationtest(); % Has trajectories along angles.
 %[traj, ~]  = get_ref_traj_zero();
 
 % Trajectories for *all tetrahedra*
-%[traj, ~] = get_ref_traj_allbending_cw_XZG(tetra_vertical_spacing);
+[traj, ~] = get_ref_traj_allbending_ccw_XZG(tetra_vertical_spacing);
 
 % Automatically check if the trajectory that was loaded is for the full spine (3 vertebrae) or just the top one.
 % Declare a flag variable:
@@ -283,8 +284,7 @@ elseif ( size(traj, 1) == 36)
     traj_is_full_system = 1;
     disp('Reference trajectory is for all three vertebra (36 states.)');
 else
-    disp('Script currently only configured for trajectories of size 12 and 36! Loaded trajectory is not.');
-    break; % TO-DO: double break to really stop the script? This might only break out of the current if/else.
+    error('Script currently only configured for trajectories of size 12 and 36! Loaded trajectory is not.');
 end
 
 % Plot this trajectory, for a visualization
@@ -332,12 +332,15 @@ end
 % Cell array of controllers are generated from 2-step to N-step horizon to
 % deal with situations at the end of the reference trajectory
 for k = 2:N
+    % Controllers for 12 states
     %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZ(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
     %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZT(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
     %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZG(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
     %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_G(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
     %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_T(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
-    [controller{k}, ~, ~, ~, ~] = get_yalmip_controller_P(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
+    %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_P(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
+    % Controllers for 36 states
+    [controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XZG(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

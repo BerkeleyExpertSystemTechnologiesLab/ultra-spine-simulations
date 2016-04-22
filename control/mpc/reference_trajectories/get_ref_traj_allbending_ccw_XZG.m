@@ -1,10 +1,10 @@
-% get_ref_traj_allbending_cw_XZG.m
+% get_ref_traj_allbending_ccw_XZG.m
 % Copyright 2015 Andrew P. Sabelhaus
 % This function returns a trajectory for all three vertebra of a 4-vertebra spine that
-% bends clockwise around the Y+ axis.
+% bends counterclockwise around the Y+ axis.
 % It includes full position state information for all three rigid bodies. No velocities though, those are zero-padded.
 
-function [traj, num_points] = get_ref_traj_allbending_cw_XZG(tetra_vertical_spacing)
+function [traj, num_points] = get_ref_traj_allbending_ccw_XZG(tetra_vertical_spacing)
 % Inputs:
 %   tetra_vertical_spacing = the distance between successive vertebrae. On 2016-04-18, was 0.1 meters.
 % Outputs:
@@ -20,11 +20,11 @@ function [traj, num_points] = get_ref_traj_allbending_cw_XZG(tetra_vertical_spac
 
 % Call the translational movement XZ, since it's movement in that plane, and "3" for top tetrahedron.
 start_deg = 0;
-max_deg_XZ3 = pi/3;
+max_deg_XZ3 = -pi/3;
 
 % The second angle: the total rotation about its own axis for the top tetrahedron.
 % To go clockwise, the system moves in +X, -Z, and +G.
-max_deg_G3 = pi/12;
+max_deg_G3 = -pi/12;
 
 % Number of points to have in this trajectory. 
 % Note that it's been estimated that timesteps should only put the top tetras about 0.0014 units distance away from each other (in sequential
