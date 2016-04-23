@@ -140,6 +140,13 @@ stringLengthHistorySadd = zeros(N-1,4,num_frames_to_render);
 % adjacent tetrahedra
 stringForceHistory = zeros((N-1)*8,num_frames_to_render);
 
+% Record the actual position of the robot (Drew) 2016-04-22
+% Each 2D 'center' array is for 5 tetrahedra, with 4 dimensions (x,y,z, 1).
+centersHistory = zeros(N, 4, num_frames_to_render);
+% The angles of rotation for each tetra at each timepoint will be recorded
+% There are 5 tetras.
+rotationHistory = zeros(5, num_frames_to_render);
+
 % Main loop
 while frame < num_frames_to_render
     frame=frame+1;      %=counter
@@ -256,7 +263,23 @@ while frame < num_frames_to_render
     
     % Cable Force Recorder (Drew)
     stringForceHistory(:,frame) = Force;  
+    
+    % Tetrahedra center nodes history (Drew)
+    centersHistory(:,:, frame) = centers;
         
+    % Rotation for each tetrahedron can be calculated by the slope of the line connecting
+    % its top two nodes. These are the 3rd and 4th points for each tetra.
+    for i=1:5
+        % Note that we're ignoring the X dimension here. TO-DO: generalize this. (2016-04-22).
+        % THIS IS NOT VALID FOR 3D ROTATIONS.
+        % Z is the third element, and we want to calculate e.g. rows 4-3, rows 8-7, 12-11, 16-15, 20-19.
+        % Orientation here is in
+        tetraZdist = tetraNodes( i*4, 3) - tetraNodes( i*4 - 1, 3);
+        tetraYdist = tetraNodes( i*4, 2) - tetraNodes( i*4 - 1, 2);
+        tetraRotation = atan(tetraZdist/tetraYdist);
+        % save this angle (in radians) for the i-th tetrahedron, for this timestep.
+        rotationHistory(i, frame) = tetraRotation;
+    end
     
     hold off;
 
@@ -274,6 +297,9 @@ while frame < num_frames_to_render
         hold on;
     end
     grid on;
+    
+    % Save tetrahedra locations (Drew)
+    %tetraPlotHistory
     
     %axis equal;
     % For 2D perspective:
@@ -311,8 +337,8 @@ plot(stringLengthsOverTime(24,:));
 % Plot changes in length of each cable over time (CHANWOO)
 % Refer to plotLengthChange.m file; gearRatioFinder.m
 
-plotLengthChange
-gearRatioFinder
+%plotLengthChange
+%gearRatioFinder
 
 
 

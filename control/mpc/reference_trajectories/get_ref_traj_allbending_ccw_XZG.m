@@ -20,16 +20,16 @@ function [traj, num_points] = get_ref_traj_allbending_ccw_XZG(tetra_vertical_spa
 
 % Call the translational movement XZ, since it's movement in that plane, and "3" for top tetrahedron.
 start_deg = 0;
-max_deg_XZ3 = -pi/3;
+max_deg_XZ3 = -pi/6;
 
 % The second angle: the total rotation about its own axis for the top tetrahedron.
 % To go clockwise, the system moves in +X, -Z, and +G.
-max_deg_G3 = -pi/12;
+max_deg_G3 = -pi/6;
 
 % Number of points to have in this trajectory. 
 % Note that it's been estimated that timesteps should only put the top tetras about 0.0014 units distance away from each other (in sequential
 % timesteps) for the optimization to work.
-num_points = 30;
+num_points = 300;
 
 % Create a sequence of successive angles between min and max, for each of the vertebrae, for both angles.
 % Here, theta_XZ1 refers to the angle for movement in the XZ plane for the first moving vertebra.

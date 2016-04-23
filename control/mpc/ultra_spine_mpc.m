@@ -272,6 +272,9 @@ end
 % Trajectories for *all tetrahedra*
 [traj, ~] = get_ref_traj_allbending_ccw_XZG(tetra_vertical_spacing);
 
+% A bit of debugging
+disp( strcat('Reference trajectory has ', num2str(size(traj,2)), ' timesteps.'));
+
 % Automatically check if the trajectory that was loaded is for the full spine (3 vertebrae) or just the top one.
 % Declare a flag variable:
 traj_is_full_system = 0;

@@ -43,9 +43,9 @@ assert(size(reference{1}, 1) == 36, 'Reference does not have 36 states.');
 
 %% Define weights
 % Power-function weight for the objectives, used on the reference-tracking terms, for the longitudinal coordinates x,y,z
-obj_w_ref_xyz = 10; %used to be 5
+obj_w_ref_xyz = 15; %used to be 5
 % Power-function weight for the objectives, used on the reference-tracking terms, for the angle G
-obj_w_ref_angle = 3; % used to be 25
+obj_w_ref_angle = 5; % used to be 25
 % Multiplicative weight for the objectives, used on the successive-states terms (smooth motion)
 obj_w_smooth = 3;
 % Power-function weight for the objectives, used on the successive-input terms (control authority, how-strong-is-the-motor)
