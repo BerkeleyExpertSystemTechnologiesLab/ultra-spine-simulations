@@ -2,11 +2,12 @@
 % Copyright 2016 Andrew P. Sabelhaus, Berkeley Emergent Space Tensegrities Lab
 % This function generates a weighting matrix for use in MPC/LQR. (e.g., N-many rigid bodies.)
 
-function Q = generate_Q_rigidbody( weights, weighting_ratio, N )
+function Q = generate_Q_rigidbody( weights, weighting_ratio, bodies_do_not_track, N )
 % Inputs:
 %   weights = a column vector of either size 4 or size 12.
 %   weighting_ratio = ratio of weighting between rigid bodies, from first to last, 
 %       as an adjustment to weights.
+%   bodies_do_not_track = cell array of which bodies to zero out. For ex., {} tracks all, {1,2} tracks the third body only, etc.
 %   N = number of rigid bodies.
 % Outputs:
 %   Q = a 12*N by 12*N matrix with the specified weights along the diagonal.
@@ -14,6 +15,9 @@ function Q = generate_Q_rigidbody( weights, weighting_ratio, N )
 % Check which set of weights were passed in.
 % If there are only 4 weights, then assign them block-diagonally in sections of three
 % to each of the rigid body states (this is like weighting xyz, angles, dot xyz, dot angles.
+
+% Sanity checks
+assert( size(bodies_do_not_track, 2) <= N, 'Error! which_bodies is greater than N. Cannot weight bodies that are nonexistant!');
 
 if( size(weights,1) == 4)
     % Generate block weighting matrix.
@@ -78,6 +82,13 @@ for i=1:N
     Q( 12*(i-1) + 1: 12*(i-1) + 12, 12*(i-1) + 1: 12*(i-1) + 12 ) = current_block;
 end
 
+% Finally, set to zero all the blocks/bodies which are not tracked.
+for i=1:size(bodies_do_not_track, 2)
+    % Zero out this specific block
+    % this block is:
+    k = bodies_do_not_track{i};
+    Q( 12*(k-1) + 1: 12*(k-1) + 12, 12*(k-1) + 1: 12*(k-1) + 12 ) = zeros(12);
+end
 
 % End function.
 

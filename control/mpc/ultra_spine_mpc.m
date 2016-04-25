@@ -90,12 +90,16 @@ paths.path_to_data_folder = '../../data/mpc_data/';
 % In particular, on 2016-04-23 controllers that use this struct are get_yalmip_controller_XZG.
 % obj_w_ref_xyz = Power-function weight for the objectives, used on the reference-tracking terms, for the longitudinal coordinates x,y,z
 % obj_w_ref_angle = Power-function weight for the objectives, used on the reference-tracking terms, for the angle 
-% obj_w_smooth = Multiplicative weight for the objectives, used on the successive-states terms (smooth motion)
+% obj_w_smooth = Power-function weight for the objectives, used on the successive-states terms (smooth motion)
 % obj_w_input_pow = Power-function weight for the objectives, used on the successive-input terms (control authority, how-strong-is-the-motor)
 % obj_w_input_mult = Multiplicative weight for the objectives, used on the successive-input terms (control authority, how-strong-is-the-motor)
 % weighting_ratio = ratio for re-scaling the weights of each rigid body.
 %   The lowest rigid body (vertebra 1) is not re-weighted, and the others are re-weighted linearly up to highest = weighting_ratio.
 %   This value is multiplicative on top of the weights already proscribed. So, weights are (for ex., top tetra) obj_w_ref_xyz * weighting_ratio.
+% vertebrae_do_not_track = cell array of numerical values of the vertebrae to NOT track. For ex., {} tracks all, and {1,2} is top only.
+%   See generate_Q_rigidbody for more information.
+
+% The weights for Abishek's original MPC run were, respectively, 25, 0, 3, 3, 1/24. These were for only the top tetrahedron.
 
 % Flags:
 % noise = adds noise to the forward simulation of the dynamics. noise = 1 turns it on.
@@ -113,15 +117,15 @@ paths.path_to_data_folder = '../../data/mpc_data/';
 %   bad things will happen.
 %   In the future, links will be defined as links = N_tetras-1.
 
-
 optimization_parameters.dt = 0.001;
 
-optimization_weights.obj_w_ref_xyz = 8;
-optimization_weights.obj_w_ref_angle = 5;
+optimization_weights.obj_w_ref_xyz = 25;
+optimization_weights.obj_w_ref_angle = 0;
 optimization_weights.obj_w_smooth = 3;
-optimization_weights.obj_w_input_pow = 1.5;
+optimization_weights.obj_w_input_pow = 3;
 optimization_weights.obj_w_input_mult = 1/24;
 optimization_weights.weighting_ratio = 1;
+optimization_weights.vertebrae_do_not_track = {};
 
 optimization_parameters.optimization_weights = optimization_weights;
 
@@ -136,7 +140,7 @@ restLengths(1:4) = 0.1;
 restLengths(5:8) = 0.187;
 optimization_parameters.restLengths = restLengths;
 
-optimization_parameters.num_points_ref_traj = 30;
+optimization_parameters.num_points_ref_traj = 100; % for invkin, 80 gives a 0.0015 straight-line dist b/w points.
 optimization_parameters.direction = -1; % 1 for cw, -1 for ccw.
 optimization_parameters.horizon_length = 10;
 optimization_parameters.opt_time_limit = 8; % seconds
@@ -203,7 +207,8 @@ default_plotting_parameters = plotting_parameters;
 % Number of iterations of MPC. 
 % NOTE that this must be carried throughout all the list-making: if there aren't the correct number of
 % parameter sets, reference trajectories, and controllers, errors will be thrown.
-num_mpc_runs = 2;
+
+num_mpc_runs = 1;
 
 optimization_parameters_by_iteration = cell(num_mpc_runs, 1);
 flags_by_iteration = cell(num_mpc_runs, 1);
@@ -219,13 +224,33 @@ end
 % Manually change these according to the runs of MPC that this script should make.
 
 % Run 1:
-% nothing changed.
+%optimization_parameters_by_iteration{1}.vertebrae_do_not_track = {1,2};
+% for the circletop traj:
+optimization_parameters_by_iteration{1}.num_points_ref_traj = 60;
+optimization_parameters_by_iteration{1}.optimization_weights.vertebrae_do_not_track = {1,2};
 
 % Run 2:
-optimization_parameters_by_iteration{2}.num_points_ref_traj = 60;
+%optimization_parameters_by_iteration{2}.num_points_ref_traj = 200;
+%optimization_parameters_by_iteration{2}.optimization_weights.vertebrae_do_not_track = {1,2};
+%optimization_parameters_by_iteration{2}.optimization_weights.obj_w_input_mult = 1/4;
 %optimization_parameters_by_iteration{2}.optimization_weights.obj_w_ref_xyz = 100;
 
-% Run ...
+% Run 3+
+%optimization_parameters_by_iteration{3}.num_points_ref_traj = 500;
+%optimization_parameters_by_iteration{3}.optimization_weights.vertebrae_do_not_track = {1,2};
+% For MPC with larger numbers of timesteps, put a higher penalty on inputs
+% that will hopefully make the motion more stable...
+% optimization_parameters_by_iteration{3}.num_points_ref_traj = 150;
+% optimization_parameters_by_iteration{4}.num_points_ref_traj = 200;
+% optimization_parameters_by_iteration{5}.num_points_ref_traj = 300;
+% optimization_parameters_by_iteration{6}.num_points_ref_traj = 500;
+% optimization_parameters_by_iteration{7}.num_points_ref_traj = 700;
+% optimization_parameters_by_iteration{8}.num_points_ref_traj = 1000;
+% optimization_parameters_by_iteration{9}.num_points_ref_traj = 1500;
+
+% a bit of error checking to make sure this simulation runs correctly.
+assert( num_mpc_runs == size(optimization_parameters_by_iteration, 1), ...
+            'Error! num_mpc_runs not equal to size of optimization_parameters_by_iteration. MPC simulation will fail.');
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Create list of trajectories that should be run
@@ -275,12 +300,13 @@ end
 % Manually change these according to the runs of MPC that this script should make.
 
 % Run 1:
-% nothing changed.
+% try the circletop trajectory. This should match Abishek's original results.
+trajectories_list{1} = 'circletop';
 
 % Run 2:
 %trajectories_list{i} = ;
 
-% Run ... 
+% Run 3+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Create list of controllers to use
@@ -297,6 +323,11 @@ end
 
 % a cell array to store the results of each MPC run
 mpc_results = cell(num_mpc_runs, 1);
+
+% a bit of debugging
+disp('There will be:');
+disp(num_mpc_runs);
+disp('iterations of MPC.');
 
 for mpc_iteration = 1:num_mpc_runs
     
@@ -370,7 +401,7 @@ for mpc_iteration = 1:num_mpc_runs
     % Horizon length:
     horizon_length = 10;
     % YALMIP variables:
-    inputs = sdpvar(repmat(8*optimization_parameters_by_iteration{mpc_iteration}.links, 1, horizon_length-1), repmat(1, 1, horizon_length-1));
+    inputs = sdpvar(repmat(8*links, 1, horizon_length-1), repmat(1, 1, horizon_length-1));
     states = sdpvar(repmat(12*links, 1, horizon_length), repmat(1, 1, horizon_length));
     A_t = sdpvar(repmat(12*links, 1, 12*links), repmat(1, 1, 12*links));
     B_t = sdpvar(repmat(12*links, 1, 8*links), repmat(1, 1, 8*links));
@@ -399,14 +430,23 @@ for mpc_iteration = 1:num_mpc_runs
     obj_w_input_pow = optimization_weights.obj_w_input_pow;
     obj_w_input_mult = optimization_weights.obj_w_input_mult;
     weighting_ratio = optimization_weights.weighting_ratio;
+    vertebrae_do_not_track = optimization_weights.vertebrae_do_not_track;
     % Unroll the time limit too
     opt_time_limit = optimization_parameters_by_iteration{mpc_iteration}.opt_time_limit;
+    
+    % A bit of debugging
+    disp('This iteration will not track the following vertebrae:');
+    if( size(vertebrae_do_not_track,1) == 0 )
+        disp('(all vertebrae will be tracked.)');
+    else
+        disp(vertebrae_do_not_track);
+    end
 
     % Create weighting matrices for get_yalmip_controller_XYZTGP
     % Even though these are only used for one controller out of the list below, there is no harm in making a few more matrices.
     % TO-DO: record these weighting matrices with each iteration of MPC, so it's easier to see exactly what happened.
-    Q_track = generate_Q_rigidbody( [obj_w_ref_xyz; obj_w_ref_angle; 0; 0], weighting_ratio, links);
-    Q_smooth = generate_Q_rigidbody( [obj_w_smooth; obj_w_smooth; 0; 0], 1, links);
+    Q_track = generate_Q_rigidbody( [obj_w_ref_xyz; obj_w_ref_angle; 0; 0], weighting_ratio, vertebrae_do_not_track, links);
+    Q_smooth = generate_Q_rigidbody( [obj_w_smooth; obj_w_smooth; 0; 0], 1, vertebrae_do_not_track, links);
 
     % Cell array of controllers are generated from 2-step to N-step horizon to
     % deal with situations at the end of the reference trajectory
@@ -428,12 +468,16 @@ for mpc_iteration = 1:num_mpc_runs
     end
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%            
-    %% Run each ultra_spine_mpc_single_simulation.
+    %% Run this iteration of ultra_spine_mpc_single_simulation.
 
     mpc_results{mpc_iteration} = ultra_spine_mpc_single_simulation(traj, controller, optimization_parameters_by_iteration{mpc_iteration}, ...
                     flags, plotting_parameters, paths);
     
     % End of this iteration of MPC.
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%            
+    %% Delete some variables so excess memory is not taken up between iterations.
+    % In particular, clear all the YALMIP stuff.
+    clear inputs states A_t B_t c_t prev_in reference controller
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%            

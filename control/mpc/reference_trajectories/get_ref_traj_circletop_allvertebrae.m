@@ -1,9 +1,9 @@
-% get_ref_traj_circletop.m
+% get_ref_traj_circletop_allvertebrae.m
 % Copyright 2015 Andrew P. Sabelhaus, Abishek Akella
 % This function returns a trajectory for the topmost spine vertebra that is an circle in (x, z), offset by some z amount.
-% Trajectory is ONLY 12 STATES.
+% Updated on 2016-04-25 to output trajectory for the whole robot.
 
-function [traj, num_points] = get_ref_traj_circletop(tetra_vertical_spacing, num_points, direction)
+function [traj, num_points] = get_ref_traj_circletop_allvertebrae(tetra_vertical_spacing, num_points, direction)
 % Inputs:
 %   tetra_vertical_spacing = the distance between successive vertebrae. On 2016-04-18, was 0.1 meters.
 %   num_points = the number of timesteps/waypoints in this trajectory. On 2016-04-18, was 30 or 300.
@@ -39,6 +39,4 @@ traj_top = [r*cos(theta) + r; ...
 
 % full trajectory is zeros for bottom two tetras plus circle for top tetra.
 % All tetras have 12 states (rigid bodies).
-%traj = [ zeros(12, num_points); zeros(12, num_points); traj_top];
-
-traj = traj_top;
+traj = [ zeros(12, num_points); zeros(12, num_points); traj_top];

@@ -51,7 +51,7 @@ assert(size(reference{1}, 1) == 36, 'Reference does not have 36 states.');
 % The R matrices pass in here are 24 x 24.
 
 %% Build up the constraints
-input_lim = .09*ones(24, 1); % Limit on length of cable allowed
+input_lim = .07*ones(24, 1); % Limit on length of cable allowed
 
 constraints = [norm(inputs{1} - prev_in, inf) <= 0.02]; % Deviation from previous applied input to current input
 for k = 1:(N-2)

@@ -1,9 +1,9 @@
-% simulate_reference_traj_allvertebra
-% Copyright Abishek Akella, Andrew P. Sabelhaus 2016
+% simulate_mpc_traj.m
+% Copyright 2016 Abishek Akella, Andrew P. Sabelhaus, Berkeley Emergent Space Technologies Lab
 % This function simulates the MPC to build a reference trajectory for the LQR controller.
 % This variant takes in a trajectory for the full 36-state system, not just for the top vertebra.
 
-function [x_ref, u_ref, M] = simulate_reference_traj_allvertebra(controller, systemStates, restLengths, links, dt, x, y, z, T, G, P, dx, dy, dz, dT, dG, dP, traj, N)
+function [x_ref, u_ref, M] = simulate_mpc_traj(controller, systemStates, restLengths, links, dt, x, y, z, T, G, P, dx, dy, dz, dT, dG, dP, traj, N)
 % Simulate the MPC controller and find reference trajectory to follow
 % provided waypoints. 
 
@@ -27,8 +27,7 @@ function [x_ref, u_ref, M] = simulate_reference_traj_allvertebra(controller, sys
 %   linearize_dynamics
 %   simulate_dynamics
 
-disp('Simulating MPC trajectory, 3-vertebra reference trajectory.')
-assert(size(traj,1) == 36, 'Input reference trajectory is not 36 states!');
+disp('Simulating MPC trajectory...')
 
 % Initializing states for each link based on default resting location of
 % each individual link. Initial input to linearize around is u = {0}.
