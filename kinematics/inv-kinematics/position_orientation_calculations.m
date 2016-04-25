@@ -62,3 +62,25 @@ c_rot_2 = c2_2 / c1_2;
 c_rot_3 = c2_3 / c1_3;
 c_rot_4 = c2_4 / c1_4;
 x_rot_5 = c2_5 / c1_5;
+
+% calculating the angle changes between tetras, for displacement.
+% This is just searching for whatever pattern might be present/
+% I noticed that there is a constant offset at timestep 20 (the end of the trajectory)
+% from the inverse kinematics: e.g., theta(20) for tetra N is 0.005 * (20) * N + theta_offset, 
+% where theta_offset is the SAME for all tetras at time=20. It's a weird value though, something like pi/35.
+theta_offset2 = zeros(20,1);
+theta_offset3 = zeros(20,1);
+theta_offset4 = zeros(20,1);
+theta_offset5 = zeros(20,1);
+for i=1:20
+    theta_offset2(i) = theta2(i) - 0.005 * (1) * i;
+    theta_offset3(i) = theta3(i) - 0.005 * (2) * i;
+    theta_offset4(i) = theta4(i) - 0.005 * (3) * i;
+    theta_offset5(i) = theta5(i) - 0.005 * (4) * i;
+end
+
+% let's see if these offsets are nice, clean angles:
+theta_offset2_coeff = pi ./theta_offset2;
+theta_offset3_coeff = pi ./theta_offset3;
+theta_offset4_coeff = pi ./theta_offset4;
+theta_offset5_coeff = pi ./theta_offset5;

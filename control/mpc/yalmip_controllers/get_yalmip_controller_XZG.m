@@ -4,7 +4,7 @@
 % Note that this is for a 4-vertebra (link == 3) spine system
 
 function [controller, constraints, objective, parameters_in, solutions_out] = get_yalmip_controller_XZG(N, inputs, states, ...
-    A_t, B_t, c_t, prev_in, reference)
+    A_t, B_t, c_t, prev_in, reference, optimization_weights)
 
 % Inputs:
 % N, horizon length
@@ -41,17 +41,17 @@ function [controller, constraints, objective, parameters_in, solutions_out] = ge
 % So, check the size of the first cell.
 assert(size(reference{1}, 1) == 36, 'Reference does not have 36 states.');
 
-%% Define weights
+%% Define weights. Load them in from this struct
 % Power-function weight for the objectives, used on the reference-tracking terms, for the longitudinal coordinates x,y,z
-obj_w_ref_xyz = 15; %used to be 5
+obj_w_ref_xyz = optimization_weights.obj_w_ref_xyz; 
 % Power-function weight for the objectives, used on the reference-tracking terms, for the angle G
-obj_w_ref_angle = 5; % used to be 25
+obj_w_ref_angle = optimization_weights.obj_w_ref_angle;
 % Multiplicative weight for the objectives, used on the successive-states terms (smooth motion)
-obj_w_smooth = 3;
+obj_w_smooth = optimization_weights.obj_w_smooth;
 % Power-function weight for the objectives, used on the successive-input terms (control authority, how-strong-is-the-motor)
-obj_w_input_pow = 1.5;
+obj_w_input_pow = optimization_weights.obj_w_input_pow;
 % Multiplicative weight for the objectives, used on the successive-input terms (control authority, how-strong-is-the-motor)
-obj_w_input_mult = 1/24;
+obj_w_input_mult = optimization_weights.obj_w_input_mult;
 
 %% Build up the constraints
 input_lim = .09*ones(24, 1); % Limit on length of cable allowed

@@ -27,7 +27,7 @@ function [x_ref, u_ref, M] = simulate_reference_traj_allvertebra(controller, sys
 %   linearize_dynamics
 %   simulate_dynamics
 
-disp('Simulating reference trajectory, 36-input system.')
+disp('Simulating MPC trajectory, 3-vertebra reference trajectory.')
 assert(size(traj,1) == 36, 'Input reference trajectory is not 36 states!');
 
 % Initializing states for each link based on default resting location of
@@ -51,7 +51,7 @@ prev_in = u_initial;
 % later be followed using a faster control strategy.
 
 for index = 1:(size(traj, 2) - N + 1)
-    disp(strcat('Simulating reference trajectory, timestep no.:',num2str(index)));
+    disp(strcat('Simulating MPC trajectory, timestep no.:',num2str(index)));
     for k = 1:links
         systemStates(k, 1) = x(k); systemStates(k, 2) = y(k); systemStates(k, 3) = z(k);
         systemStates(k, 4) = T(k); systemStates(k, 5) = G(k); systemStates(k, 6) = P(k);

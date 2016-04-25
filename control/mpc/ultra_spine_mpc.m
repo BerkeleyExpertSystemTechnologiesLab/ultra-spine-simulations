@@ -1,12 +1,34 @@
 % ultra_spine_mpc.m
-% Abishek Akella, Andrew P. Sabelhaus
-% This is the primary file for running the ULTRA Spine Model Predictive Control work. Run as a script.
+% Copyright 2016 Andrew P. Sabelhaus, Abishek Akella, Berkeley Emergent Space Tensegrities Lab
+% This is the primary file for running the ULTRA Spine Model Predictive Control work.
+% This script calls one or more ultra_spine_mpc_single_simulation runs.
 
-%% Initialize system parameters
-%clear variables;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Script outline
+% This script can run multiple iterations of MPC at a time. The general outline is:
+% 1) Define the default set of parameters
+% 2) Make a list of the trajectories, controllers, and parameters to run (based off default)
+% 3) Loop through the following procedure: from 1 to end of list of runs,
+%   3.a) Apply the specified changes to the default parameters
+%   3.b) Load in the specified trajectory
+%   3.c) Create the specified controller
+%   3.d) Run MPC 
+%   3.e) Save the data from this iteration
+% 4) to-do: automatic data analysis.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Script initialization
+%clear variables
 clear all;
 close all;
 clc;
+
+disp('ULTRA Spine MPC');
+
+% Record the start time of this script:
+script_start = clock;
+
+% Add various paths
 
 % The MATLAB functions that calculate the dynamics of the robot must be in
 % the current path. If this file is being run outside the
@@ -20,236 +42,193 @@ clc;
 path_to_dynamics = '../../dynamics/3d-dynamics-symbolicsolver';
 addpath(path_to_dynamics);
 
+% Path to the .mat file that holds the spine_geometric_parameters struct, as created by 
+% the spineDynamics script in that folder.
+spine_geometric_parameters_path = strcat(path_to_dynamics, '/spine_geometric_parameters.mat');
+
 % Reference trajectories and controllers are now in subfolders:
 path_to_reference_trajectories = './reference_trajectories';
 addpath(path_to_reference_trajectories);
 path_to_yalmip_controllers = './yalmip_controllers';
 addpath(path_to_yalmip_controllers);
 
+% Since the individual simulations will save their own videos and data, this script
+% passes in the paths to the data and videos folders to the mpc function.
+% Call this struct 'paths'.
+
 % The path to our videos repository now needs to be set, since we're no longer pushing videos to this simulations repository.
 % Drew (on 2016-04-19) put the ultra-spine-videos repository in the same folder as ultra-spine-simulations, which means
 % the path to the MPC videos folder will be:
-path_to_videos_folder = '../../../ultra-spine-videos/simulations/control/mpc/';
+paths.path_to_videos_folder = '../../../ultra-spine-videos/simulations/control/mpc/';
 
-% Time step for dynamics
-dt = 0.001;
+% The path to the folder where we'll store the .mat data from this simulation also needs to be set:
+paths.path_to_data_folder = '../../data/mpc_data/';
 
-% FLAGS
-
-% Flag for adding noise to the forward simulation of the dynamics. noise = 1 turns it on.
-noise = 0;
-
-% To save a video, set this flag to 1, and change the name of the output file.
-save_video = 1;
-
-% Enable string plotting
-stringEnable = 1;
-
-% Create LQR controllers?
-% 0 = no, just run MPC
-% 1 = yes, run finite-horizon LQR too
-run_lqr = 0;
-
-% Parameters for plotting:
-% NOTE that the rod sizes here are only used for plotting, 
-% since the dynamics used in this work is a point-mass model.
-
-% Load parameters in from the saved file that accompanies the dynamics
-spine_geometric_parameters_path = strcat(path_to_dynamics, '/spine_geometric_parameters.mat');
-load(spine_geometric_parameters_path);
-% Unroll this struct into individual variables. See the dynamics generation script for more information.
-% Gravitational force
-g = spine_geometric_parameters.g;
-% Total number of spine tetrahedrons
-N_tetras = spine_geometric_parameters.N;
-% Length of one "leg" of the tetrahedron (straight-line distance from center to outer point)
-l = spine_geometric_parameters.l;
-% Height of one tetrahedtron
-h = spine_geometric_parameters.h;
-% total mass of one whole tetrahedron
-m_t = spine_geometric_parameters.m_t;
-% Factor-of-safety with respect to tetrahedron mass (note: this is unused in this script)
-FoS = spine_geometric_parameters.FoS;
-% mass of one node of the tetrahedron (there are five point masses per tetra)
-%m = spine_geometric_parameters.m;
-
-% Radius of a "leg" of the tetrahedron. NOTE that since this is a point-mass model, this parameter is only for visualization.
-rad = 0.01;
-
-% Number of links in addition to base link.
-% NOTE that this must be consistent with the dynamics defined in
-% duct_accel.m and associated files! Those dynamics are pre-calculated,
-% and this parameter does NOT change them - it only affects the controller.
-links = N_tetras-1; % Here, this is going to be 4-1 = 3.
-
-% Tetrahedron vertical spacing. The initial z-distance between successive tetrahedra
-tetra_vertical_spacing = 0.1; % meters
-
-% Number of links in addition to base link.
-% NOTE that this must be consistent with the dynamics defined in
-% duct_accel.m and associated files! Those dynamics are pre-calculated,
-% and this parameter does NOT change them - it only affects the controller.
-links = 3;
-
- % Simulation time
-time = 0:dt:500;
-
-% Animation Frame Divisor
-frame = 3;
-
-% Position of the anchor location of the cables on a tetra node
-anchor = [0 0 rad];
-
-% Initialize the video, if flagged.
-if(save_video)
-    %break;
-    % create the filename for this video by concatenating with the path to the video folders, defined above
-    videoPath = strcat( path_to_videos_folder, 'ultra-spine-mpc_', datestr(datetime('now')) );
-    %videoObject = VideoWriter( strcat('../../videos/ultra-spine-mpc_', datestr(datetime('now'))) );
-    videoObject = VideoWriter( videoPath );
-    videoObject.Quality = 90;
-    videoObject.FrameRate = 5;
-end
-
-
-
-%% Initialize Plot
-% Note that this is performed at the beginning so the visualization of the terahedra bodies can be loaded properly.
-
-% Create the figure window
-%figure_handle = figure('position', [100, 100, 700 800],'Color','w');
-figure_handle = figure('position', [0, 0, 600 700],'Color','w');
-
-M = struct('cdata', cell(1,round(length(time)/10)), 'colormap', cell(1,round(length(time)/10)));
-
-% Set the color map
-%cmaps = summer(512);
-cmaps = gray(512);
-colormap(cmaps(1:256,:))
-%colormap(cool);
-ax = axes();
-
-grid on;
-axis equal;
-
-hold on;
-
-% Rotate for a better visualization
-view([-20, 14]);
-
-% Labels
-xlabel('X (m)')
-ylabel('Y (m)')
-zlabel('Z (m)')
-title('ULTRA Spine Model')
-
-% Size everything properly
-xlim([-0.2 0.2])
-ylim([-0.2 0.2])
-zlim([-0.1, 0.4])
-set(gca,'FontSize',24)
-
-shading interp
-light
-lighting phong
-
-%m = 256;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Initialize the simulation
-restLengths(1) = 0.1; % Vertical cable rest length
-restLengths(2) = 0.1;
-restLengths(3) = 0.1;
-restLengths(4) = 0.1;
-restLengths(5) = 0.187; % Saddle cable rest length
-restLengths(6) = 0.187;
-restLengths(7) = 0.187;
-restLengths(8) = 0.187;
+%% Define default optimization parameters
+% One large struct with multiple parameters. This includes parameters for the reference trajectory, only used if parameterizable.
 
-% There are 36 states in this simulation, as it stands: 3 bodies * 12 states each.
-systemStates = zeros(links, 12);
+% dt = time step for dynamics
+% optimization_weights = a struct, various weights for the MPC objective function
+% flags = a struct, various flags for the optimization procedure
+% spine_geometric_parameters =  a struct, the size and shape of the spine. Loaded in from the dynamics generation script.
+% links = number of moving vertebrae (tetrahedrons.) Equals 1 - N_tetras from the spine geometry struct.
+%   NOTE that this script is not yet generalized past links == 3 (four tetra total.)
+% tetra_vertical_spacing = Tetrahedron vertical spacing. The initial z-distance between successive tetrahedra. in meters.
+% frame = animation frame divisor
+% rest_lengths = the rest lengths of the cables, for the dynamics simulation, for a single vertebra. 
+%   The first four rest lengths are for vertical cables, the second four are for saddle.
+% num_points_ref_traj = the length of the reference trajectory. Number of timesteps. ONLY USED FOR CERTAIN TRAJs
+% direction = the bending direction of a reference trajectory, either clockwise or counterclockwise. ONLY USED FOR CERTAIN TRAJs
+%   direction is 1 for cw, -1 for ccw.
+% horizon_length = the length of the horizon for MPC. This is the number of steps forward that the controller optimizes over. Was = 10.
+% opt_time_limit = time limit enforced on the optimization solver. See the controller generation function's sdpsettings.
 
-% The initial state for all of these 36 variables.
-x_initial = [];
+% Optimization weights:
+% NOTE that this is ONLY used for a few yalmip controllers.
+% In particular, on 2016-04-23 controllers that use this struct are get_yalmip_controller_XZG.
+% obj_w_ref_xyz = Power-function weight for the objectives, used on the reference-tracking terms, for the longitudinal coordinates x,y,z
+% obj_w_ref_angle = Power-function weight for the objectives, used on the reference-tracking terms, for the angle 
+% obj_w_smooth = Multiplicative weight for the objectives, used on the successive-states terms (smooth motion)
+% obj_w_input_pow = Power-function weight for the objectives, used on the successive-input terms (control authority, how-strong-is-the-motor)
+% obj_w_input_mult = Multiplicative weight for the objectives, used on the successive-input terms (control authority, how-strong-is-the-motor)
+% weighting_ratio = ratio for re-scaling the weights of each rigid body.
+%   The lowest rigid body (vertebra 1) is not re-weighted, and the others are re-weighted linearly up to highest = weighting_ratio.
+%   This value is multiplicative on top of the weights already proscribed. So, weights are (for ex., top tetra) obj_w_ref_xyz * weighting_ratio.
 
-% Initialize all the states of the system
-% This script currently (2016-02-27) considers "k" to be a different index in different circumstances.
-% Here, it's used for the system states as k=1 for the first moving tetrahedron, and k=3 for the topmost one.
-% But, for plotting, each of these is shifted up: Tetra{1} and transform{1} are for the first (unmoving) tetra, and Tetra{4} is the topmost.
+% Flags:
+% noise = adds noise to the forward simulation of the dynamics. noise = 1 turns it on.
+% save_video = saves a video file, see function for more details.
+% save_data = saves a .mat file with the simulation results, see function for more details.
+% stringEnable = set to 1 plots the cables of the robot in the visualization
+% run_lqr = flag to run the finite-time receding-horizon LQR after MPC. 0 = MPC only, 1 = run lqr also
+% traj_is_full_system = flag representing whether traj is size 12 * whatever or 36 * whatever.
+%   NOTE that this full_system flag is calculated automatically below after loading in the reference traj.
+%   It is then inserted into the flags struct, before passing in to ultra_spine_mpc_single_simulation.
 
-% Plot the first tetrahedron body (k=1 in the Tetra{} usage)
-Tetra{1} = [(l^2 - (h/2)^2)^.5, 0, -h/2; ...
-            -(l^2 - (h/2)^2)^.5, 0, -h/2; ...
-            0, (l^2 - (h/2)^2)^.5, h/2; ...
-            0, -(l^2 - (h/2)^2)^.5, h/2];
+% Other notes about parameters:
+% 'links' must be consistent with the dynamics defined in duct_accel.m and associated files! Those dynamics are pre-calculated,
+%   and this parameter does NOT change them - it only affects the controller. If the controller and dynamics are inconsistent,
+%   bad things will happen.
+%   In the future, links will be defined as links = N_tetras-1.
 
-% Plot a visualization of this spine tetrahedron
-[transform{1}, ~] = plotSpineLink(Tetra{1}, rad, ax);
 
-% Perform 3 iterations: one for each moving tetrahedron.
-for k = 1:links
-    % Each tetrahedron starts completely still, centered at (x,y) = (0,0) with a z-offset
-    x(k) = 0; 
-    y(k) = 0.0; 
-    z(k) = tetra_vertical_spacing * k; 
-    T(k) = 0.0; 
-    G(k) = 0.0; 
-    P(k) = 0.0;
-    dx(k) = 0; 
-    dy(k) = 0; 
-    dz(k) = 0; 
-    dT(k) = 0; 
-    dG(k) = 0; 
-    dP(k) = 0;
-    
-    % Save the system states
-    % The first state of this tetrahedron is at this starting location
-    systemStates(k, :) = [x(k), y(k), z(k), T(k), G(k), P(k), dx(k), dy(k), dz(k), dT(k), dG(k), dP(k)];
-    % Append this state to the vector of initial states.
-    x_initial = [x_initial; x(k); y(k); z(k); T(k); G(k); P(k); dx(k); dy(k); dz(k); dT(k); dG(k); dP(k)];
-    
-    % Plot the tetrahedra.
-    % Start the initial position of each tetrahedron at the bottom location: center at (0,0,0)
-    Tetra{k+1} = [(l^2 - (h/2)^2)^.5, 0, -h/2; ...
-                -(l^2 - (h/2)^2)^.5, 0, -h/2; ...
-                0, (l^2 - (h/2)^2)^.5, h/2; ...
-                0, -(l^2 - (h/2)^2)^.5, h/2];
-            
-    % Plot a visualization of this spine tetrahedron
-    [transform{k+1}, ~] = plotSpineLink(Tetra{k+1}, rad, ax);
-    
-    % Then, move the tetrahedron body into place by updating the "transform" object.
-    % The function below is generated by transforms.m
-    % Recall, the system states are indexed starting from 1, but the "Tetra" points are indexed starting with 2 as the bottommost moving vertebra.
-    RR{k} =  getHG_Tform(x(k),y(k),z(k),T(k),G(k),P(k));
-    % Update the transform object
-    set(transform{k+1},'Matrix',RR{k});
+optimization_parameters.dt = 0.001;
 
-    % Finally, move the positions of the cables of this tetrahedra into place, by modifying the Tetra{} array.
-    % We use this same transform matrix here.
-    % First, append a column of "1"s to this set of coordinates, needed for applying the transform.
-    % Note again that there are 4 node points per tetra.
-    Tetra{k+1} = [Tetra{k+1}, ones(4,1)]; 
-    
-    % Move the cables of this tetra into position.
-    Tetra{k+1} = RR{k}*Tetra{k+1}';
-    % Needs a transpose to return it back to the original orientation
-    Tetra{k+1} = Tetra{k+1}';
-    % Remove the trailing "1" from the position vectors.
-    Tetra{k+1} = Tetra{k+1}(:,1:3);
+optimization_weights.obj_w_ref_xyz = 8;
+optimization_weights.obj_w_ref_angle = 5;
+optimization_weights.obj_w_smooth = 3;
+optimization_weights.obj_w_input_pow = 1.5;
+optimization_weights.obj_w_input_mult = 1/24;
+optimization_weights.weighting_ratio = 1;
 
+optimization_parameters.optimization_weights = optimization_weights;
+
+load(spine_geometric_parameters_path);
+optimization_parameters.spine_geometric_parameters = spine_geometric_parameters;
+
+optimization_parameters.links = 3;
+optimization_parameters.tetra_vertical_spacing = 0.1;
+optimization_parameters.frame = 3;
+
+restLengths(1:4) = 0.1;
+restLengths(5:8) = 0.187;
+optimization_parameters.restLengths = restLengths;
+
+optimization_parameters.num_points_ref_traj = 30;
+optimization_parameters.direction = -1; % 1 for cw, -1 for ccw.
+optimization_parameters.horizon_length = 10;
+optimization_parameters.opt_time_limit = 8; % seconds
+
+flags.noise = 0;
+flags.save_video = 1;
+flags.save_data = 1;
+flags.stringEnable = 1;
+flags.run_lqr = 0;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Define default plotting parameters
+
+% figure_window_location = the pixels of the two corners of the figure window
+% figure_window_color = the color of the figure window. Usually white, 'w'.
+% time = vector of time points for the visualization. This is NOT for the mpc or dynamics simulation.
+%   time is NOT the time for the mpc, it's only for the frames for the visualization/video. 
+%   the dynamics simulation length is determined by the reference trajectory number of timesteps * dt.
+% rad = radius of a "leg" of the tetrahedron, for visualization. 
+%   NOTE that this is a point mass model, so this variable is only graphical, not related to the mpc.
+% cmaps = the color map used for plotting. Mostly for the tetrahedra colors.
+% figure_rotation = the azimuthal rotations of the figure. Changes viewpoint, for better visualization.
+% fontsize = the size of the text used in the figure
+% cable_color = the color used in plotting the robot's cables
+% cable_thickness = the thickness of the lines used to plot the robot's cables
+% trajectory_color = the color of the line drawn of the centers of the tetrahedra from the reference traj
+% trajectory_thickness = the thickness of the line drawn of the centers of the tetrahedra from the ref traj
+% mpc_result_color = the color of the resulting trajectory output from MPC. Compare this one to traj.
+%   NOTE that this isn't really 'color', it's matlab's designation for plotting, so can include symbols like . and -
+% mpc_result_thickness = thickness of the resulting trajectory output from MPC. Compare to traj.
+% plot_dt = timestep for animation. Used to slow the simulation down.
+% plotting_offset = frame offset for animation. See ultra_spine_mpc for its use.
+% lqr_result_color = color of the lines used to plot the centers of the vertebrae after running LQR.
+% lqr_result_thickness = thickness of the lines used to plot the centers of the vertebrae after running LQR.
+% anchor = position of the anchor location of the cables on one of a vertebra's nodes
+
+plotting_parameters.figure_window_location = [0, 0, 600 700];
+plotting_parameters.figure_window_color = 'w';
+plotting_parameters.time = 0:optimization_parameters.dt:500;
+plotting_parameters.rad = 0.01;
+plotting_parameters.cmaps = gray(512); % summer(512);
+plotting_parameters.figure_rotation = [-20, 14];
+plotting_parameters.fontsize = 24;
+plotting_parameters.cable_color = 'r';
+plotting_parameters.cable_thickness = 2;
+plotting_parameters.trajectory_color = 'b';
+plotting_parameters.trajectory_thickness = 2;
+plotting_parameters.mpc_result_color = 'c-';
+plotting_parameters.mpc_result_thickness = 2;
+plotting_parameters.plot_dt = 0.01;
+plotting_parameters.plotting_offset = 30;
+plotting_parameters.lqr_result_color = 'g';
+plotting_parameters.lqr_result_thickness = 2;
+plotting_parameters.anchor = [0 0 plotting_parameters.rad];
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Create list of variations from default parameters that will be run
+
+% Save the default parameters:
+default_optimization_parameters = optimization_parameters;
+default_flags = flags;
+default_plotting_parameters = plotting_parameters;
+
+% Number of iterations of MPC. 
+% NOTE that this must be carried throughout all the list-making: if there aren't the correct number of
+% parameter sets, reference trajectories, and controllers, errors will be thrown.
+num_mpc_runs = 2;
+
+optimization_parameters_by_iteration = cell(num_mpc_runs, 1);
+flags_by_iteration = cell(num_mpc_runs, 1);
+plotting_parameters_by_iteration = cell(num_mpc_runs, 1);
+
+% Populate these cell arrays with the default sets of parameters
+for i=1:num_mpc_runs
+    optimization_parameters_by_iteration{i} = default_optimization_parameters;
+    flags_by_iteration{i} = default_flags;
+    plotting_parameters_by_iteration{i} = default_plotting_parameters;
 end
 
-% Plot the cables for this spine position
-if (stringEnable)    
-    % Get the endpoints of the cables
-    String_pts = get_spine_cable_points(Tetra, anchor);
-    % Plot. Save the handle so we can delete this set of cables later
-    string_handle=plot3(String_pts(:,1),String_pts(:,2),String_pts(:,3),'LineWidth',2,'Color','r');
-end
+% Manually change these according to the runs of MPC that this script should make.
 
-%% Reference Trajectory
-% Load in one of the trajectories
+% Run 1:
+% nothing changed.
+
+% Run 2:
+optimization_parameters_by_iteration{2}.num_points_ref_traj = 60;
+%optimization_parameters_by_iteration{2}.optimization_weights.obj_w_ref_xyz = 100;
+
+% Run ...
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Create list of trajectories that should be run
 
 % SOME NOTES ON ROTATION DIRECTION: these were found by changing ONLY these variables. Will not combine independently (recall, Euler angles.)
 % These are all from the perspective of a ray starting at zero looking down the positive axis. (I've denoted it X+, Y+, etc.)
@@ -259,6 +238,10 @@ end
 % G- counterclockwise around Y+ axis (rotates in the X,Z plane)
 % P+ clockwise around the Z+ axis (rotates in the X,Y plane)
 % P- counterclockwise around the Z+ axis (rotates in the X,Y plane)
+
+% TO-DO: better format for loading in the trajectories, error checking.
+% NOTE THAT THIS IS CURRENTLY BROKEN: Since the different 'get_ref_traj' commands have different inputs, we can't
+% generalize a call to all of them. So, as of 2016-04-24, only allow the default inv_kin_XZG to run.
 
 % Trajectories for *top tetrahedron only*
 %[traj, ~] = get_ref_traj_circletop();
@@ -270,315 +253,198 @@ end
 %[traj, ~]  = get_ref_traj_zero();
 
 % Trajectories for *all tetrahedra*
-[traj, ~] = get_ref_traj_allbending_ccw_XZG(tetra_vertical_spacing);
+% These have more input variables, define them here.
+%[traj, ~] = get_ref_traj_allbending_ccw_XZG(tetra_vertical_spacing)
+% [traj, ~] = get_ref_traj_invkin_XZG(optimization_parameters.tetra_vertical_spacing, ...
+%                 optimization_parameters.num_points_ref_traj, ...
+%                 optimization_parameters.direction);
 
-% A bit of debugging
-disp( strcat('Reference trajectory has ', num2str(size(traj,2)), ' timesteps.'));
+% Create a cell array of strings that represent the trajectories to run.
+% These will be eval'd to get the names of the functions to call.
+% Each function starts with 'get_ref_traj_', so exclude that part.
+trajectories_list = cell(num_mpc_runs, 1);
 
-% Automatically check if the trajectory that was loaded is for the full spine (3 vertebrae) or just the top one.
-% Declare a flag variable:
-traj_is_full_system = 0;
-if ( size(traj,1) == 12)
-    % Small system, top vertebra only
+% Name a default trajectory. The trajectory from the inverse kinematics script is a good default:
+default_traj = 'invkin_XZG';
+
+% Populate the list with this default
+for i=1:num_mpc_runs
+    trajectories_list{i} = default_traj;
+end
+
+% Manually change these according to the runs of MPC that this script should make.
+
+% Run 1:
+% nothing changed.
+
+% Run 2:
+%trajectories_list{i} = ;
+
+% Run ... 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Create list of controllers to use
+
+
+% AS OF 2016-04-24, THIS IS NOT IMPLEMENTED, since the XYZTGP controller is quite general already.
+% TO-DO: find a way to have the XYZTGP controller have different weights per dimension, not just one for all XYZ etc.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Iterate over MPC runs. Begin the primary loop of this script
+
+% a cell array to store the results of each MPC run
+mpc_results = cell(num_mpc_runs, 1);
+
+for mpc_iteration = 1:num_mpc_runs
+    
+    disp('MPC iteration:');
+    disp(mpc_iteration);
+    
+    %% Reference Trajectory: Load in one of the trajectories
+
+    disp('Loading reference trajectory:');
+    disp(trajectories_list{mpc_iteration});
+    
+    % In order to call the desired trajectory-returning function, this script
+    % creates a string of the entire command to call, then evaluates that string.
+    % So, create strings representing all the outputs and arguments to pass in to this function.
+    % Recall that each of these arguments are also a function of the iteration of MPC.
+    % TO-DO: can we implement MPC in python to make this less painful? Object-oriented programming would be wonderful here.
+    outputs = '[traj, ~] = ';
+    arguments = strcat('(', ...
+        'optimization_parameters_by_iteration{mpc_iteration}.tetra_vertical_spacing', ...
+        ',', ...
+        'optimization_parameters_by_iteration{mpc_iteration}.num_points_ref_traj', ...
+        ',', ...
+        'optimization_parameters_by_iteration{mpc_iteration}.direction', ...
+        ')');
+
+    % Create the full string of the command to execute
+    reference_loading_command = strcat( outputs, 'get_ref_traj_', trajectories_list{mpc_iteration}, arguments, ';');
+    % Execute the command. This should load in the traj matrix.
+    eval(reference_loading_command);
+    
+    % Trajectories for *all tetrahedra*
+    % These have more input variables, define them here.
+    %[traj, ~] = get_ref_traj_allbending_ccw_XZG(tetra_vertical_spacing)
+    %[traj, ~] = get_ref_traj_invkin_XZG(optimization_parameters.tetra_vertical_spacing, ...
+    %                optimization_parameters.num_points_ref_traj, ...
+    %                optimization_parameters.direction);
+
+    % Automatically check if the trajectory that was loaded is for the full spine (3 vertebrae) or just the top one.
+    % Declare a flag variable:
     traj_is_full_system = 0;
-    disp('Reference trajectory is for the top vertebra only (12 states.)');
-elseif ( size(traj, 1) == 36)
-    % large system, 3 vertebrae
-    traj_is_full_system = 1;
-    disp('Reference trajectory is for all three vertebra (36 states.)');
-else
-    error('Script currently only configured for trajectories of size 12 and 36! Loaded trajectory is not.');
-end
-
-% Plot this trajectory, for a visualization
-% If traj is for top tetra only:
-if ( ~traj_is_full_system)
-    plot3(traj(1, :), traj(2,:), traj(3, :), 'b', 'LineWidth', 2);
-else
-    % for the full-trajectory version:
-    plot3(traj(1, :), traj(2,:), traj(3, :), 'b', 'LineWidth', 2);
-    plot3(traj(13, :), traj(14,:), traj(15, :), 'b', 'LineWidth', 2);
-    plot3(traj(25, :), traj(26,:), traj(27, :), 'b', 'LineWidth', 2);
-end
-
-% Force the figure to draw. The figure at this point includes: tetra bodies, tetra cables, reference trajectory in (x,y,z).
-drawnow;
-
-%% Controller Initialization
-disp('Controller Initialization')
-
-% Initialize yalmip variables for changing controller parameters
-% Horizon length:
-N = 10;
-% YALMIP variables:
-inputs = sdpvar(repmat(8*links, 1, N-1), repmat(1, 1, N-1));
-states = sdpvar(repmat(12*links, 1, N), repmat(1, 1, N));
-A_t = sdpvar(repmat(12*links, 1, 12*links), repmat(1, 1, 12*links));
-B_t = sdpvar(repmat(12*links, 1, 8*links), repmat(1, 1, 8*links));
-c_t = sdpvar(36, 1);
-
-prev_in = sdpvar(8*links, 1);
-
-% Two different behaviors here: reference trajectory variables will be smaller if the trajectory is only the top tetra.
-if( ~traj_is_full_system)
-    reference = sdpvar(repmat(12, 1, N), repmat(1, 1, N));
-else
-    % all 36 states (3 vertebra) are present in the trajectory to track
-    reference = sdpvar(repmat(36, 1, N), repmat(1, 1, N));
-end
-
-% Create the YALMIP controller for computation of the actual MPC optimizations.
-% This function contains all the definitions of the constraints on the optimization, as well as the objective function.
-
-% *TO-DO* have the controllers throw an error if the reference passed in is the wrong size?
-
-% Cell array of controllers are generated from 2-step to N-step horizon to
-% deal with situations at the end of the reference trajectory
-for k = 2:N
-    % Controllers for 12 states
-    %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZ(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
-    %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZT(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
-    %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZG(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
-    %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_G(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
-    %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_T(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
-    %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_P(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
-    % Controllers for 36 states
-    [controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XZG(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
-end
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Forward simulate trajectory
-disp('Forward simulate trajectory')
-
-% Again, use one version for tracking of top vertebra only, a different one for all vertebrae.
-
-if( ~traj_is_full_system)
-    % Use the version that takes a traj of size 12 x whatever
-    [x_ref, u_ref, M] = simulate_reference_traj(controller, systemStates, restLengths, links, dt, x, y, z, T, G, P, ...
-        dx, dy, dz, dT, dG, dP, traj, N);
-else
-    % Use the version that simulates with all 36 states
-    [x_ref, u_ref, M] = simulate_reference_traj_allvertebra(controller, systemStates, restLengths, links, dt, x, y, z, T, G, P, ...
-        dx, dy, dz, dT, dG, dP, traj, N);
-end
-
-% Transform the x_ref matrix and plot it
-refx = [x_ref{:}];
-plot3(refx(25, :), refx(26, :), refx(27, :), 'b-.', 'LineWidth', 2);
-
-%% Build Iterative LQR Controller
-% This is now only done if flagged.
-
-if (run_lqr)
-    disp('Build LQR Controllers for each timestep')
-
-    % Create the weighting matrices Q and R
-    % Version 1: weight on the position states for each tetrahedron equally (no weight on velocity)
-    Q = zeros(12);
-    Q(1:6, 1:6) = eye(6);
-    Q_lqr = 5*kron(eye(3), Q);
-    R_lqr = 5*eye(8*links);
-
-    % Version 2: weight only on the position of the top tetrahedron
-    % Q = zeros(36);
-    % Q(25:30, 25:30) = 50 * eye(6);
-    % Q_lqr = Q;
-    % R_lqr = 2*eye(8*links);
-
-    % Version 3: weight on all states
-    % Q = 20 * eye(36);
-    % Q_lqr = Q;
-    % R_lqr = 2*eye(8*links);
-
-    tic;
-    P0 = zeros(36);
-    % Linearize the dynamics around the final point in the trajectory (timestep M.)
-    [A, B, ~] = linearize_dynamics(x_ref{M}, u_ref{M}, restLengths, links, dt);
-    % Calculate the gain K for this timestep (at the final timestep, P == the 0 matrix.)
-    K{1} = -((R_lqr + B'*P0*B)^-1)*B'*P0*A;
-    % Calculate the first matrix P for use in the finite-horizon LQR below
-    P_lqr{1} = Q_lqr + K{1}'*R_lqr*K{1} + (A + B*K{1})'*P0*(A + B*K{1});
-    % Iterate in creating the finite-horizon LQRs, moving backwards from the end state
-    for k = (M-1):-1:1
-        disp(strcat('Controller Build iteration:',num2str(k)))
-        % Linearize the dynamics around this timestep
-        [A, B, ~] = linearize_dynamics(x_ref{k}, u_ref{k}, restLengths, links, dt);
-        % Calculate the gain K for this timestep, using the prior step's P
-        K{M-k+1} = -((R_lqr + B'*P_lqr{M-k}*B)^-1)*B'*P_lqr{M-k}*A;
-        % Calculate the P for this step using the gain K from this step.
-        P_lqr{M-k+1} = Q_lqr + K{M-k+1}'*R_lqr*K{M-k+1} + (A + B*K{M-k+1})'*P_lqr{M-k}*(A + B*K{M-k+1});
-    end
-    toc;
-
-end
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-disp('Starting simulation')
-%% Perform forward simulation and plot results
-
-% Plot the cables for this spine position
-if (stringEnable)    
-    % delete the previous plotted cables
-    delete(string_handle);
-    % Get the endpoints of the cables
-    String_pts = get_spine_cable_points(Tetra, anchor);
-    % Plot. Save the handle so we can delete these strings later.
-    string_handle=plot3(String_pts(:,1),String_pts(:,2),String_pts(:,3),'LineWidth',2,'Color','r');
-end
-
-plot_dt = 0.01; % Slow down the animation slightly
-offset = 30; % Used for animation so it stays still for a few seconds
-
-% Reset all tetrahedra to their beginning states.
-for k = 1:links
-    % Each tetrahedron starts out where it was in the beginning. See code above in the initialization section.
-    x(k) = 0; 
-    y(k) = 0.0; 
-    z(k) = tetra_vertical_spacing * k; 
-    T(k) = 0.0; 
-    G(k) = 0.0; 
-    P(k) = 0.0;
-    dx(k) = 0; 
-    dy(k) = 0; 
-    dz(k) = 0; 
-    dT(k) = 0; 
-    dG(k) = 0; 
-    dP(k) = 0;
-end
-
-% Loop through each timestep, using the controller and plotting.
-s = 1;
-for t = 1:((M-1)+offset)
-    if mod(t, frame) == 0
-        tic
-        
-        while toc < (plot_dt*frame)
-            % Wait until time has passed
-        end
-        
-        % Update the visualization of the tetrahedra.
-        % This is done by setting the matrix of "transform{k}" for each tetra.
-        for k = 1:links
-            % The function below is generated by transforms.m
-            RR{k} =  getHG_Tform(x(k),y(k),z(k),T(k),G(k),P(k)); % Build graphical model of each link
-            %set(transform{k},'Matrix',RR{k});
-            set(transform{k+1},'Matrix',RR{k});
-        end
-        
-        % Plot the cables
-        if (stringEnable)
-            % First, delete the old cables
-            delete(string_handle);
-            
-            % Calculate the new position of the tetra's coordinates, for plotting, based on the transform from the current system states.
-            % This section of code is the same as that in the initialization section, but instead, directly indexes the Tetra{} array.
-            for k = 2:(links+1)
-                % Reset this specific tetrahedron to the initial state of the bottom tetra.
-                Tetra{k} = [(l^2 - (h/2)^2)^.5, 0, -h/2, 1; ...
-                            -(l^2 - (h/2)^2)^.5, 0, -h/2, 1; ...
-                            0, (l^2 - (h/2)^2)^.5, h/2, 1; ...
-                            0, -(l^2 - (h/2)^2)^.5, h/2, 1];
-                % Move the coordinates of the string points of this tetra into position. 
-                % Note that the transforms are indexed as per the system states: set k=1 is for the first moving tetra,
-                % AKA the second tetra graphically.
-                Tetra{k} = RR{k-1}*Tetra{k}';
-                % Needs a transpose!
-                Tetra{k} = Tetra{k}';
-                % Remove the trailing "1" from the position vectors.
-                Tetra{k} = Tetra{k}(:,1:3);
-            end
-            
-            % Get the coordinates of the spine cables
-            String_pts = get_spine_cable_points(Tetra, anchor);
-            % Plot the new strings
-            string_handle=plot3(String_pts(:,1),String_pts(:,2),String_pts(:,3),'LineWidth',2,'Color','r');
-        end
-        drawnow;
-    end
-    
-    % Update the systemStates matrix with the current states that are saved as individual variables
-    for k = 1:links
-        systemStates(k, 1) = x(k); 
-        systemStates(k, 2) = y(k); 
-        systemStates(k, 3) = z(k);
-        systemStates(k, 4) = T(k); 
-        systemStates(k, 5) = G(k); 
-        systemStates(k, 6) = P(k);
-        systemStates(k, 7) = dx(k); 
-        systemStates(k, 8) = dy(k); 
-        systemStates(k, 9) = dz(k);
-        systemStates(k, 10) = dT(k); 
-        systemStates(k, 11) = dG(k); 
-        systemStates(k, 12) = dP(k);
-    end
-    
-    % If we are just doing straight MPC, replay the state trajectory directly.
-    if (~run_lqr)
-        if ((t > offset) && (t < M + offset))
-            % just update systemStates to x_ref at t, since x_ref here is the output of MPC.
-            systemStates = reshape(x_ref{t-offset}, 12, 3)';
-            % Save the result as the next point in the performed trajectory.
-            actual_traj(:, s) = systemStates(links, :);
-            s = s + 1;
-        end
+    if ( size(traj,1) == 12)
+        % Small system, top vertebra only
+        traj_is_full_system = 0;
+        disp('Reference trajectory is for the top vertebra only (12 states.)');
+    elseif ( size(traj, 1) == 36)
+        % large system, 3 vertebrae
+        traj_is_full_system = 1;
+        disp('Reference trajectory is for all three vertebra (36 states.)');
     else
-        % Run the LQR controllers.
-        % Forward simulate using the controller
-        if ((t > offset) && (t < M + offset))
-            % Calculate the input to the system dynamics
-            % A general representation of u(t) = K(t) * (x(t) - x_{ref}(t)) + u_{ref}(t)
-            control = K{M+offset-t}*(reshape(systemStates', 36, 1) - x_ref{t-offset}) + u_ref{t-offset};
-            % Forward simulate using that control input
-            systemStates = simulate_dynamics(systemStates, restLengths, reshape(control, 8, 3)', dt, links, noise);
-            % Save the result as the next point in the performed trajectory
-            actual_traj(:, s) = systemStates(links, :); 
-            % Save the control results for examination later
-            actual_control_inputs(:,s) = control;
-            s = s + 1;
-        end
+        error('Script currently only configured for trajectories of size 12 and 36! Loaded trajectory is not.');
     end
-    
-    % Unfoil the new system states back into the series of individual variables
-    for k = 1:links
-        x(k) = systemStates(k, 1); 
-        y(k) = systemStates(k, 2); 
-        z(k) = systemStates(k, 3);
-        T(k) = systemStates(k, 4); 
-        G(k) = systemStates(k, 5); 
-        P(k) = systemStates(k, 6);
-        dx(k) = systemStates(k, 7); 
-        dy(k) = systemStates(k, 8); 
-        dz(k) = systemStates(k, 9);
-        dT(k) = systemStates(k, 10); 
-        dG(k) = systemStates(k, 11); 
-        dP(k) = systemStates(k, 12);
+
+    % Append this flag to the 'flags' struct that will be passed in to ultra_spine_mpc_single_simulation
+    flags.traj_is_full_system = traj_is_full_system;
+
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%            
+    %% Controller Initialization
+    disp('Initializing YALMIP Controller...')
+
+    % TO-DO: have these functions create their own YALMIP variables. This copying the yalmip things around might be causing slow-downs.
+    % TO-DO: remove the hard-coded '36' for number of states and replace with 12 * links.
+
+    % Some notes:
+    %   The number of cables per tetrahedron (8) and state variables per tetrahedron (12, rigid body states) are hard-coded here.
+    %   Copy optimization_parameters.links here into a variable named just 'links' for ease of writing out these variable names.
+
+    links = optimization_parameters_by_iteration{mpc_iteration}.links;
+
+    % Initialize yalmip variables for changing controller parameters
+    % Horizon length:
+    horizon_length = 10;
+    % YALMIP variables:
+    inputs = sdpvar(repmat(8*optimization_parameters_by_iteration{mpc_iteration}.links, 1, horizon_length-1), repmat(1, 1, horizon_length-1));
+    states = sdpvar(repmat(12*links, 1, horizon_length), repmat(1, 1, horizon_length));
+    A_t = sdpvar(repmat(12*links, 1, 12*links), repmat(1, 1, 12*links));
+    B_t = sdpvar(repmat(12*links, 1, 8*links), repmat(1, 1, 8*links));
+    c_t = sdpvar(36, 1);
+
+    prev_in = sdpvar(8*links, 1);
+
+    % Two different behaviors here: reference trajectory variables will be smaller if the trajectory is only the top tetra.
+    if( ~traj_is_full_system)
+        reference = sdpvar(repmat(12, 1, horizon_length), repmat(1, 1, horizon_length));
+    else
+        % all 36 states (3 vertebra) are present in the trajectory to track
+        reference = sdpvar(repmat(36, 1, horizon_length), repmat(1, 1, horizon_length));
     end
+
+    % Create the YALMIP controller for computation of the actual MPC optimizations.
+    % This function contains all the definitions of the constraints on the optimization, as well as the objective function.
+
+    % *TO-DO* have the controllers throw an error if the reference passed in is the wrong size?
+
+    % Unroll the weights here for ease of referring to them.
+    optimization_weights = optimization_parameters_by_iteration{mpc_iteration}.optimization_weights;
+    obj_w_ref_xyz = optimization_weights.obj_w_ref_xyz; 
+    obj_w_ref_angle = optimization_weights.obj_w_ref_angle;
+    obj_w_smooth = optimization_weights.obj_w_smooth;
+    obj_w_input_pow = optimization_weights.obj_w_input_pow;
+    obj_w_input_mult = optimization_weights.obj_w_input_mult;
+    weighting_ratio = optimization_weights.weighting_ratio;
+    % Unroll the time limit too
+    opt_time_limit = optimization_parameters_by_iteration{mpc_iteration}.opt_time_limit;
+
+    % Create weighting matrices for get_yalmip_controller_XYZTGP
+    % Even though these are only used for one controller out of the list below, there is no harm in making a few more matrices.
+    % TO-DO: record these weighting matrices with each iteration of MPC, so it's easier to see exactly what happened.
+    Q_track = generate_Q_rigidbody( [obj_w_ref_xyz; obj_w_ref_angle; 0; 0], weighting_ratio, links);
+    Q_smooth = generate_Q_rigidbody( [obj_w_smooth; obj_w_smooth; 0; 0], 1, links);
+
+    % Cell array of controllers are generated from 2-step to N-step horizon to
+    % deal with situations at the end of the reference trajectory
+    for k = 2:horizon_length
+
+        % Controllers for 12 states
+        %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZ(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
+        %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZT(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
+        %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZG(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
+        %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_G(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
+        %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_T(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
+        %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_P(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
+
+        % Controllers for 36 states
+        % Note that these take in the parameters for the weights of the optimization. See above definition.
+        %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XZG(k, inputs, states, A_t, B_t, c_t, prev_in, reference, optimization_weights);
+        [controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZTGP(k, inputs, states, A_t, B_t, c_t, prev_in, reference, ...
+                                            Q_track, Q_smooth, obj_w_input_mult, obj_w_input_pow, opt_time_limit);
+    end
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%            
+    %% Run each ultra_spine_mpc_single_simulation.
+
+    mpc_results{mpc_iteration} = ultra_spine_mpc_single_simulation(traj, controller, optimization_parameters_by_iteration{mpc_iteration}, ...
+                    flags, plotting_parameters, paths);
     
-    % Record this frame for a video
-    videoFrames(t) = getframe(gcf);
+    % End of this iteration of MPC.
 end
 
-% Plot the resultant trajectory, in full.
-if (run_lqr)
-    plot3(actual_traj(1, :), actual_traj(2, :), actual_traj(3, :), 'g', 'LineWidth', 2);
-else
-    % just running MPC
-    % plot the x trajectory directly. Let's just do the top element:
-    %plot3(x_ref{
-    % this is going to require manipulating data. do it later.
-end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%            
+%% Analyze the results.
 
-% Save the last frame, now with full trajectory plotted.
-% Save a few of them in a row for a better visualization.
-% for frames = 1:5
-%     videoFrames(t + frame) = getframe(gcf)
-% end
+script_end = clock;
 
-% Save the video, if the save_video flag is set
-if(save_video)
-    open(videoObject);
-    writeVideo(videoObject, videoFrames);
-    close(videoObject);
-end
+% End of script.
 
-% End script.
+
+
+
+
+

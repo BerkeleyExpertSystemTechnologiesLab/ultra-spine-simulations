@@ -22,6 +22,7 @@ max_deg = pi/3;
 % For pi/3 end: (0.3 * pi/6) / 0.0014
 num_points = 115;
 
+
 % Create a sequence of successive angles between min and max
 theta = linspace(start_deg, max_deg, num_points);
 
