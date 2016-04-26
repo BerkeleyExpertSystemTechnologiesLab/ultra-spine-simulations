@@ -35,6 +35,9 @@ function [controller, constraints, objective, parameters_in, solutions_out] = ge
 % 12: dP
 % repeated: x,y,z,T are then states 25:28 for the topmost tetrahedron
 
+% Debugging: this script will never create a controller for only one step (N=1), that won't make sense here.
+assert( N > 1, 'Horizon length is only 1. (Or, less than 2.) Horizon must be at least length 2.');
+
 % Build up the constraints
 input_lim = .07*ones(24, 1); % Limit on length of cable allowed
 
@@ -47,7 +50,7 @@ for k = 1:(N-2)
         norm(inputs{k}(9:16) - inputs{1}(9:16), inf) <= 0.01, ...
         norm(inputs{k}(17:24) - inputs{1}(17:24), inf) <= 0.01];
 end
-constraints = [constraints, norm(inputs{N-1}(1:8) - inputs{1}(1:8), 2) <= 0.1, ...% N input is given a wider tolerance
+constraints = [constraints, norm(inputs{N-1}(1:8) - inputs{1}(1:8), 2) <= 0.1, ... % N input is given a wider tolerance
     norm(inputs{N-1}(9:16) - inputs{1}(9:16), 2) <= 0.1, ...
     norm(inputs{N-1}(17:24) - inputs{1}(17:24), 2) <= 0.1];
 constraints = [constraints, states{N} == [A_t{:}]*states{N-1} + [B_t{:}]*inputs{N-1} + c_t, -input_lim <= inputs{N-1} <= input_lim];

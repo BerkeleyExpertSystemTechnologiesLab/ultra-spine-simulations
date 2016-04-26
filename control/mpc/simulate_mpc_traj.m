@@ -86,7 +86,7 @@ end
 % Simulate states in the last N values of the desired trajectory (using the
 % shrinking horizon controller)
 for index = M:(size(traj, 2)-1)
-    disp(strcat('Simulating reference trajectory, timestep no.:',num2str(index)));
+    disp(strcat('Simulating MPC trajectory, timestep no.:',num2str(index)));
     for k = 1:links
         systemStates(k, 1) = x(k); systemStates(k, 2) = y(k); systemStates(k, 3) = z(k);
         systemStates(k, 4) = T(k); systemStates(k, 5) = G(k); systemStates(k, 6) = P(k);

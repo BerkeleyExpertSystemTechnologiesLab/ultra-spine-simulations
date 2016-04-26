@@ -9,11 +9,9 @@
 % 1) Define the default set of parameters
 % 2) Make a list of the trajectories, controllers, and parameters to run (based off default)
 % 3) Loop through the following procedure: from 1 to end of list of runs,
-%   3.a) Apply the specified changes to the default parameters
-%   3.b) Load in the specified trajectory
-%   3.c) Create the specified controller
-%   3.d) Run MPC 
-%   3.e) Save the data from this iteration
+%   3.a) Load in the specified trajectory
+%   3.b) Create the specified controller
+%   3.c) Run MPC 
 % 4) to-do: automatic data analysis.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -98,6 +96,8 @@ paths.path_to_data_folder = '../../data/mpc_data/';
 %   This value is multiplicative on top of the weights already proscribed. So, weights are (for ex., top tetra) obj_w_ref_xyz * weighting_ratio.
 % vertebrae_do_not_track = cell array of numerical values of the vertebrae to NOT track. For ex., {} tracks all, and {1,2} is top only.
 %   See generate_Q_rigidbody for more information.
+% stab_const = distance that defines the region of the stability constraint on the optimization. 
+%   The squared error at the last point in the horizon is enforced to be less than this. TO-DO: feasibility?
 
 % The weights for Abishek's original MPC run were, respectively, 25, 0, 3, 3, 1/24. These were for only the top tetrahedron.
 
@@ -126,6 +126,7 @@ optimization_weights.obj_w_input_pow = 3;
 optimization_weights.obj_w_input_mult = 1/24;
 optimization_weights.weighting_ratio = 1;
 optimization_weights.vertebrae_do_not_track = {};
+optimization_weights.stab_const = 1e-3;
 
 optimization_parameters.optimization_weights = optimization_weights;
 
@@ -140,7 +141,7 @@ restLengths(1:4) = 0.1;
 restLengths(5:8) = 0.187;
 optimization_parameters.restLengths = restLengths;
 
-optimization_parameters.num_points_ref_traj = 100; % for invkin, 80 gives a 0.0015 straight-line dist b/w points.
+optimization_parameters.num_points_ref_traj = 80; % for invkin, 80 gives a 0.0015 straight-line dist b/w points.
 optimization_parameters.direction = -1; % 1 for cw, -1 for ccw.
 optimization_parameters.horizon_length = 10;
 optimization_parameters.opt_time_limit = 8; % seconds
@@ -224,10 +225,10 @@ end
 % Manually change these according to the runs of MPC that this script should make.
 
 % Run 1:
-%optimization_parameters_by_iteration{1}.vertebrae_do_not_track = {1,2};
+optimization_parameters_by_iteration{1}.vertebrae_do_not_track = {1,2};
 % for the circletop traj:
-optimization_parameters_by_iteration{1}.num_points_ref_traj = 60;
-optimization_parameters_by_iteration{1}.optimization_weights.vertebrae_do_not_track = {1,2};
+%optimization_parameters_by_iteration{1}.num_points_ref_traj = 180;
+%optimization_parameters_by_iteration{1}.optimization_weights.vertebrae_do_not_track = {1,2};
 
 % Run 2:
 %optimization_parameters_by_iteration{2}.num_points_ref_traj = 200;
@@ -301,7 +302,7 @@ end
 
 % Run 1:
 % try the circletop trajectory. This should match Abishek's original results.
-trajectories_list{1} = 'circletop';
+%trajectories_list{1} = 'circletop_allvertebrae';
 
 % Run 2:
 %trajectories_list{i} = ;
@@ -431,6 +432,7 @@ for mpc_iteration = 1:num_mpc_runs
     obj_w_input_mult = optimization_weights.obj_w_input_mult;
     weighting_ratio = optimization_weights.weighting_ratio;
     vertebrae_do_not_track = optimization_weights.vertebrae_do_not_track;
+    stab_const = optimization_weights.stab_const;
     % Unroll the time limit too
     opt_time_limit = optimization_parameters_by_iteration{mpc_iteration}.opt_time_limit;
     
@@ -464,7 +466,7 @@ for mpc_iteration = 1:num_mpc_runs
         % Note that these take in the parameters for the weights of the optimization. See above definition.
         %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XZG(k, inputs, states, A_t, B_t, c_t, prev_in, reference, optimization_weights);
         [controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZTGP(k, inputs, states, A_t, B_t, c_t, prev_in, reference, ...
-                                            Q_track, Q_smooth, obj_w_input_mult, obj_w_input_pow, opt_time_limit);
+                                            Q_track, Q_smooth, obj_w_input_mult, obj_w_input_pow, stab_const, opt_time_limit);
     end
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%            
