@@ -77,7 +77,12 @@ paths.path_to_data_folder = '../../data/mpc_data/';
 % frame = animation frame divisor
 % rest_lengths = the rest lengths of the cables, for the dynamics simulation, for a single vertebra. 
 %   The first four rest lengths are for vertical cables, the second four are for saddle.
-% num_points_ref_traj = the length of the reference trajectory. Number of timesteps. ONLY USED FOR CERTAIN TRAJs
+% num_points_ref_traj_tracking = the length of the first part of the reference trajectory, during the trajectory tracking part (e.g. movement) 
+%   In terms of number of timesteps. ONLY USED FOR CERTAIN TRAJs
+% num_points_ref_traj_regulation = the length of the second part of the reference trajectory, during the regulation part (e.g. stabilizing 
+%   after movement.) In terms of number of timesteps. Augmenting the trajectory with a regulation portion only happens after the initial
+%   reference trajectory is returned. See add_regulation_to_traj for more details.
+%   NOTE that the total trajectory length is num_points_ref_traj = num_points_ref_traj_tracking + num_points_ref_traj_regulation.
 % direction = the bending direction of a reference trajectory, either clockwise or counterclockwise. ONLY USED FOR CERTAIN TRAJs
 %   direction is 1 for cw, -1 for ccw.
 % horizon_length = the length of the horizon for MPC. This is the number of steps forward that the controller optimizes over. Was = 10.
@@ -120,13 +125,13 @@ paths.path_to_data_folder = '../../data/mpc_data/';
 optimization_parameters.dt = 0.001;
 
 optimization_weights.obj_w_ref_xyz = 25;
-optimization_weights.obj_w_ref_angle = 0;
+optimization_weights.obj_w_ref_angle = 20;
 optimization_weights.obj_w_smooth = 3;
 optimization_weights.obj_w_input_pow = 3;
 optimization_weights.obj_w_input_mult = 1/24;
 optimization_weights.weighting_ratio = 1;
 optimization_weights.vertebrae_do_not_track = {};
-optimization_weights.stab_const = 1e-3;
+optimization_weights.stab_const = 0;    % UNUSED AS OF 2016-04-29
 
 optimization_parameters.optimization_weights = optimization_weights;
 
@@ -141,7 +146,9 @@ restLengths(1:4) = 0.1;
 restLengths(5:8) = 0.187;
 optimization_parameters.restLengths = restLengths;
 
-optimization_parameters.num_points_ref_traj = 80; % for invkin, 80 gives a 0.0015 straight-line dist b/w points.
+% On 2016-04-29: invkin_XZG now has 1/2 of its points as regulation around its end.
+% So, what formerly was 80, is now 160 (80 movement, 80 stabilization).
+optimization_parameters.num_points_ref_traj = 160; % for invkin, 80 gives a 0.0015 straight-line dist b/w points.
 optimization_parameters.direction = -1; % 1 for cw, -1 for ccw.
 optimization_parameters.horizon_length = 10;
 optimization_parameters.opt_time_limit = 8; % seconds
@@ -225,7 +232,7 @@ end
 % Manually change these according to the runs of MPC that this script should make.
 
 % Run 1:
-optimization_parameters_by_iteration{1}.vertebrae_do_not_track = {1,2};
+%optimization_parameters_by_iteration{1}.vertebrae_do_not_track = {1,2};
 % for the circletop traj:
 %optimization_parameters_by_iteration{1}.num_points_ref_traj = 180;
 %optimization_parameters_by_iteration{1}.optimization_weights.vertebrae_do_not_track = {1,2};
@@ -454,6 +461,8 @@ for mpc_iteration = 1:num_mpc_runs
     % deal with situations at the end of the reference trajectory
     for k = 2:horizon_length
 
+        disp('Generating YALMIP controller for horizon length:');
+        disp(k);
         % Controllers for 12 states
         %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZ(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
         %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZT(k, inputs, states, A_t, B_t, c_t, prev_in, reference);

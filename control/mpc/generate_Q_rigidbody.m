@@ -5,6 +5,7 @@
 function Q = generate_Q_rigidbody( weights, weighting_ratio, bodies_do_not_track, N )
 % Inputs:
 %   weights = a column vector of either size 4 or size 12.
+%       If 4 weights: per tetrahedra, these would be one each for xyz, tgp, dot xyz, dot tgp.
 %   weighting_ratio = ratio of weighting between rigid bodies, from first to last, 
 %       as an adjustment to weights.
 %   bodies_do_not_track = cell array of which bodies to zero out. For ex., {} tracks all, {1,2} tracks the third body only, etc.

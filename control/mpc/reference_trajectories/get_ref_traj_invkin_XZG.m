@@ -8,6 +8,7 @@ function [traj, num_points] = get_ref_traj_invkin_XZG(tetra_vertical_spacing, nu
 % Inputs:
 %   tetra_vertical_spacing = the distance between successive vertebrae. On 2016-04-18, was 0.1 meters.
 %   num_points = the number of timesteps/waypoints in this trajectory. On 2016-04-18, was 30 or 300.
+%       On 2016-04-29: This will now be split in 1/2 between movement and regulation at the end state.
 %   direction = either 1 or -1, for clockwise (1) or counterclockwise (-1) rotation.
 % Outputs:
 %   traj = the output trajectory of the whole 3-vertebra system. Will have 36 states.
@@ -19,6 +20,10 @@ num_vertebrae = 3;
 
 % Check to be sure "direction" is only 1 or -1, no scaling allowed.
 assert( (direction == 1) | (direction == -1), 'Direction can only be 1 (clockwise) or -1 (counterclockwise)');
+
+% On 2016-04-29, have this script only accept even numbers, just to avoid errors when splitting
+% the trajectory in half between movement and regulation at the end state.
+assert( mod(num_points,2) == 0, 'Error, num_points is odd. Only even-numbered trajectory lengths are allowed for now.');
 
 % The inverse kinematics script currently translates the tetrahedra according to their angle
 % from the origin. The radius of the arc drawn out by the tetra's center point varies with angle.
@@ -49,19 +54,23 @@ beta_f = direction * pi/8;
 % gives (1/vertebra_number_multipler(i)) = 1 / (1 + (1/2) * (3 - i) ).
 % So we can calculate a full set of beta vectors for the angles for all vertebrae.
 
-beta = zeros(num_points, num_vertebrae);
+%beta = zeros(num_points, num_vertebrae);
+beta = zeros(num_points/2, num_vertebrae);
 for i=1:num_vertebrae
     % For the i-th moving vertebra: create points from beta_0 to beta_f adjusted by the multiplier:
     % (remember that we're using this multipler here to "make the higher-up vertebrae move further")
     beta_f_current = beta_f * 1/( 1 + (1/2) * (3-i));
-    beta(:,i) = linspace( beta_0, beta_f_current, num_points)';
+    %beta(:,i) = linspace( beta_0, beta_f_current, num_points)';
+    beta(:,i) = linspace( beta_0, beta_f_current, num_points/2)';
 end
 
 % Then, create the longitudinal displacements for each tetrahedron.
 % These are curves swept out with varying radius.
 % Call these trajectories _ref.
-x_ref = zeros(num_points, num_vertebrae);
-z_ref = zeros(num_points, num_vertebrae);
+%x_ref = zeros(num_points, num_vertebrae);
+%z_ref = zeros(num_points, num_vertebrae);
+x_ref = zeros(num_points/2, num_vertebrae);
+z_ref = zeros(num_points/2, num_vertebrae);
 
 for i=1:num_vertebrae
     % Use the equations defined above, for this varying radius curve.
@@ -81,7 +90,8 @@ end
 % Note, no need to adjust these by clockwise or counterclockwise, since beta is changed directly above.
 c2 = [1.06, 1.39, 1.54];
 
-g_ref = zeros(num_points, num_vertebrae);
+%g_ref = zeros(num_points, num_vertebrae);
+g_ref = zeros(num_points/2, num_vertebrae);
 for i=1:num_vertebrae
     % We already have our betas, just convert to gammas.
     g_ref(:,i) = c2(i) .* beta(:,i);
@@ -93,16 +103,23 @@ end
 % For each of the three tetrahedra:
 traj = zeros(num_vertebrae * 12, num_points);
 
+% Now, for the first half of the trajectory, plug in x_ref, z_ref, and g_ref.
 for i=1:num_vertebrae
     % Plug in the x, z, and g references
     % The x position will be at 1, 13, 25
-    traj( 12*(i-1) + 1, :) = x_ref(:,i)';
+    %traj( 12*(i-1) + 1, :) = x_ref(:,i)';
+    traj( 12*(i-1) + 1, 1:(num_points/2)) = x_ref(:,i)';
     % z is at 3, 15, 27
-    traj( 12*(i-1) + 3, :) = z_ref(:,i)';
+    %traj( 12*(i-1) + 3, :) = z_ref(:,i)';
+    traj( 12*(i-1) + 3, 1:(num_points/2)) = z_ref(:,i)';
     % g is at 5, 17, 29
-    traj( 12*(i-1) + 5, :) = g_ref(:,i)';
+    %traj( 12*(i-1) + 5, :) = g_ref(:,i)';
+    traj( 12*(i-1) + 5, 1:(num_points/2)) = g_ref(:,i)';
 end
-     
+
+% Then, copy the last state through to the end of the trajectory.
+last_state = traj(:,num_points/2);
+traj(:, (num_points/2)+1 : end) = repmat(last_state, 1, num_points/2);
 
 % end function.
     
