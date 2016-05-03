@@ -25,6 +25,10 @@ function_start = clock;
 
 % Record the current time in a string, used later in the path name for saving data and videos.
 start_time_string = datestr(datetime('now'));
+% Remove the colons and spaces from this string so that Windows doesn't complain when this repository is cloned
+% colons become dashes, spaces become underscores. Regular expressions to the rescue!
+start_time_string = regexprep(start_time_string, ':', '-');
+start_time_string = regexprep(start_time_string, ' ', '_');
 
 % See ultra_spine_mpc for descriptions of all these variables that are passed in as optimization_parameters.
 % The following are unused in this script, except for possibly including for reference in a saved data file with the results: (2016-04-24)
