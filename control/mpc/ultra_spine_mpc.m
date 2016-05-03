@@ -83,6 +83,7 @@ paths.path_to_data_folder = '../../data/mpc_data/';
 %   after movement.) In terms of number of timesteps. Augmenting the trajectory with a regulation portion only happens after the initial
 %   reference trajectory is returned. See add_regulation_to_traj for more details.
 %   NOTE that the total trajectory length is num_points_ref_traj = num_points_ref_traj_tracking + num_points_ref_traj_regulation.
+%   This calculation is only performed in mpc_single_simulation - this outer script does not have the combined num_points_ref_traj.
 % direction = the bending direction of a reference trajectory, either clockwise or counterclockwise. ONLY USED FOR CERTAIN TRAJs
 %   direction is 1 for cw, -1 for ccw.
 % horizon_length = the length of the horizon for MPC. This is the number of steps forward that the controller optimizes over. Was = 10.
@@ -146,9 +147,10 @@ restLengths(1:4) = 0.1;
 restLengths(5:8) = 0.187;
 optimization_parameters.restLengths = restLengths;
 
-% On 2016-04-29: invkin_XZG now has 1/2 of its points as regulation around its end.
-% So, what formerly was 80, is now 160 (80 movement, 80 stabilization).
-optimization_parameters.num_points_ref_traj = 160; % for invkin, 80 gives a 0.0015 straight-line dist b/w points.
+% As of 2016-05-02, this script no longer defines the full length of a traj, but instead the length of each of the two parts.
+%optimization_parameters.num_points_ref_traj = 80; 
+optimization_parameters.num_points_ref_traj_tracking = 80; % for invkin, 80 gives a 0.0015 straight-line dist b/w points.
+optimization_parameters.num_points_ref_traj_regulation = 300;
 optimization_parameters.direction = -1; % 1 for cw, -1 for ccw.
 optimization_parameters.horizon_length = 10;
 optimization_parameters.opt_time_limit = 8; % seconds
@@ -234,27 +236,27 @@ end
 % Run 1:
 %optimization_parameters_by_iteration{1}.vertebrae_do_not_track = {1,2};
 % for the circletop traj:
-%optimization_parameters_by_iteration{1}.num_points_ref_traj = 180;
+%optimization_parameters_by_iteration{1}.num_points_ref_traj_tracking = 180;
 %optimization_parameters_by_iteration{1}.optimization_weights.vertebrae_do_not_track = {1,2};
 
 % Run 2:
-%optimization_parameters_by_iteration{2}.num_points_ref_traj = 200;
+%optimization_parameters_by_iteration{2}.num_points_ref_traj_tracking = 200;
 %optimization_parameters_by_iteration{2}.optimization_weights.vertebrae_do_not_track = {1,2};
 %optimization_parameters_by_iteration{2}.optimization_weights.obj_w_input_mult = 1/4;
 %optimization_parameters_by_iteration{2}.optimization_weights.obj_w_ref_xyz = 100;
 
 % Run 3+
-%optimization_parameters_by_iteration{3}.num_points_ref_traj = 500;
+%optimization_parameters_by_iteration{3}.num_points_ref_traj_tracking = 500;
 %optimization_parameters_by_iteration{3}.optimization_weights.vertebrae_do_not_track = {1,2};
 % For MPC with larger numbers of timesteps, put a higher penalty on inputs
 % that will hopefully make the motion more stable...
-% optimization_parameters_by_iteration{3}.num_points_ref_traj = 150;
-% optimization_parameters_by_iteration{4}.num_points_ref_traj = 200;
-% optimization_parameters_by_iteration{5}.num_points_ref_traj = 300;
-% optimization_parameters_by_iteration{6}.num_points_ref_traj = 500;
-% optimization_parameters_by_iteration{7}.num_points_ref_traj = 700;
-% optimization_parameters_by_iteration{8}.num_points_ref_traj = 1000;
-% optimization_parameters_by_iteration{9}.num_points_ref_traj = 1500;
+% optimization_parameters_by_iteration{3}.num_points_ref_traj_tracking = 150;
+% optimization_parameters_by_iteration{4}.num_points_ref_traj_tracking = 200;
+% optimization_parameters_by_iteration{5}.num_points_ref_traj_tracking = 300;
+% optimization_parameters_by_iteration{6}.num_points_ref_traj_tracking = 500;
+% optimization_parameters_by_iteration{7}.num_points_ref_traj_tracking = 700;
+% optimization_parameters_by_iteration{8}.num_points_ref_traj_tracking = 1000;
+% optimization_parameters_by_iteration{9}.num_points_ref_traj_tracking = 1500;
 
 % a bit of error checking to make sure this simulation runs correctly.
 assert( num_mpc_runs == size(optimization_parameters_by_iteration, 1), ...
@@ -289,7 +291,7 @@ assert( num_mpc_runs == size(optimization_parameters_by_iteration, 1), ...
 % These have more input variables, define them here.
 %[traj, ~] = get_ref_traj_allbending_ccw_XZG(tetra_vertical_spacing)
 % [traj, ~] = get_ref_traj_invkin_XZG(optimization_parameters.tetra_vertical_spacing, ...
-%                 optimization_parameters.num_points_ref_traj, ...
+%                 optimization_parameters.num_points_ref_traj_tracking, ...
 %                 optimization_parameters.direction);
 
 % Create a cell array of strings that represent the trajectories to run.
@@ -356,7 +358,7 @@ for mpc_iteration = 1:num_mpc_runs
     arguments = strcat('(', ...
         'optimization_parameters_by_iteration{mpc_iteration}.tetra_vertical_spacing', ...
         ',', ...
-        'optimization_parameters_by_iteration{mpc_iteration}.num_points_ref_traj', ...
+        'optimization_parameters_by_iteration{mpc_iteration}.num_points_ref_traj_tracking', ...
         ',', ...
         'optimization_parameters_by_iteration{mpc_iteration}.direction', ...
         ')');
@@ -370,7 +372,7 @@ for mpc_iteration = 1:num_mpc_runs
     % These have more input variables, define them here.
     %[traj, ~] = get_ref_traj_allbending_ccw_XZG(tetra_vertical_spacing)
     %[traj, ~] = get_ref_traj_invkin_XZG(optimization_parameters.tetra_vertical_spacing, ...
-    %                optimization_parameters.num_points_ref_traj, ...
+    %                optimization_parameters.num_points_ref_traj_tracking, ...
     %                optimization_parameters.direction);
 
     % Automatically check if the trajectory that was loaded is for the full spine (3 vertebrae) or just the top one.
@@ -390,6 +392,10 @@ for mpc_iteration = 1:num_mpc_runs
 
     % Append this flag to the 'flags' struct that will be passed in to ultra_spine_mpc_single_simulation
     flags.traj_is_full_system = traj_is_full_system;
+    
+    % Augment the trajectory with a series of copies of the final state. This creates a period of 'regulation' around the final state,
+    % and is useful for empirical tests of controller convergence / 'overshoot' etc.
+    [traj, ~] = add_regulation_to_traj(traj, optimization_parameters_by_iteration{mpc_iteration}.num_points_ref_traj_regulation);
 
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%            

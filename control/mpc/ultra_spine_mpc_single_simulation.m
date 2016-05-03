@@ -33,7 +33,8 @@ start_time_string = regexprep(start_time_string, ' ', '_');
 % See ultra_spine_mpc for descriptions of all these variables that are passed in as optimization_parameters.
 % The following are unused in this script, except for possibly including for reference in a saved data file with the results: (2016-04-24)
 %   optimization_weights (only used for the controller, which was created outside this function)
-%   num_points_ref_traj (used to specify traj, which was created outside of this function)
+%   num_points_ref_traj_ ...tracking, ...regulation (used to specify traj, which was created outside of this function)
+%       note that this function calculates the total, num_points_ref_traj, which is then saved alongside the other data.
 %   direction (used to specify traj, which was created outside of this function)
 %   g (already hard-coded into the dynamics script)
 %   N_tetras (already hard-coded into the dynamics script)
@@ -50,7 +51,8 @@ tetra_vertical_spacing = optimization_parameters.tetra_vertical_spacing;
 frame = optimization_parameters.frame;
 restLengths = optimization_parameters.restLengths;
 
-num_points_ref_traj = optimization_parameters.num_points_ref_traj;
+num_points_ref_traj_tracking = optimization_parameters.num_points_ref_traj_tracking;
+num_points_ref_traj_regulation = optimization_parameters.num_points_ref_traj_regulation;
 direction = optimization_parameters.direction;
 horizon_length = optimization_parameters.horizon_length;
 opt_time_limit = optimization_parameters.opt_time_limit;
@@ -122,6 +124,8 @@ if(save_data)
         'horizon_length', ...
         'noise', ...
         'num_points_ref_traj', ...
+        'num_points_ref_traj_regulation', ...
+        'num_points_ref_traj_tracking', ...
         'optimization_parameters', ...
         'paths', ...
         'plotting_parameters', ...
@@ -274,10 +278,20 @@ end
 
 % A bit of debugging
 disp( 'Reference trajectory has: ');
+disp( num_points_ref_traj_tracking );
+disp( 'timesteps of motion, and ' );
+disp( num_points_ref_traj_regulation' );
+disp( 'timesteps of regulation.' );
+disp( 'Total number of timesteps is ' );
 disp( num2str(size(traj,2)));
-disp('timesteps.');
+disp('timesteps in total (tracking + regulation).');
 
+% Save the total length of the trajectory so the addition doesn't have to be done separately later when analyzing the data.
+num_points_ref_traj = num_points_ref_traj_regulation + num_points_ref_traj_tracking;
 
+% Make sure that the trajectory sizes add up properly.
+assert( num_points_ref_traj == size(traj, 2), ...
+    'Error! Total trajectory length is NOT the combined size of tracking + regulation. Trajctory lengths must add up.');
 
 % Plot this trajectory, for a visualization
 % If traj is for top tetra only:

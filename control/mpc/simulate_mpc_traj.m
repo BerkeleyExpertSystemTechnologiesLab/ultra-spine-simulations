@@ -29,6 +29,11 @@ function [x_ref, u_ref, M] = simulate_mpc_traj(controller, systemStates, restLen
 
 disp('Simulating MPC trajectory...')
 
+% Store the total length of the trajectory so it does not have to be re-calculated:
+num_points_ref_traj = size(traj, 2);
+% make it a string for displaying as output
+num_points_ref_traj_str = num2str(num_points_ref_traj);
+
 % Initializing states for each link based on default resting location of
 % each individual link. Initial input to linearize around is u = {0}.
 % TO-DO: linearize around the equilibrium input instead. Use inverse kinematics for this.
@@ -50,7 +55,7 @@ prev_in = u_initial;
 % later be followed using a faster control strategy.
 
 for index = 1:(size(traj, 2) - N + 1)
-    disp(strcat('Simulating MPC trajectory, timestep no.:',num2str(index)));
+    disp( strcat('Simulating MPC trajectory, timestep no.: ', num2str(index), ' out of ', num_points_ref_traj_str) );
     for k = 1:links
         systemStates(k, 1) = x(k); systemStates(k, 2) = y(k); systemStates(k, 3) = z(k);
         systemStates(k, 4) = T(k); systemStates(k, 5) = G(k); systemStates(k, 6) = P(k);
