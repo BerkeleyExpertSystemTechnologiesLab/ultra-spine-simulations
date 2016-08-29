@@ -150,7 +150,7 @@ optimization_parameters.restLengths = restLengths;
 % As of 2016-05-02, this script no longer defines the full length of a traj, but instead the length of each of the two parts.
 %optimization_parameters.num_points_ref_traj = 80; 
 optimization_parameters.num_points_ref_traj_tracking = 80; % for invkin, 80 gives a 0.0015 straight-line dist b/w points.
-optimization_parameters.num_points_ref_traj_regulation = 300;
+optimization_parameters.num_points_ref_traj_regulation = 0;
 optimization_parameters.direction = -1; % 1 for cw, -1 for ccw.
 optimization_parameters.horizon_length = 10;
 optimization_parameters.opt_time_limit = 8; % seconds
