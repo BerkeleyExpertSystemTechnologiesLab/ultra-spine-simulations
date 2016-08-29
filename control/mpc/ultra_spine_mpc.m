@@ -128,8 +128,8 @@ optimization_parameters.dt = 0.001;
 optimization_weights.obj_w_ref_xyz = 25;
 optimization_weights.obj_w_ref_angle = 20;
 optimization_weights.obj_w_smooth = 3;
-optimization_weights.obj_w_input_pow = 3;
-optimization_weights.obj_w_input_mult = 1/24;
+optimization_weights.obj_w_input_pow = 1; % 1 means no power-based weighting
+optimization_weights.obj_w_input_mult = 1; % used to be 1/24
 optimization_weights.weighting_ratio = 1;
 optimization_weights.vertebrae_do_not_track = {};
 optimization_weights.stab_const = 0;    % UNUSED AS OF 2016-04-29
@@ -150,7 +150,7 @@ optimization_parameters.restLengths = restLengths;
 % As of 2016-05-02, this script no longer defines the full length of a traj, but instead the length of each of the two parts.
 %optimization_parameters.num_points_ref_traj = 80; 
 optimization_parameters.num_points_ref_traj_tracking = 80; % for invkin, 80 gives a 0.0015 straight-line dist b/w points.
-optimization_parameters.num_points_ref_traj_regulation = 300;
+optimization_parameters.num_points_ref_traj_regulation = 0;
 optimization_parameters.direction = -1; % 1 for cw, -1 for ccw.
 optimization_parameters.horizon_length = 10;
 optimization_parameters.opt_time_limit = 8; % seconds
@@ -238,15 +238,16 @@ end
 % for the circletop traj:
 %optimization_parameters_by_iteration{1}.num_points_ref_traj_tracking = 180;
 %optimization_parameters_by_iteration{1}.optimization_weights.vertebrae_do_not_track = {1,2};
+%optimization_parameters_by_iteration{1}.num_points_ref_traj_tracking = 240;
 
 % Run 2:
-%optimization_parameters_by_iteration{2}.num_points_ref_traj_tracking = 200;
+%optimization_parameters_by_iteration{2}.num_points_ref_traj_tracking = 320;
 %optimization_parameters_by_iteration{2}.optimization_weights.vertebrae_do_not_track = {1,2};
 %optimization_parameters_by_iteration{2}.optimization_weights.obj_w_input_mult = 1/4;
 %optimization_parameters_by_iteration{2}.optimization_weights.obj_w_ref_xyz = 100;
 
 % Run 3+
-%optimization_parameters_by_iteration{3}.num_points_ref_traj_tracking = 500;
+%optimization_parameters_by_iteration{3}.num_points_ref_traj_tracking = 400;
 %optimization_parameters_by_iteration{3}.optimization_weights.vertebrae_do_not_track = {1,2};
 % For MPC with larger numbers of timesteps, put a higher penalty on inputs
 % that will hopefully make the motion more stable...
@@ -301,17 +302,28 @@ trajectories_list = cell(num_mpc_runs, 1);
 
 % Name a default trajectory. The trajectory from the inverse kinematics script is a good default:
 default_traj = 'invkin_XZG';
+% The "partial" trajectory was my attempt to have a very very small amount of movement.
+% It might look like nothing is happening with that trajectory, since the movement is so small.
+%default_traj = 'invkin_XZG_partial';
 
 % Populate the list with this default
 for i=1:num_mpc_runs
     trajectories_list{i} = default_traj;
+    %trajectories_list{i} = 'invkin_XZG_partial';
 end
 
 % Manually change these according to the runs of MPC that this script should make.
 
 % Run 1:
+
 % try the circletop trajectory. This should match Abishek's original results.
 %trajectories_list{1} = 'circletop_allvertebrae';
+
+% Upright equilibrium trajectory.
+%trajectories_list{1} = 'upright';
+
+% Partial inverse kinematics trajectory
+%trajectories_list{1} = 'invkin_XZG_partial';
 
 % Run 2:
 %trajectories_list{i} = ;
@@ -413,7 +425,12 @@ for mpc_iteration = 1:num_mpc_runs
 
     % Initialize yalmip variables for changing controller parameters
     % Horizon length:
-    horizon_length = 10;
+    %horizon_length = 10;
+    horizon_length = optimization_parameters_by_iteration{mpc_iteration}.horizon_length;
+    
+    disp('This iteration has horizon length:');
+    disp(horizon_length);
+    
     % YALMIP variables:
     inputs = sdpvar(repmat(8*links, 1, horizon_length-1), repmat(1, 1, horizon_length-1));
     states = sdpvar(repmat(12*links, 1, horizon_length), repmat(1, 1, horizon_length));
