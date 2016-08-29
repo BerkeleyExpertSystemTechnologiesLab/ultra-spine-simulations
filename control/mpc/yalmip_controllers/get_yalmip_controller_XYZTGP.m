@@ -242,8 +242,8 @@ constraints = [constraints, states{N}(3) + .02 <= states{N}(15), states{N}(15) +
 %Copy in the older controller_XYZ code, modified to fit the 32-state reference, tracking angles too, all 3 vertebrae:
 % For this current state:
 objective = 25*norm(states{1}(1:6) - reference{1}(1:6), 2);
-objective = objective + 25*norm(states{1}(13:18) - reference{1}(13:18), 2);
-objective = objective + 25*norm(states{1}(25:30) - reference{1}(25:30), 2);
+%objective = objective + 25*norm(states{1}(13:18) - reference{1}(13:18), 2);
+%objective = objective + 25*norm(states{1}(25:30) - reference{1}(25:30), 2);
 % For the remaining states in this horizon:
 for k = 2:(N-1)
     objective = objective + (1/2)*(25^k)*norm(states{k}(1:6) - reference{k}(1:6), 2) + ...
