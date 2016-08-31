@@ -3,7 +3,8 @@
 % This function simulates the MPC to build a reference trajectory for the LQR controller.
 % This variant takes in a trajectory for the full 36-state system, not just for the top vertebra.
 
-function [x_ref, u_ref, M] = simulate_mpc_traj(controller, systemStates, restLengths, links, dt, x, y, z, T, G, P, dx, dy, dz, dT, dG, dP, traj, N)
+function [x_ref, u_ref, M] = simulate_mpc_traj(controller, systemStates, restLengths, links, ...
+                                    dt, x, y, z, T, G, P, dx, dy, dz, dT, dG, dP, traj, N, noise)
 % Simulate the MPC controller and find reference trajectory to follow
 % provided waypoints. 
 
@@ -63,7 +64,7 @@ for index = 1:(size(traj, 2) - N + 1)
         systemStates(k, 10) = dT(k); systemStates(k, 11) = dG(k); systemStates(k, 12) = dP(k);
     end
 
-    noise = 0; % Case where no noise is present
+    %noise = 0; % Case where no noise is present
     tic;
     % Use N-step horizon controller
     outputs = controller{N}{{prev_in, reshape(systemStates', 36, 1), A, B, c, traj(:, index:(index+N-1))}}; 
@@ -99,7 +100,7 @@ for index = M:(size(traj, 2)-1)
         systemStates(k, 10) = dT(k); systemStates(k, 11) = dG(k); systemStates(k, 12) = dP(k);
     end
 
-    noise = 0; % Case where no noise is present
+    %noise = 0; % Case where no noise is present
     tic;
     % Calculate number of states in traj from current state onwards
     shrinking_horizon = size(traj, 2) - M + 1;

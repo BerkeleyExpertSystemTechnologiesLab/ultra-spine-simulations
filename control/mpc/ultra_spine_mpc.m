@@ -107,16 +107,6 @@ paths.path_to_data_folder = '../../data/mpc_data/';
 
 % The weights for Abishek's original MPC run were, respectively, 25, 0, 3, 3, 1/24. These were for only the top tetrahedron.
 
-% Flags:
-% noise = adds noise to the forward simulation of the dynamics. noise = 1 turns it on.
-% save_video = saves a video file, see function for more details.
-% save_data = saves a .mat file with the simulation results, see function for more details.
-% stringEnable = set to 1 plots the cables of the robot in the visualization
-% run_lqr = flag to run the finite-time receding-horizon LQR after MPC. 0 = MPC only, 1 = run lqr also
-% traj_is_full_system = flag representing whether traj is size 12 * whatever or 36 * whatever.
-%   NOTE that this full_system flag is calculated automatically below after loading in the reference traj.
-%   It is then inserted into the flags struct, before passing in to ultra_spine_mpc_single_simulation.
-
 % Other notes about parameters:
 % 'links' must be consistent with the dynamics defined in duct_accel.m and associated files! Those dynamics are pre-calculated,
 %   and this parameter does NOT change them - it only affects the controller. If the controller and dynamics are inconsistent,
@@ -154,6 +144,16 @@ optimization_parameters.num_points_ref_traj_regulation = 0;
 optimization_parameters.direction = -1; % 1 for cw, -1 for ccw.
 optimization_parameters.horizon_length = 10;
 optimization_parameters.opt_time_limit = 8; % seconds
+
+% Flags:
+% noise = adds noise to the forward simulation of the dynamics. noise = 1 turns it on.
+% save_video = saves a video file, see function for more details.
+% save_data = saves a .mat file with the simulation results, see function for more details.
+% stringEnable = set to 1 plots the cables of the robot in the visualization
+% run_lqr = flag to run the finite-time receding-horizon LQR after MPC. 0 = MPC only, 1 = run lqr also
+% traj_is_full_system = flag representing whether traj is size 12 * whatever or 36 * whatever.
+%   NOTE that this full_system flag is calculated automatically below after loading in the reference traj.
+%   It is then inserted into the flags struct, before passing in to ultra_spine_mpc_single_simulation.
 
 flags.noise = 0;
 flags.save_video = 1;
@@ -488,7 +488,7 @@ for mpc_iteration = 1:num_mpc_runs
         disp(k);
         % Controllers for 12 states
         %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZ(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
-        %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZT(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
+        [controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZT(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
         %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZG(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
         %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_G(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
         %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_T(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
@@ -503,9 +503,16 @@ for mpc_iteration = 1:num_mpc_runs
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%            
     %% Run this iteration of ultra_spine_mpc_single_simulation.
+    
+    % Note: the weighting matrices Q are passed in to the single simulation only so that they can be saved in the .mat data file
+    % for that specific run. They are NOT used in that routine.
+    
+    other_data_to_save = {};
+    other_data_to_save{1} = {'Q_track', Q_track};
+    other_data_to_save{2} = {'Q_smooth', Q_smooth};
 
     mpc_results{mpc_iteration} = ultra_spine_mpc_single_simulation(traj, controller, optimization_parameters_by_iteration{mpc_iteration}, ...
-                    flags, plotting_parameters, paths);
+                    flags, plotting_parameters, other_data_to_save, paths);
     
     % End of this iteration of MPC.
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%            

@@ -119,7 +119,7 @@ for s=1:num_states
         
         % State s, horizon point k:
         for k= 2:(N)
-            % tracking:git
+            % tracking:
             % On 2016-06-03, changed power function to 2^k instead of w_track^k. Maybe this will help with computation?
             % Used to be: objective = objective + (1/2) * w_track^k * norm(states{k}(s) - reference{k}(s), 2);
             % On 2016-08-30, reverted. Tracking is now weighted much more heavily (since w_track >> 2).

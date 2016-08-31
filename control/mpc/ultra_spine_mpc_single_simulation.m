@@ -4,7 +4,7 @@
 % All parameters for MPC are passed in, as well as a reference trajectory and a (series of) controllers.
 
 function [mpc_results] = ultra_spine_mpc_single_simulation(traj, controller, optimization_parameters, ...
-                            flags, plotting_parameters, paths)                   
+                            flags, plotting_parameters, other_data_to_save, paths)                   
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%                        
 %% Function parameters
 % Inputs:
@@ -13,6 +13,8 @@ function [mpc_results] = ultra_spine_mpc_single_simulation(traj, controller, opt
 %       since the horizon shrinks from horizon_length to length 1 during the last few iterations of MPC.
 %   optimization_parameters = a struct with various parameters of the spine and of the optimization. See ultra_spine_mpc.
 %   plotting_parameters = a struct with various parameters related to the figure and visualization. See ultra_spine_mpc.
+%   other_data_to_save = a cell array with other data that should be saved with the rest of the data from this run of the simulation.
+%       Typically, this will be extra information not used in this script, such as Q_track and Q_smooth from the controller generation.
 %   paths = a struct with strings that are paths to various folder to save information in. As of 2016-04-24, videos and data.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -116,6 +118,7 @@ if(save_data)
     % A cell array of the names of all the variables to save.
     % There must be at least one variable to save.
     variables_to_save = { ...
+        'data_path', ...
         'direction', ...
         'dt', ...
         'elapsed_time', ...
@@ -127,6 +130,7 @@ if(save_data)
         'num_points_ref_traj_regulation', ...
         'num_points_ref_traj_tracking', ...
         'optimization_parameters', ...
+        'other_data_to_save', ...
         'paths', ...
         'plotting_parameters', ...
         'refx', ...
@@ -141,6 +145,13 @@ if(save_data)
         'x_initial', ...
         'x_ref'};
 end
+
+% Create the full name of the path to the data file by concatenating with the path to the data folder, defined above.
+% NOTE that this may not be used later! This data file will be saved if save_data is true, otherwise,
+% no file will exist at this path.
+% This is saved and returned along with the big cell array so that the analyze_ultra_spine_mpc_results function
+% can be called from ultra_spine_mpc.m
+data_path = strcat( path_to_data_folder, 'ultra-spine-mpc_data_', start_time_string );
 
 % Initialize the video, if flagged.
 if(save_video)
@@ -308,13 +319,19 @@ end
 drawnow;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Run Model-Predictive Control on the ULTRA Spine 
 
 disp('Starting MPC.')
 
 % This function is now general enough to simulate both 12-state references as well as 36-state references.
 [x_ref, u_ref, M] = simulate_mpc_traj(controller, systemStates, restLengths, links, dt, x, y, z, T, G, P, ...
-    dx, dy, dz, dT, dG, dP, traj, horizon_length);
+    dx, dy, dz, dT, dG, dP, traj, horizon_length, noise);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Plot the results of the MPC
@@ -340,6 +357,7 @@ drawnow;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Build Iterative LQR Controller
 % This is now only done if flagged.
+% TO-DO: this may not work as of 2016-08-30, more testing required.
 
 if (run_lqr)
     disp('Building LQR Controllers for each timestep.')
@@ -558,10 +576,9 @@ function_end = clock;
 elapsed_time = etime(function_end, function_start) / 60;
 
 
+
 % Save the data from this simulation, if the save_data flag is set.
 if(save_data)
-    % create the filename for this data by concatenating with the path to the data folder, defined above
-    data_path = strcat( path_to_data_folder, 'ultra-spine-mpc_data_', start_time_string );
     % Since MATLAB doesn't seem to have a way to save a specific list of variables, this script
     % first creates a .mat file and then appends variables to it.
     save(data_path, variables_to_save{1});
