@@ -88,58 +88,63 @@ constraints = [constraints, states{N}(3) + .02 <= states{N}(15), states{N}(15) +
 
 %% Build up the objective
 
-% % Scalar Multiplication Version: 
-% % For some reason, YALMIP does not seem to do well with vector multiplications on arrays of sdpvars.
-% % Or maybe my math is just wrong again (Drew 2016-04-25).
-% % So, here's a version with all the objectives written out with 2-norms.
-% % Loop through each of the states, and if the diagonal on Q is nonzero, add it to the objective.
-% % NOTE THAT THIS ASSUMES THAT NONZEROS in Q_track ARE ALSO NONZEROS in Q_smooth
-% for s=1:num_states
-%     % For each state, check the diagonal on Q_track
-%     if ( Q_track(s,s)  ~= 0 )
-%         % Save the weight for this state
-%         w_track = Q_track(s,s);
-%         % Get the smoothing weight for this state
-%         w_smooth = Q_smooth(s,s);
-%         
-%         % Add this state for all horizon points:
-%         % tracking (for k=1:N)
-%         % smoothing (for k=2:N)
-% 
-%         % State s, horizon point 1:
-%         % Need to check if 'objective' exists and create it if not.
-%         % TO-DO: more efficient.
-%         if ~( exist('objective') )
-%             % create objective this step
-%             objective = w_track * norm(states{1}(s) - reference{1}(s), 2);
-%         else
-%             % just add to objective.
-%             objective = objective + w_track * 2 * norm(states{1}(s) - reference{1}(s), 2);
-%         end
-%         
-%         % State s, horizon point k:
-%         for k= 2:(N)
-%             % tracking:
-%             % On 2016-06-03, changed power function to 2^k instead of w_track^k. Maybe this will help with computation?
-%             objective = objective + w_track * 2^k * norm(states{k}(s) - reference{k}(s), 2);
-%             % smoothing:
-%             % On 2016-06-03, removed power function from w_smooth. Now, smoothness of all horizon lengths is weighted equally.
-%             objective = objective + w_smooth * norm(states{k}(s) - states{k-1}(s), 2);
-%         end
-%         
-%         % Put an extra weight on the final horizon point.
-%         % TO-DO: parameterize this last term as a passed-in constant.
-%         objective = objective + 30 * w_track * 2^N * norm(states{k}(s) - states{k}(s), 2);
-%     end
-% end
-% 
-% % Also, add input penalties to the objective function, according to horizon point.
-% for k=2:(N-1)
-%     % penalize the largest of the inputs at this horizon point
-%     % TO-DO: maybe a 2-norm would work better here?
-%     %objective = objective + r_smooth_mult * r_smooth_pow^k * norm(inputs{k} - inputs{k-1}, inf);
-%     objective = objective + r_smooth_mult * r_smooth_pow^k * norm(inputs{k} - inputs{k-1}, 2);
-% end
+% Scalar Multiplication Version: 
+% For some reason, YALMIP does not seem to do well with vector multiplications on arrays of sdpvars.
+% Or maybe my math is just wrong again (Drew 2016-04-25).
+% So, here's a version with all the objectives written out with 2-norms.
+% Loop through each of the states, and if the diagonal on Q is nonzero, add it to the objective.
+% NOTE THAT THIS ASSUMES THAT NONZEROS in Q_track ARE ALSO NONZEROS in Q_smooth
+for s=1:num_states
+    % For each state, check the diagonal on Q_track
+    if ( Q_track(s,s)  ~= 0 )
+        % Save the weight for this state
+        w_track = Q_track(s,s);
+        % Get the smoothing weight for this state
+        w_smooth = Q_smooth(s,s);
+        
+        % Add this state for all horizon points:
+        % tracking (for k=1:N)
+        % smoothing (for k=2:N)
+
+        % State s, horizon point 1: tracking only
+        % Need to check if 'objective' exists and create it if not.
+        % TO-DO: more efficient.
+        if ~( exist('objective') )
+            % create objective this step
+            objective = w_track * norm(states{1}(s) - reference{1}(s), 2); % If using 2^k below, need 2 here.
+        else
+            % just add to objective.
+            objective = objective + w_track * norm(states{1}(s) - reference{1}(s), 2);
+        end
+        
+        % State s, horizon point k:
+        for k= 2:(N)
+            % tracking:git
+            % On 2016-06-03, changed power function to 2^k instead of w_track^k. Maybe this will help with computation?
+            % Used to be: objective = objective + (1/2) * w_track^k * norm(states{k}(s) - reference{k}(s), 2);
+            % On 2016-08-30, reverted. Tracking is now weighted much more heavily (since w_track >> 2).
+            objective = objective + w_track^k * norm(states{k}(s) - reference{k}(s), 2);
+            % smoothing:
+            % On 2016-06-03, removed power function from w_smooth. Now, smoothness of all horizon lengths is weighted equally.
+            % On 2016-08-30, reverted. The smoothness of future horizon points is now weighted more heavily.
+            objective = objective + w_smooth^k * norm(states{k}(s) - states{k-1}(s), 2);
+        end
+        
+        % Put an extra weight on the final horizon point.
+        % TO-DO: parameterize this last term as a passed-in constant.
+        % On 2016-08-30, removed this extra weight. This was a failed attempt at trying to force the controller to converge
+        % instead of oscillating with noise from the system linearization.
+        %objective = objective + 30 * w_track * 2^N * norm(states{N}(s) - states{N}(s), 2);
+    end
+end
+
+% Also, add input penalties to the objective function, according to horizon point.
+for k=2:(N-1)
+    % penalize the largest of the inputs at this horizon point
+    % TO-DO: maybe a 2-norm would work better here?
+    objective = objective + r_smooth_mult * r_smooth_pow^k * norm(inputs{k} - inputs{k-1}, inf);
+    %objective = objective + r_smooth_mult * r_smooth_pow^k * norm(inputs{k} - inputs{k-1}, 2);
+end
 
 %% Old backup versions of objective-build-up
 % Vector Multiplication Version:
@@ -239,27 +244,27 @@ constraints = [constraints, states{N}(3) + .02 <= states{N}(15), states{N}(15) +
 % Currently does not track velocities.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%Copy in the older controller_XYZ code, modified to fit the 32-state reference, tracking angles too, all 3 vertebrae:
-% For this current state:
-objective = 25*norm(states{1}(1:6) - reference{1}(1:6), 2);
-%objective = objective + 25*norm(states{1}(13:18) - reference{1}(13:18), 2);
-%objective = objective + 25*norm(states{1}(25:30) - reference{1}(25:30), 2);
-% For the remaining states in this horizon:
-for k = 2:(N-1)
-    objective = objective + (1/2)*(25^k)*norm(states{k}(1:6) - reference{k}(1:6), 2) + ...
-        (1/2)*(25^k)*norm(states{k}(13:18) - reference{k}(13:18), 2) + ...
-        (1/2)*(25^k)*norm(states{k}(25:30) - reference{k}(25:30), 2) + ...
-        (1/24)*(3^k)*norm(inputs{k} - inputs{k-1}, inf) + ...
-        (3^k)*(norm(states{k}(1:6) - states{k-1}(1:6))) + ...
-        (3^k)*(norm(states{k}(13:18) - states{k-1}(13:18))) + ...
-        (3^k)*(norm(states{k}(25:30) - states{k-1}(25:30))); % Also minimize change in state/input for smooth motion
-end
-% Add the objective for the last state in this horizon. There are no inputs for index k ==  N.
-objective = objective + ...
-      (1/2)*(25^N)*norm(states{N}(1:6) - reference{N}(1:6), 2) + (3^N)*norm(states{N}(1:6) - states{N-1}(1:6)) + ...
-      (1/2)*(25^N)*norm(states{N}(13:18) - reference{N}(13:18), 2) + (3^N)*norm(states{N}(13:18) - states{N-1}(13:18)) + ...
-      (1/2)*(25^N)*norm(states{N}(25:30) - reference{N}(25:30), 2) + (3^N)*norm(states{N}(25:30) - states{N-1}(25:30));
-% result: ...
+% %Copy in the older controller_XYZ code, modified to fit the 32-state reference, tracking angles too, all 3 vertebrae:
+% % For this current state:
+% objective = 25*norm(states{1}(1:6) - reference{1}(1:6), 2);
+% %objective = objective + 25*norm(states{1}(13:18) - reference{1}(13:18), 2);
+% %objective = objective + 25*norm(states{1}(25:30) - reference{1}(25:30), 2);
+% % For the remaining states in this horizon:
+% for k = 2:(N-1)
+%     objective = objective + (1/2)*(25^k)*norm(states{k}(1:6) - reference{k}(1:6), 2) + ...
+%         (1/2)*(25^k)*norm(states{k}(13:18) - reference{k}(13:18), 2) + ...
+%         (1/2)*(25^k)*norm(states{k}(25:30) - reference{k}(25:30), 2) + ...
+%         (1/24)*(3^k)*norm(inputs{k} - inputs{k-1}, inf) + ...
+%         (3^k)*(norm(states{k}(1:6) - states{k-1}(1:6))) + ...
+%         (3^k)*(norm(states{k}(13:18) - states{k-1}(13:18))) + ...
+%         (3^k)*(norm(states{k}(25:30) - states{k-1}(25:30))); % Also minimize change in state/input for smooth motion
+% end
+% % Add the objective for the last state in this horizon. There are no inputs for index k ==  N.
+% objective = objective + ...
+%       (1/2)*(25^N)*norm(states{N}(1:6) - reference{N}(1:6), 2) + (3^N)*norm(states{N}(1:6) - states{N-1}(1:6)) + ...
+%       (1/2)*(25^N)*norm(states{N}(13:18) - reference{N}(13:18), 2) + (3^N)*norm(states{N}(13:18) - states{N-1}(13:18)) + ...
+%       (1/2)*(25^N)*norm(states{N}(25:30) - reference{N}(25:30), 2) + (3^N)*norm(states{N}(25:30) - states{N-1}(25:30));
+% % result: ...
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

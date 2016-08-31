@@ -128,8 +128,8 @@ optimization_parameters.dt = 0.001;
 optimization_weights.obj_w_ref_xyz = 25;
 optimization_weights.obj_w_ref_angle = 20;
 optimization_weights.obj_w_smooth = 3;
-optimization_weights.obj_w_input_pow = 1; % 1 means no power-based weighting
-optimization_weights.obj_w_input_mult = 1; % used to be 1/24
+optimization_weights.obj_w_input_pow = 1; % working with = 1 to 3, at least. 1 means no power-based weighting
+optimization_weights.obj_w_input_mult = 1; % working with = 1/24 to 1, at least.
 optimization_weights.weighting_ratio = 1;
 optimization_weights.vertebrae_do_not_track = {};
 optimization_weights.stab_const = 0;    % UNUSED AS OF 2016-04-29
