@@ -33,6 +33,10 @@ result_traj = data.refx;
 % ref_traj is off by one. Prune out the first point in the reference trajectory (this point, the intial state, is not controlled for.)
 ref_traj = ref_traj(:, 2:end);
 
+% Append these to the errors struct.
+errors.ref_traj = ref_traj;
+errors.result_traj = result_traj;
+
 % Take the difference between these two trajectories, and square each point: this is the squared tracking error (all states)
 tracking_error_squared = (result_traj - ref_traj).^2;
 % what does just the value of the error look like? These units will be in meters, at least, for comparison.
@@ -138,6 +142,60 @@ if plots_flag
     title('Tracking Error in Z');
     % Scale the plot. A good scale here is...
     ylim([-2 2]);
+    hold off;
+    
+    % Plot the XZ positions of the reference trajectory and resulting trajectory.
+    % This should give a good visual representation of the spine's movement.
+    
+    % Top:
+    trajectories_top_handle = figure;
+    hold on;
+    set(trajectories_top_handle,'Position',[100,100,500,300]);
+    % Plot the reference: X vs. Z. The top vertebra is at states 25 to 36.
+    % Scale the lengths here to get cm.
+    plot( ref_traj(25,:)*100, ref_traj(27, :)*100, 'b.');
+    % Plot the output of the MPC:
+    % Scale the lengths here to get cm.
+    plot( result_traj(25,:)*100, result_traj(27,:)*100, 'g.');
+    legend('Reference', 'Result');
+    xlabel('Position in X (m)');
+    ylabel('Position in Z (m)');
+    title('Position of Top Vertebra');
+    % Scale the plot?
+    hold off;
+    
+    % Middle:
+    trajectories_middle_handle = figure;
+    hold on;
+    set(trajectories_middle_handle,'Position',[100,100,500,300]);
+    % Plot the reference: X vs. Z. The middle vertebra is at states 13 to 24.
+    % Scale the lengths here to get cm.
+    plot( ref_traj(13,:)*100, ref_traj(15, :)*100, 'b.');
+    % Plot the output of the MPC:
+    % Scale the lengths here to get cm.
+    plot( result_traj(13,:)*100, result_traj(15,:)*100, 'g.');
+    legend('Reference', 'Result');
+    xlabel('Position in X (m)');
+    ylabel('Position in Z (m)');
+    title('Position of Middle Vertebra');
+    % Scale the plot?
+    hold off;
+    
+    % Lower:
+    trajectories_lower_handle = figure;
+    hold on;
+    set(trajectories_lower_handle,'Position',[100,100,500,300]);
+    % Plot the reference: X vs. Z. The lower vertebra is at states 1 to 12.
+    % Scale the lengths here to get cm.
+    plot( ref_traj(1,:)*100, ref_traj(3, :)*100, 'b.');
+    % Plot the output of the MPC:
+    % Scale the lengths here to get cm.
+    plot( result_traj(1,:)*100, result_traj(3,:)*100, 'g.');
+    legend('Reference', 'Result');
+    xlabel('Position in X (m)');
+    ylabel('Position in Z (m)');
+    title('Position of Lower Vertebra');
+    % Scale the plot?
     hold off;
     
     % Plot the errors in angle: absolute error for each

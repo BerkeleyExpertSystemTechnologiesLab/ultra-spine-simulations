@@ -155,7 +155,7 @@ optimization_parameters.opt_time_limit = 8; % seconds
 %   NOTE that this full_system flag is calculated automatically below after loading in the reference traj.
 %   It is then inserted into the flags struct, before passing in to ultra_spine_mpc_single_simulation.
 
-flags.noise = 0;
+flags.noise = 1;
 flags.save_video = 1;
 flags.save_data = 1;
 flags.stringEnable = 1;
@@ -241,13 +241,15 @@ end
 %optimization_parameters_by_iteration{1}.num_points_ref_traj_tracking = 240;
 
 % Run 2:
-%optimization_parameters_by_iteration{2}.num_points_ref_traj_tracking = 320;
+%optimization_parameters_by_iteration{2}.num_points_ref_traj_tracking = 80;
+%flags_by_iteration{2}.noise = 1;
 %optimization_parameters_by_iteration{2}.optimization_weights.vertebrae_do_not_track = {1,2};
 %optimization_parameters_by_iteration{2}.optimization_weights.obj_w_input_mult = 1/4;
 %optimization_parameters_by_iteration{2}.optimization_weights.obj_w_ref_xyz = 100;
 
 % Run 3+
-%optimization_parameters_by_iteration{3}.num_points_ref_traj_tracking = 400;
+%optimization_parameters_by_iteration{3}.num_points_ref_traj_tracking = 160;
+%flags_by_iteration{3}.noise = 1;
 %optimization_parameters_by_iteration{3}.optimization_weights.vertebrae_do_not_track = {1,2};
 % For MPC with larger numbers of timesteps, put a higher penalty on inputs
 % that will hopefully make the motion more stable...
@@ -403,7 +405,9 @@ for mpc_iteration = 1:num_mpc_runs
     end
 
     % Append this flag to the 'flags' struct that will be passed in to ultra_spine_mpc_single_simulation
-    flags.traj_is_full_system = traj_is_full_system;
+    %flags.traj_is_full_system = traj_is_full_system;
+    % The flags can be varied for each run, also:
+    flags_by_iteration{mpc_iteration}.traj_is_full_system = traj_is_full_system;
     
     % Augment the trajectory with a series of copies of the final state. This creates a period of 'regulation' around the final state,
     % and is useful for empirical tests of controller convergence / 'overshoot' etc.
@@ -511,8 +515,12 @@ for mpc_iteration = 1:num_mpc_runs
     other_data_to_save{1} = {'Q_track', Q_track};
     other_data_to_save{2} = {'Q_smooth', Q_smooth};
 
+    %mpc_results{mpc_iteration} = ultra_spine_mpc_single_simulation(traj, controller, optimization_parameters_by_iteration{mpc_iteration}, ...
+    %                flags, plotting_parameters, other_data_to_save, paths);
+    
+    % Pass in the flags per iteration also:
     mpc_results{mpc_iteration} = ultra_spine_mpc_single_simulation(traj, controller, optimization_parameters_by_iteration{mpc_iteration}, ...
-                    flags, plotting_parameters, other_data_to_save, paths);
+                    flags_by_iteration{mpc_iteration}, plotting_parameters, other_data_to_save, paths);
     
     % End of this iteration of MPC.
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%            

@@ -25,6 +25,10 @@ function systemStates = simulate_dynamics(systemStates, restLengths, inputs, dt,
 %
 % systemStates{t+1} = systemStates{t} + (dt/6)*(K1 + 2*K2 + 2*K3 + K4)
 
+% Define the magnitude of the noise, for both the position and velocity:
+noise_mag_pos = 0.0005; % Was 0.001
+noise_mag_vel = 0.0002; % Was 0.0005
+
 tempState{1} = 0; % First link is fixed (Placeholder for state info)
 Te{1} = 0;
 initial_states = [];
@@ -179,18 +183,20 @@ combinedState = initial_states + dt/6*(K1+2*K2+2*K3+K4)';
 % Add Gaussian noise, if desired.
 if (noise)
     for k = 1:links
-        systemStates(k, 1) = combinedState(12*(k-1)+1) + 0.001*randn(1); % x
-        systemStates(k, 2) = combinedState(12*(k-1)+2) + 0.001*randn(1); % y
-        systemStates(k, 3) = combinedState(12*(k-1)+3) + 0.001*randn(1); % z
-        systemStates(k, 4) = combinedState(12*(k-1)+4) + 0.001*randn(1); % T
-        systemStates(k, 5) = combinedState(12*(k-1)+5) + 0.001*randn(1); % G
-        systemStates(k, 6) = combinedState(12*(k-1)+6) + 0.001*randn(1); % P
-        systemStates(k, 7) = combinedState(12*(k-1)+7) + 0.0005*randn(1); % dx
-        systemStates(k, 8) = combinedState(12*(k-1)+8) + 0.0005*randn(1); % dy
-        systemStates(k, 9) = combinedState(12*(k-1)+9) + 0.0005*randn(1); % dz
-        systemStates(k, 10) = combinedState(12*(k-1)+10) + 0.0005*randn(1); % dT
-        systemStates(k, 11) = combinedState(12*(k-1)+11) + 0.0005*randn(1); % dG
-        systemStates(k, 12) = combinedState(12*(k-1)+12) + 0.0005*randn(1); % dP
+        % Used to be: systemStates(k, 1) = combinedState(12*(k-1)+1) + 0.001*randn(1); % x 
+        systemStates(k, 1) = combinedState(12*(k-1)+1) + noise_mag_pos*randn(1); % x
+        systemStates(k, 2) = combinedState(12*(k-1)+2) + noise_mag_pos*randn(1); % y
+        systemStates(k, 3) = combinedState(12*(k-1)+3) + noise_mag_pos*randn(1); % z
+        systemStates(k, 4) = combinedState(12*(k-1)+4) + noise_mag_pos*randn(1); % T
+        systemStates(k, 5) = combinedState(12*(k-1)+5) + noise_mag_pos*randn(1); % G
+        systemStates(k, 6) = combinedState(12*(k-1)+6) + noise_mag_pos*randn(1); % P
+        % Used to be: systemStates(k, 7) = combinedState(12*(k-1)+7) + 0.0005*randn(1); % dx
+        systemStates(k, 7) = combinedState(12*(k-1)+7) + noise_mag_vel*randn(1); % dx
+        systemStates(k, 8) = combinedState(12*(k-1)+8) + noise_mag_vel*randn(1); % dy
+        systemStates(k, 9) = combinedState(12*(k-1)+9) + noise_mag_vel*randn(1); % dz
+        systemStates(k, 10) = combinedState(12*(k-1)+10) + noise_mag_vel*randn(1); % dT
+        systemStates(k, 11) = combinedState(12*(k-1)+11) + noise_mag_vel*randn(1); % dG
+        systemStates(k, 12) = combinedState(12*(k-1)+12) + noise_mag_vel*randn(1); % dP
     end
 else
     for k = 1:links
