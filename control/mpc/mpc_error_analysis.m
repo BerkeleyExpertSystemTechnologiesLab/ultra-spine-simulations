@@ -90,9 +90,12 @@ errors.tracking_total = tracking_total;
 if plots_flag
     % Calculate the time in seconds at each point.
     t = data.dt: data.dt : (data.num_points_ref_traj-1)*data.dt;
+    % Adjust time so that everything is in milliseconds. This makes things clearer.
+    t = t * 100;
     % A good figure window setup is 'Position',[100,100,500,300].
     % Plot the errors in X,Y,Z: absolute error for each
     
+    %% Plot the errors. First, XYZ positions:
     % Plot the X errors
     errors_X_figure_handle = figure;
     hold on;
@@ -103,7 +106,7 @@ if plots_flag
         plot(t, tracking_XYZ( (i-1) * 3 + 1, :)*100 );
     end
     legend('Vertebra 1 (Bottom)', 'Vertebra 2 (Middle)', 'Vertebra 3 (Top)');
-    xlabel('Time (sec)');
+    xlabel('Time (msec)');
     ylabel('Error in X (cm)');
     title('Tracking Error in X');
     % Scale the plot. A good scale here is...
@@ -120,7 +123,7 @@ if plots_flag
         plot(t, tracking_XYZ( (i-1) * 3 + 2, :)*100 );
     end
     legend('Vertebra 1 (Bottom)', 'Vertebra 2 (Middle)', 'Vertebra 3 (Top)');
-    xlabel('Time (sec)');
+    xlabel('Time (msec)');
     ylabel('Error in Y (cm)');
     title('Tracking Error in Y');
     % Scale the plot. A good scale here is...
@@ -137,14 +140,69 @@ if plots_flag
         plot(t, tracking_XYZ( (i-1) * 3 + 3, :)*100 );
     end
     legend('Vertebra 1 (Bottom)', 'Vertebra 2 (Middle)', 'Vertebra 3 (Top)');
-    xlabel('Time (sec)');
+    xlabel('Time (msec)');
     ylabel('Error in Z (cm)');
     title('Tracking Error in Z');
     % Scale the plot. A good scale here is...
     ylim([-2 2]);
     hold off;
     
-    % Plot the XZ positions of the reference trajectory and resulting trajectory.
+    %% Plot the errors in TGP:
+    
+    % Plot the Theta errors:
+    errors_T_figure_handle = figure;
+    hold on;
+    set(gca,'FontSize',fontsize);
+    set(errors_T_figure_handle,'Position',[100,100,500,300]);
+    for i=1:3
+        % Convert these radians to degrees.
+        plot(t, tracking_angle( (i-1) * 3 + 1, :) * (180/pi) );
+    end
+    legend('Vertebra 1 (Bottom)', 'Vertebra 2 (Middle)', 'Vertebra 3 (Top)');
+    xlabel('Time (msec)');
+    ylabel('Error in \theta (degrees)');
+    title('Tracking Error in \theta');
+    % Scale the plot. A good scale here is...
+    %ylim([-2 2]);
+    hold off;
+    
+    % Plot the Gamma errors:
+    errors_G_figure_handle = figure;
+    hold on;
+    set(gca,'FontSize',fontsize);
+    set(errors_G_figure_handle,'Position',[100,100,500,300]);
+    for i=1:3
+        % Convert these radians to degrees.
+        plot(t, tracking_angle( (i-1) * 3 + 2, :) * (180/pi) );
+    end
+    legend('Vertebra 1 (Bottom)', 'Vertebra 2 (Middle)', 'Vertebra 3 (Top)');
+    xlabel('Time (msec)');
+    ylabel('Error in \gamma (degrees)');
+    title('Tracking Error in \gamma');
+    % Scale the plot. A good scale here is...
+    %ylim([-2 2]);
+    hold off;
+    
+    % Plot the Psi errors:
+    errors_P_figure_handle = figure;
+    hold on;
+    set(gca,'FontSize',fontsize);
+    set(errors_P_figure_handle,'Position',[100,100,500,300]);
+    for i=1:3
+        % Convert these radians to degrees.
+        plot(t, tracking_angle( (i-1) * 3 + 3, :) * (180/pi) );
+    end
+    legend('Vertebra 1 (Bottom)', 'Vertebra 2 (Middle)', 'Vertebra 3 (Top)');
+    xlabel('Time (msec)');
+    ylabel('Error in \psi (degrees)');
+    title('Tracking Error in \psi');
+    % Scale the plot. A good scale here is...
+    %ylim([-2 2]);
+    hold off;
+    
+    
+    
+    %% Plot the XZ positions of the reference trajectory and resulting trajectory.
     % This should give a good visual representation of the spine's movement.
     
     % Top:
@@ -158,8 +216,8 @@ if plots_flag
     % Scale the lengths here to get cm.
     plot( result_traj(25,:)*100, result_traj(27,:)*100, 'g.');
     legend('Reference', 'Result');
-    xlabel('Position in X (m)');
-    ylabel('Position in Z (m)');
+    xlabel('Position in X (cm)');
+    ylabel('Position in Z (cm)');
     title('Position of Top Vertebra');
     % Scale the plot?
     hold off;
@@ -175,8 +233,8 @@ if plots_flag
     % Scale the lengths here to get cm.
     plot( result_traj(13,:)*100, result_traj(15,:)*100, 'g.');
     legend('Reference', 'Result');
-    xlabel('Position in X (m)');
-    ylabel('Position in Z (m)');
+    xlabel('Position in X (cm)');
+    ylabel('Position in Z (cm)');
     title('Position of Middle Vertebra');
     % Scale the plot?
     hold off;
@@ -192,14 +250,68 @@ if plots_flag
     % Scale the lengths here to get cm.
     plot( result_traj(1,:)*100, result_traj(3,:)*100, 'g.');
     legend('Reference', 'Result');
-    xlabel('Position in X (m)');
-    ylabel('Position in Z (m)');
+    xlabel('Position in X (cm)');
+    ylabel('Position in Z (cm)');
     title('Position of Lower Vertebra');
     % Scale the plot?
     hold off;
     
-    % Plot the errors in angle: absolute error for each
-    % Plot the total sum-squared error for the whole system
+    %% Plot the total sum-squared error for positions and angles
+    
+    % Since it doesn't make sense to combine errors, since the magnitudes are different,
+    % provide 2 different plots.
+    % Also, use the OpenGL renderer so that symbols are formatted correctly.
+    total_error_handle = figure('Renderer', 'opengl');
+    hold on;
+    set(total_error_handle,'Position',[100,100,500,300]);
+    % Make a subplot:
+    subplot(2, 1, 1);
+    % Adjust the error from meters to centimeters: since it's squared,
+    % Changing m^2 to cm^2 requires mulitplication by 100^2
+    plot( t, tracking_XYZ_squared_sum, '.-');
+    xlabel('Time (msec)');
+    ylabel( sprintf('Sq. Err. (m^2)') );
+    title('Total squared error for XYZ states')
+    % Scale this plot to emphasize how small these errors are.
+    ylim([0 0.001]);
+    % Make the font larger for these subplots that get squished.
+    %set(gca,'FontSize',13);
+    % Make the second plot:
+    subplot(2, 1, 2);
+    % Adjust this error to degrees squared, since that's more intuitive than rad^2.
+    % That means multiply by (180/pi)^2
+    plot(t, tracking_angle_squared_sum, '.-');
+    xlabel('Time (msec)');
+    ylabel( sprintf('Sq. Err. (rad^2)') );
+    title('Total squared error for angle (\theta \gamma \psi) states');
+    % Make the font larger for these subplots that get squished.
+    %set(gca,'FontSize',13);
+    hold off;
+    
+    % Let's try to combine anyway. Normalize by dividing by the mean value in each vector.
+    %total_combined_error_handle = figure;
+    %hold on;
+    %set(total_combined_error_handle,'Position',[100,100,500,300]);
+    % The mean value of the XYZ states:
+    %m_XYZ = mean(tracking_XYZ_squared_sum);
+    % The mean value of the TGP states:
+    %m_TGP = mean(tracking_angle_squared_sum);
+    % calculate the normalized errors:
+    %XYZ_norm = tracking_XYZ_squared_sum - m_XYZ;
+    %TGP_norm = tracking_angle_squared_sum - m_TGP;
+    % Add them and plot:
+    %total_combined_error = XYZ_norm + TGP_norm;
+    %hold off;
+    %plot(t, XYZ_norm);
+    %title('XYZ_norm');
+    %figure;
+    %plot(t, TGP_norm);
+    %title('TGP_norm');
+    %figure;
+    %plot(t, total_combined_error);
+    %title('total_combined_error');
+    
+    % Plot the error in position for all three of the vertebrae together
 
 end
 

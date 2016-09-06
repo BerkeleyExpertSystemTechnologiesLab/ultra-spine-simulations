@@ -107,7 +107,7 @@ plotting_offset = plotting_parameters.plotting_offset;
 lqr_result_color = plotting_parameters.lqr_result_color;
 lqr_result_thickness = plotting_parameters.lqr_result_thickness;
 anchor = plotting_parameters.anchor;
-
+video_quality = plotting_parameters.video_quality;
 
 % List the names of the variables that this script will save, if save_data is set.
 % This is typed in manually.
@@ -159,11 +159,28 @@ if(save_video)
     % create the filename for this video by concatenating with the path to the video folders, defined above
     videoPath = strcat( path_to_videos_folder, 'ultra-spine-mpc_', start_time_string );
     %videoObject = VideoWriter( strcat('../../videos/ultra-spine-mpc_', datestr(datetime('now'))) );
-    videoObject = VideoWriter( videoPath, 'Motion JPEG 2000' );
-    %videoObject.Quality = 75;
-    videoObject.FrameRate = 20;
-    videoObject.CompressionRatio = 60;
-    %videoObject.VideoCompressionMethod('Motion JPEG 2000');
+    % Depending on the specified quality of the video, create a VideoWriter object and adjust its parameters.
+    % Use the strcmp function to compare strings. Returns 1 if strings are equal.
+    if( strcmp(video_quality, 'low') )
+        % Use the compressed Motion JPEG 2000 format.
+        videoObject = VideoWriter( videoPath, 'Motion JPEG 2000' );
+        disp('Generating a low-quality video.');
+        %videoObject.Quality = 75;
+        videoObject.FrameRate = 20;
+        videoObject.CompressionRatio = 60;
+        %videoObject.VideoCompressionMethod('Motion JPEG 2000');
+    elseif( strcmp(video_quality, 'high') )
+        % Use the default settings. This will produce a LARGE video file.
+        % NOTE: Using the MATLAB on the BEST Lab Server will produce lower-quality videos
+        % no matter what, since it uses software OpenGL rendering, for which smoothing is disabled.
+        % For high quality videos, run this script on a computer with hardware openGL (most desktop or laptop computers.)
+        disp('Generating a high-quality video.');
+        %videoObject = VideoWriter( videoPath );
+        videoObject = VideoWriter( videoPath, 'Archival' );
+        %videoWriter.Quality = 100;
+    else
+        error( strcat('Video quality property not set correctly inside ultra_spine_mpc_single_simulation. Video quality is:', video_quality) );
+    end
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

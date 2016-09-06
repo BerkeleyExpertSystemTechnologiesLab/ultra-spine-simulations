@@ -186,6 +186,7 @@ flags.run_lqr = 0;
 % lqr_result_color = color of the lines used to plot the centers of the vertebrae after running LQR.
 % lqr_result_thickness = thickness of the lines used to plot the centers of the vertebrae after running LQR.
 % anchor = position of the anchor location of the cables on one of a vertebra's nodes
+% video_quality = option that controls what type of video to output. 'low' is Motion JPEG 2000, 'high' is 
 
 plotting_parameters.figure_window_location = [0, 0, 600 700];
 plotting_parameters.figure_window_color = 'w';
@@ -205,6 +206,7 @@ plotting_parameters.plotting_offset = 30;
 plotting_parameters.lqr_result_color = 'g';
 plotting_parameters.lqr_result_thickness = 2;
 plotting_parameters.anchor = [0 0 plotting_parameters.rad];
+plotting_parameters.video_quality = 'low';
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Create list of variations from default parameters that will be run
@@ -234,6 +236,7 @@ end
 % Manually change these according to the runs of MPC that this script should make.
 
 % Run 1:
+plotting_parameters_by_iteration{1}.video_quality = 'high';
 %optimization_parameters_by_iteration{1}.vertebrae_do_not_track = {1,2};
 % for the circletop traj:
 %optimization_parameters_by_iteration{1}.num_points_ref_traj_tracking = 180;
@@ -516,11 +519,11 @@ for mpc_iteration = 1:num_mpc_runs
     other_data_to_save{2} = {'Q_smooth', Q_smooth};
 
     %mpc_results{mpc_iteration} = ultra_spine_mpc_single_simulation(traj, controller, optimization_parameters_by_iteration{mpc_iteration}, ...
-    %                flags, plotting_parameters, other_data_to_save, paths);
+    %                flags, plotting_parameters_by_iteration{mpc_iteration}, other_data_to_save, paths);
     
     % Pass in the flags per iteration also:
     mpc_results{mpc_iteration} = ultra_spine_mpc_single_simulation(traj, controller, optimization_parameters_by_iteration{mpc_iteration}, ...
-                    flags_by_iteration{mpc_iteration}, plotting_parameters, other_data_to_save, paths);
+                    flags_by_iteration{mpc_iteration}, plotting_parameters_by_iteration{mpc_iteration}, other_data_to_save, paths);
     
     % End of this iteration of MPC.
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%            
