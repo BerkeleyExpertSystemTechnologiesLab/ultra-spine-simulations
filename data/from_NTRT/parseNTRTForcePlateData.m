@@ -85,27 +85,68 @@ if( make_plots )
     % Y
     %yhandle = figure('Renderer', 'opengl');
     yhandle = figure;
+    % For the Y data, start at a certain time. Ignore the beginning of the simulation, 
+    % since it has to settle down first.
+    % Start the plots at:
+    tstart = 5;
+    % End the plots at:
+    tend = 20;
+    % The dt for these simulations is roughly:
+    dt = 0.01;
+    % Number of timesteps to get to tstart seconds:
+    timestep_start = tstart/dt;
+    %timestep_end = tend/dt;
+    % start making the graph
     hold on;
     set(gca, 'FontSize', fontsize);
-    set(yhandle,'Position',[100,100,580,350]);
+    set(yhandle,'Position',[100,100,500,350]);
     set(yhandle,'PaperPosition',[1,1,5.8,3.5]);
     for i=1:4
+        % create the modified time vector.
+        t_temp = fpdata{i}.data(timestep_start:end,1);
+        % subtract away the start time.
+        t_temp = t_temp - tstart;
+        y_temp = fpdata{i}.data(timestep_start:end,3);
         % plot t vs. y for each plate
-        plot( fpdata{i}.data(:,1), fpdata{i}.data(:,3) )
+        %plot( fpdata{i}.data(:,1), fpdata{i}.data(:,3) )
+        plot( t_temp, y_temp);
+        % Store this data for analysis later
+        fpdata{i}.t_foranalysis = t_temp;
+        fpdata{i}.y_foranalysis = y_temp;
     end
-    title('       NTRTsim ForcePlate Vertical Forces (Fy)');
+    title('NTRTsim ForcePlate Vertical Forces (Fy)');
     ylabel('Force Fy (N)');
     xlabel('Time (sec)');
     % Set the limits
     %xlim([0 10]);
-    ylim([-3 15]);
-    % Draw two vertical lines for the places where snapshots are taken
+    ylim([-3 16]);
+    % Draw vertical lines for the places where snapshots are taken
     % and analyzed in the ICRA 2017 paper
     % Credit to Brandon Kuczenski for the vline function
     vline(5, 'k--', 't_1',18);
-    vline(14, 'k--', 't_2',18);
-    legend('RearLeft', 'RearRight', 'FrontLeft', 'FrontRight' );
+    vline(12, 'k--', 't_2',18);
+    vline(17, 'k--', 't_3',18);
+    legend('RearLeft', 'RearRight', 'FrontLeft', 'FrontRight', 'Location', 'Northwest' );
     hold off;
+    individual cables that have a length ratio of 1-1-2-3. The 1-1  ratio  connects  the  actuated  end  to  the  ends  of  the  twoadjacent  vertebrae.  The  2  and  3  ratio  cables  connect  theactuated end to the two remaining vertebrae further away. Forexample, referring to Figure X, four separate cables run fromthe actuated end at T2 to T1, T3, T4, and T5. This propertyis symmetric across all horizontal cable sets to replicate thesame degree of motion. The 1-1-2-3 length ratio is controlledby a spool with the same ratio. When the spool spins, eachcables  length  changes  with  respect  to  which  gear  it  is  on.This allowed for the robots thirty two to cables to be groupedand  controlled  by  4  motors,  maintaining  the  underactuateddesign.  The  gear  is  supported  by  three  brackets  and  twomounts which attach it to the vertebras core. A ball bearingholds the tracks in place as the gear rotates minimizing themoment  introduced  when  spinning.  The  gear  spin  is  drivenby a motor that is attached to mount that is connected to thecore and holds the cable tracks. The entire spine structure isconnected to a 3D printed hip and shoulder, and is supportedby laser cut legs as shown in Figure Y. As the motor runs, thegear spins adjusting the lengths of the horizontal cables andbending the spine leading to a change in forces experiencedat the soles of the feet.IV.  SIMULATIONSRobot in NTRT. How NTRT works. Cite past NTRT work.Describe  force  plate,  cable  model,  trajectories.  Describethe specific tests that were performed.Pictures: Spine robot in NTRT on force plates.V.  FORCE PLATE SETUPForce plate sensing setup. Cite Amy Kapatkin’s paper.Pictures: whole robot on test platform, CAD models (ex-ploded) of interesting parts like hips and cable spool/guide,close  up  photos  of  the  actual  prototype  in  these  importantareas.VI.  RESULTSA. Simulation ResultsFoot force data, for different bending trajectories. Graphsof data (no statistics here). Did the robot lift a leg?Pictures: leg lifting, if so.B. Hardware Testing ResultsFoot force data, for different bending trajectories. Graphsof data (no statistics here).Pictures: maybe one of the leg lifting (if we can make thathappen), or of it shifting on the spring platform.”Analysis of the above results is performed in the follow-ing section.”VII.  DISCUSSIONA. Simulation Results AnalysisThese simulation results show quite clearly that the groundreaction  forces  underneath  the  robot’s  legs  change  frombefore bending to after bending (Fig. 1). As an example, toshow this change more rigorously, a test statistic is calculated05101520Time (sec)051015Force Fy (N)NTRTsim ForcePlate Vertical Forces (Fy)t1t2t3RearLeftRearRightFrontLeftFrontRightFig.  1:  Forces  underneath  the  feet  of  the  ULTRA  Spinequadruped during bending motion in NTRT. Fromt0=0 sec.untilt1=5  sec.,  the  robot  is  balanced  on  three  of  its  legs(rear  right  raised).  Bending  occurs  betweent1andt2=12.After bending, until the end of the simulation att3=17, therobot is balanced on three different legs (rear left raised).for the rear-left-leg vertical force data to show that the meansof  before  vs.  after  bending  are  statistically  significant.  Thisis the blue line in Fig. 1.The  test  statistic  is  calculated  as  follows.  The  samplesfrom  population  1,  before  bending,  consist  of  a  bin  of  thevalues  fromt0=0  tot1=5  sec.  (Fig.  1).  The  second  binof samples from the ’after’ population is the bin from timet2=12 untilt3=17 sec. Data are assumed to be independent(a reasonable assumption for a simple test), and the bins arelarge enough (n1=500,n2=493) that a normal distributioncan be assumed, and az-test can be used. Here,miare meansof  the  
+    % Run statistics on the Y-data for the rear left leg.
+    % RearLeft is plate 1.
+    bin1start = 1;
+    bin1end = 5/dt;
+    bin2start = 12/0.01;
+    bin1 = fpdata{1}.y_foranalysis(bin1start:bin1end);
+    bin2 = fpdata{1}.y_foranalysis(bin2start:end);
+    observed_diff = mean(bin2) - mean(bin1)
+    std_err1 = std(bin1) / sqrt(size(bin1,1) )
+    std_err2 = std(bin2) / sqrt(size(bin2,1) )
+    std_err_diff = sqrt( std_err1^2 + std_err2^2 )
+    z = observed_diff / std_err_diff
+    % Then, calculate z symbolically, since normcdf doesn't take z-values this large.
+    % thanks to:
+    % http://math.stackexchange.com/questions/806814/numerical-precision-of-product-of-probabilities-normal-cdf
+    z_sym = sym(z);
+    p_sym = normcdf(z_sym, 0, 1)
+    p_sym_evaluated = vpa(p_sym)
     
     % Z
     zhandle = figure('Renderer', 'opengl');

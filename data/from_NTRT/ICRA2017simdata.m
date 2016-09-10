@@ -19,7 +19,7 @@ addpath('./hline_vline');
 logfile_base = '~/repositories/NTRTsim/resources/src/forcePlate/forcePlateDemo/logs/';
 % The timestamp for the file to read in
 % Copied from the name of the log file itself
-logfile_timestamp = '09092016_202023';
+logfile_timestamp = '09102016_113901';
 % The calibration factor for the force plate readings.
 % Currently 5, since gravity = 98.1 and scale = 0.5.
 calib_factor = 5;
