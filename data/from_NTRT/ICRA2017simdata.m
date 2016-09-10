@@ -10,6 +10,10 @@ clear all;
 close all;
 clc;
 
+% Add the path to the hline and vline functions.
+% @TODO make this more robust!
+addpath('./hline_vline');
+
 % The log file base path:
 % (hard-coded to Drew's computer)
 logfile_base = '~/repositories/NTRTsim/resources/src/forcePlate/forcePlateDemo/logs/';

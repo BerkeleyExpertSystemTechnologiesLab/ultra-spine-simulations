@@ -58,9 +58,19 @@ end
 
 if( make_plots )
     % Plot the forces in x, y, z for each forceplate.
+    % Here are some good dimensions of figures:
+    % fontsize = 12;
+    %set(gca, 'FontSize', fontsize);
+    %set(xhandle,'Position',[100,100,500,300]);
+    %set(xhandle,'PaperPosition',[1,1,5,3]);
     
+    fontsize = 14;
+    
+    % For all the below, use the openGL renderer so any symbols are properly formatted.
+    % ACTUALLY, NO: it seems that the openGL renderer outputs raster images! No!
+    % Need to use the default painter.
     % X:
-    figure;
+    xhandle = figure('Renderer', 'opengl');
     hold on;
     for i=1:4
         % plot t vs. x for each plate
@@ -73,20 +83,32 @@ if( make_plots )
     hold off;
     
     % Y
-    figure;
+    %yhandle = figure('Renderer', 'opengl');
+    yhandle = figure;
     hold on;
+    set(gca, 'FontSize', fontsize);
+    set(yhandle,'Position',[100,100,580,350]);
+    set(yhandle,'PaperPosition',[1,1,5.8,3.5]);
     for i=1:4
         % plot t vs. y for each plate
         plot( fpdata{i}.data(:,1), fpdata{i}.data(:,3) )
     end
-    title('Force plate Fy forces vs. time');
+    title('       NTRTsim ForcePlate Vertical Forces (Fy)');
     ylabel('Force Fy (N)');
     xlabel('Time (sec)');
+    % Set the limits
+    %xlim([0 10]);
+    ylim([-3 15]);
+    % Draw two vertical lines for the places where snapshots are taken
+    % and analyzed in the ICRA 2017 paper
+    % Credit to Brandon Kuczenski for the vline function
+    vline(5, 'k--', 't_1',18);
+    vline(14, 'k--', 't_2',18);
     legend('RearLeft', 'RearRight', 'FrontLeft', 'FrontRight' );
     hold off;
     
     % Z
-    figure;
+    zhandle = figure('Renderer', 'opengl');
     hold on;
     for i=1:4
         % plot t vs. z for each plate
@@ -99,13 +121,13 @@ if( make_plots )
     hold off;
     
     % Plot the total Fy, for perspective on how much the robot weighs.
-    figure;
-    hold on;
-    plot( fpdata{5}.data(:,1), fpdata{5}.data(:,3) );
-    title('Total forces in Y, NTRT force plates, vs. time');
-    ylabel('Force Fy (N)');
-    xlabel('Time (sec)');
-    hold off;
+%     figure;
+%     hold on;
+%     plot( fpdata{5}.data(:,1), fpdata{5}.data(:,3) );
+%     title('Total forces in Y, NTRT force plates, vs. time');
+%     ylabel('Force Fy (N)');
+%     xlabel('Time (sec)');
+%     hold off;
 end
 
 
