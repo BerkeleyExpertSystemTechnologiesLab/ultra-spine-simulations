@@ -93,109 +93,143 @@ if plots_flag
     % Adjust time so that everything is in milliseconds. This makes things clearer.
     t = t * 100;
     % A good figure window setup is 'Position',[100,100,500,300].
-    % Plot the errors in X,Y,Z: absolute error for each
+    size(t)
     
-    %% Plot the errors. First, XYZ positions:
+    % Make a sequence of points at zero for plotting a thin dashed black line in the below plots.
+    %zero_line = zeros(1, size(t,2));
+    %size(zero_line)
+    
+    %% Plot the errors, all of XYZTGP on the same subplot.
+    % Create the handle for the overall figure
+    % Also, use the OpenGL renderer so that symbols are formatted correctly.
+    errors_handle = figure('Renderer', 'opengl');
+    hold on;
+    set(gca,'FontSize',fontsize);
+    % This figure will have 6 smaller plots, so make it twice the size of my usual window dimensions.
+    set(errors_handle,'Position',[100,100,450,600]);
+    % Start the first subplot
+    subplot(6, 1, 1);
+    hold on;
+    
     % Plot the X errors
-    errors_X_figure_handle = figure;
-    hold on;
-    set(gca,'FontSize',fontsize);
-    set(errors_X_figure_handle,'Position',[100,100,500,300]);
     for i=1:3
         % Scale the lengths here to get centimeters.
-        plot(t, tracking_XYZ( (i-1) * 3 + 1, :)*100 );
+        plot(t, tracking_XYZ( (i-1) * 3 + 1, :)*100, 'LineWidth',2 );
     end
-    legend('Vertebra 1 (Bottom)', 'Vertebra 2 (Middle)', 'Vertebra 3 (Top)');
-    xlabel('Time (msec)');
-    ylabel('Error in X (cm)');
-    title('Tracking Error in X');
+    % Plot the zero line
+    %plot(t, zero_line, 'b-', 'LineWidth','1');
+    refline_handle = refline(0,0);
+    set(refline_handle, 'LineStyle', '--', 'Color', 'k', 'LineWidth', 0.5);
+    %xlabel('Time (msec)');
+    ylabel('e_X (cm)');
+    % Only create a title for the first plot, that will serve for all the others too.
+    %title('Tracking Errors in X Y Z  \theta \gamma \psi');
+    title('Tracking Errors, 3 Vertebrae, No Noise  ');
     % Scale the plot. A good scale here is...
-    ylim([-2 2]);
+    ylim([-1.0 1.5]);
     hold off;
-    
+
     % Plot the Y errors
-    errors_Y_figure_handle = figure;
+    subplot(6, 1, 2);
     hold on;
-    set(gca,'FontSize',fontsize);
-    set(errors_Y_figure_handle,'Position',[100,100,500,300]);
     for i=1:3
         % Scale the lengths here to get centimeters.
-        plot(t, tracking_XYZ( (i-1) * 3 + 2, :)*100 );
+        plot(t, tracking_XYZ( (i-1) * 3 + 2, :)*100, 'LineWidth',2  );
     end
-    legend('Vertebra 1 (Bottom)', 'Vertebra 2 (Middle)', 'Vertebra 3 (Top)');
-    xlabel('Time (msec)');
-    ylabel('Error in Y (cm)');
-    title('Tracking Error in Y');
+    % Plot the zero line
+    %plot(t, zero_line, 'b-', 'LineWidth','1');
+    refline_handle = refline(0,0);
+    set(refline_handle, 'LineStyle', '--', 'Color', 'k', 'LineWidth', 0.5);
+    %legend('Vertebra 1 (Bottom)', 'Vertebra 2 (Middle)', 'Vertebra 3 (Top)');
+    %xlabel('Time (msec)');
+    ylabel('e_Y (cm)');
+    %title('Tracking Error in Y');
     % Scale the plot. A good scale here is...
-    ylim([-2 2]);
+    %ylim([-2 2]);
     hold off;
     
     % Plot the Z errors
-    errors_Z_figure_handle = figure;
+    subplot(6, 1, 3);
     hold on;
-    set(gca,'FontSize',fontsize);
-    set(errors_Z_figure_handle,'Position',[100,100,500,300]);
     for i=1:3
         % Scale the lengths here to get centimeters.
-        plot(t, tracking_XYZ( (i-1) * 3 + 3, :)*100 );
+        plot(t, tracking_XYZ( (i-1) * 3 + 3, :)*100, 'LineWidth',2 );
     end
-    legend('Vertebra 1 (Bottom)', 'Vertebra 2 (Middle)', 'Vertebra 3 (Top)');
-    xlabel('Time (msec)');
-    ylabel('Error in Z (cm)');
-    title('Tracking Error in Z');
+    % Plot the zero line
+    refline_handle = refline(0,0);
+    set(refline_handle, 'LineStyle', '--', 'Color', 'k', 'LineWidth', 0.5);
+    %plot(t, zero_line, 'b-', 'LineWidth','1');
+    %xlabel('Time (msec)');
+    ylabel('e_Z (cm)');
+    %title('Tracking Error in Z');
     % Scale the plot. A good scale here is...
-    ylim([-2 2]);
+    %ylim([-2 2]);
     hold off;
     
-    %% Plot the errors in TGP:
-    
     % Plot the Theta errors:
-    errors_T_figure_handle = figure;
+    subplot(6, 1, 4);
     hold on;
-    set(gca,'FontSize',fontsize);
-    set(errors_T_figure_handle,'Position',[100,100,500,300]);
     for i=1:3
         % Convert these radians to degrees.
-        plot(t, tracking_angle( (i-1) * 3 + 1, :) * (180/pi) );
+        plot(t, tracking_angle( (i-1) * 3 + 1, :) * (180/pi), 'LineWidth',2 );
     end
-    legend('Vertebra 1 (Bottom)', 'Vertebra 2 (Middle)', 'Vertebra 3 (Top)');
-    xlabel('Time (msec)');
-    ylabel('Error in \theta (degrees)');
-    title('Tracking Error in \theta');
+    % Plot the zero line
+    refline_handle = refline(0,0);
+    set(refline_handle, 'LineStyle', '--', 'Color', 'k', 'LineWidth', 0.5);
+    %plot(t, zero_line, 'b-', 'LineWidth','1');
+    %xlabel('Time (msec)');
+    %ylabel('\theta (deg)');
+    ylabel('e_T (\circ)');
+    %title('Tracking Error in \theta');
     % Scale the plot. A good scale here is...
     %ylim([-2 2]);
     hold off;
     
     % Plot the Gamma errors:
-    errors_G_figure_handle = figure;
+    subplot(6, 1, 5);
     hold on;
-    set(gca,'FontSize',fontsize);
-    set(errors_G_figure_handle,'Position',[100,100,500,300]);
     for i=1:3
         % Convert these radians to degrees.
-        plot(t, tracking_angle( (i-1) * 3 + 2, :) * (180/pi) );
+        plot(t, tracking_angle( (i-1) * 3 + 2, :) * (180/pi), 'LineWidth',2 );
     end
-    legend('Vertebra 1 (Bottom)', 'Vertebra 2 (Middle)', 'Vertebra 3 (Top)');
-    xlabel('Time (msec)');
-    ylabel('Error in \gamma (degrees)');
-    title('Tracking Error in \gamma');
+    % Plot the zero line
+    refline_handle = refline(0,0);
+    set(refline_handle, 'LineStyle', '--', 'Color', 'k', 'LineWidth', 0.5);
+    %plot(t, zero_line, 'b-', 'LineWidth','1');
+    %xlabel('Time (msec)');
+    %ylabel('\gamma (deg)');
+    ylabel('e_G (\circ)');
+    %title('Tracking Error in \gamma');
     % Scale the plot. A good scale here is...
     %ylim([-2 2]);
     hold off;
     
     % Plot the Psi errors:
-    errors_P_figure_handle = figure;
+    subplot(6, 1, 6);
     hold on;
-    set(gca,'FontSize',fontsize);
-    set(errors_P_figure_handle,'Position',[100,100,500,300]);
     for i=1:3
         % Convert these radians to degrees.
-        plot(t, tracking_angle( (i-1) * 3 + 3, :) * (180/pi) );
+        plot(t, tracking_angle( (i-1) * 3 + 3, :) * (180/pi), 'LineWidth',2 );
     end
-    legend('Vertebra 1 (Bottom)', 'Vertebra 2 (Middle)', 'Vertebra 3 (Top)');
+    % Plot the zero line
+    refline_handle = refline(0,0);
+    set(refline_handle, 'LineStyle', '--', 'Color', 'k', 'LineWidth', 0.5);
+    %plot(t, zero_line, 'b-', 'LineWidth','1');
     xlabel('Time (msec)');
-    ylabel('Error in \psi (degrees)');
-    title('Tracking Error in \psi');
+    %ylabel('\psi (deg)');
+    ylabel('e_P (\circ)');
+    
+    % Make the legend
+    legend_handle = legend('Vertebra 1 (Bottom)', 'Vertebra 2 (Middle)', 'Vertebra 3 (Top)');
+    % move the legend to the corner of the figure.
+    % Position is: [left, bottom, width, height]
+    % These units are expressed as percents of the total figure
+    % Bottom left:
+    %legend_position = [0.22 0.042 0 0];
+    % Bottom right:
+    legend_position = [0.82 0.042 0 0];
+    set(legend_handle,'Position', legend_position);
+    %title('Tracking Error in \psi');
     % Scale the plot. A good scale here is...
     %ylim([-2 2]);
     hold off;
@@ -255,6 +289,49 @@ if plots_flag
     title('Position of Lower Vertebra');
     % Scale the plot?
     hold off;
+    
+    %% Plot the combined position of all three vertebrae on the same plot.
+    % Will this be interesting??
+    
+    % Create the figure handle: make it large
+    % Also, use the OpenGL renderer so that symbols are formatted correctly.
+    all_positions_handle = figure('Renderer', 'opengl');
+    hold on;
+    set(gca,'FontSize',fontsize);
+    % This figure will have 6 smaller plots, so make it twice the size of my usual window dimensions.
+    set(all_positions_handle,'Position',[100,100,500,300]);
+    % Set some reasonable limits.
+    ylim([9 31]);
+    xlim([-12 0]);
+    
+    % Title, label, etc
+    xlabel('Position in X (cm)');
+    ylabel('Position in Z (cm)');
+    title('Position of vertebrae during tracking control');
+    
+    % Plot the reference: X vs. Z. The top vertebra is at states 25 to 36.
+    % Scale the lengths here to get cm.
+    plot( ref_traj(25,:)*100, ref_traj(27, :)*100, 'b.');
+    % Plot the output of the MPC:
+    % Scale the lengths here to get cm.
+    plot( result_traj(25,:)*100, result_traj(27,:)*100, 'g.');
+    
+    % Plot the reference: X vs. Z. The middle vertebra is at states 13 to 24.
+    % Scale the lengths here to get cm.
+    plot( ref_traj(13,:)*100, ref_traj(15, :)*100, 'b.');
+    % Plot the output of the MPC:
+    % Scale the lengths here to get cm.
+    plot( result_traj(13,:)*100, result_traj(15,:)*100, 'g.');
+    
+    % Plot the reference: X vs. Z. The lower vertebra is at states 1 to 12.
+    % Scale the lengths here to get cm.
+    plot( ref_traj(1,:)*100, ref_traj(3, :)*100, 'b.');
+    % Plot the output of the MPC:
+    % Scale the lengths here to get cm.
+    plot( result_traj(1,:)*100, result_traj(3,:)*100, 'g.');
+    
+    % Make a legend. Since all vertebrae are the same color, we only need two labels.
+    legend('Reference Trajectories, in X-Z', 'Result Traj., No Noise', 'Location', 'Southwest');
     
     %% Plot the total sum-squared error for positions and angles
     
