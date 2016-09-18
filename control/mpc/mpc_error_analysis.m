@@ -102,13 +102,16 @@ if plots_flag
     %% Plot the errors, all of XYZTGP on the same subplot.
     % Create the handle for the overall figure
     % Also, use the OpenGL renderer so that symbols are formatted correctly.
-    errors_handle = figure('Renderer', 'opengl');
+    %errors_handle = figure('Renderer', 'opengl');
+    errors_handle = figure;
     hold on;
     set(gca,'FontSize',fontsize);
     % This figure will have 6 smaller plots, so make it twice the size of my usual window dimensions.
-    set(errors_handle,'Position',[100,100,450,600]);
+    % Actually, since this will be 3x2, needs to be 2x in the lateral direction.
+    %set(errors_handle,'Position',[100,100,450,600]);
+    set(errors_handle,'Position',[100,100,900,300]);
     % Start the first subplot
-    subplot(6, 1, 1);
+    subplot_handle = subplot(3, 2, 1);
     hold on;
     
     % Plot the X errors
@@ -124,13 +127,23 @@ if plots_flag
     ylabel('e_X (cm)');
     % Only create a title for the first plot, that will serve for all the others too.
     %title('Tracking Errors in X Y Z  \theta \gamma \psi');
-    title('Tracking Errors, 3 Vertebrae, No Noise  ');
+    title('   Postitions (No Disturbance)');
     % Scale the plot. A good scale here is...
-    ylim([-1.0 1.5]);
+    %ylim([-1.0 1.5]);
+    ylim([-2.0 3.5]);
+    
+    % Move the plot very slightly to the left
+    P = get(subplot_handle,'Position')
+    %set(subplot_handle,'Position',[P(1)-0.05 P(2) P(3) P(4)])
+    set(subplot_handle,'Position',[P(1)-0.06 P(2)+0.05 P(3)+0.01 P(4)-0.04])
     hold off;
+    
+    % Title the whole plot
+    %mtit('Tracking Errors, With Disturbances','xoff',0.5,'yoff',0.2)
+    
 
     % Plot the Y errors
-    subplot(6, 1, 2);
+    subplot_handle = subplot(3, 2, 3);
     hold on;
     for i=1:3
         % Scale the lengths here to get centimeters.
@@ -145,11 +158,20 @@ if plots_flag
     ylabel('e_Y (cm)');
     %title('Tracking Error in Y');
     % Scale the plot. A good scale here is...
-    %ylim([-2 2]);
+    % used to be -0.2 to 0.1
+    %ylim([-1 1]);
+    ylim([-2 3.5]);
+    %ylim([-2 2]);    
+    % Move the plot very slightly to the left
+    % For these lower figures, move them upwards a bit more.
+    P = get(subplot_handle,'Position')
+    set(subplot_handle,'Position',[P(1)-0.06 P(2)+0.07 P(3)+0.01 P(4)-0.04])
+    
     hold off;
     
+    
     % Plot the Z errors
-    subplot(6, 1, 3);
+    subplot_handle = subplot(3, 2, 5);
     hold on;
     for i=1:3
         % Scale the lengths here to get centimeters.
@@ -163,11 +185,20 @@ if plots_flag
     ylabel('e_Z (cm)');
     %title('Tracking Error in Z');
     % Scale the plot. A good scale here is...
+    % Used to be -0.2 to 0.2
+    %ylim([-1 1]);
+    ylim([-2 3.5]);
     %ylim([-2 2]);
+    % make a x-label here, for the position states.
+    xlabel('Time (msec)');    
+    % Move the plot very slightly to the left
+    P = get(subplot_handle,'Position')
+    set(subplot_handle,'Position',[P(1)-0.06 P(2)+0.10 P(3)+0.01 P(4)-0.04])
+    
     hold off;
     
     % Plot the Theta errors:
-    subplot(6, 1, 4);
+    subplot_handle = subplot(3, 2, 2);
     hold on;
     for i=1:3
         % Convert these radians to degrees.
@@ -179,14 +210,23 @@ if plots_flag
     %plot(t, zero_line, 'b-', 'LineWidth','1');
     %xlabel('Time (msec)');
     %ylabel('\theta (deg)');
-    ylabel('e_T (\circ)');
+    %ylabel('e_T (deg,\circ)');
+    ylabel('e_\theta (deg)');
     %title('Tracking Error in \theta');
     % Scale the plot. A good scale here is...
+    % Used to be: [-1 1]
+    ylim([-10 15]);
     %ylim([-2 2]);
+    % Make a title here, for the angle states
+    title('   Angles (No Disturbance)');    
+    % Move the plot very slightly to the left
+    P = get(subplot_handle,'Position')
+    set(subplot_handle,'Position',[P(1)-0.06 P(2)+0.05 P(3)+0.01 P(4)-0.04])
+    
     hold off;
     
     % Plot the Gamma errors:
-    subplot(6, 1, 5);
+    subplot_handle = subplot(3, 2, 4);
     hold on;
     for i=1:3
         % Convert these radians to degrees.
@@ -198,14 +238,18 @@ if plots_flag
     %plot(t, zero_line, 'b-', 'LineWidth','1');
     %xlabel('Time (msec)');
     %ylabel('\gamma (deg)');
-    ylabel('e_G (\circ)');
+    ylabel('e_\gamma (deg)');
     %title('Tracking Error in \gamma');
     % Scale the plot. A good scale here is...
-    %ylim([-2 2]);
+    ylim([-10 15]);    
+    % Move the plot very slightly to the left
+    P = get(subplot_handle,'Position')
+    set(subplot_handle,'Position',[[P(1)-0.06 P(2)+0.07 P(3)+0.01 P(4)-0.04]])
+    
     hold off;
     
     % Plot the Psi errors:
-    subplot(6, 1, 6);
+    subplot_handle = subplot(3, 2, 6);
     hold on;
     for i=1:3
         % Convert these radians to degrees.
@@ -217,24 +261,41 @@ if plots_flag
     %plot(t, zero_line, 'b-', 'LineWidth','1');
     xlabel('Time (msec)');
     %ylabel('\psi (deg)');
-    ylabel('e_P (\circ)');
+    ylabel('e_\psi (deg)');    
+    % Move the plot very slightly to the left
+    P = get(subplot_handle,'Position')
+    set(subplot_handle,'Position',[[P(1)-0.06 P(2)+0.10 P(3)+0.01 P(4)-0.04]])
+    
     
     % Make the legend
-    legend_handle = legend('Vertebra 1 (Bottom)', 'Vertebra 2 (Middle)', 'Vertebra 3 (Top)');
+    % Item names: use newlines.
+    vert1label = sprintf('Vertebra 1 \n (Bottom)');
+    vert2label = sprintf('Vertebra 2 \n (Middle)');
+    vert3label = sprintf('Vertebra 3 \n (Top)');
+    legend_handle = legend(vert1label, vert2label, vert3label);
     % move the legend to the corner of the figure.
     % Position is: [left, bottom, width, height]
     % These units are expressed as percents of the total figure
-    % Bottom left:
+    % Bottom left, for the 1x6 plot:
     %legend_position = [0.22 0.042 0 0];
-    % Bottom right:
-    legend_position = [0.82 0.042 0 0];
+    % Bottom right, 1x6 plot:
+    %legend_position = [0.82 0.042 0 0];
+    % Bottom right, 3x2 plot:
+    legend_position = [0.935 0.6 0.001 0];
     set(legend_handle,'Position', legend_position);
     %title('Tracking Error in \psi');
     % Scale the plot. A good scale here is...
+    % Used to be: [-2 2]
+    ylim([-10 15]);
     %ylim([-2 2]);
     hold off;
     
-    
+    % some debugging to figure out how to shift the subplot down a bit and add an overall title
+    %drawnow;
+    %disp('subplot handle position:');
+    %P = get(subplot_handle,'Position')
+    %set(subplot_handle,'Position',[P(1)+0.1 P(2) P(3) P(4)]);
+    % ...didn't work, just did separate labels.
     
     %% Plot the XZ positions of the reference trajectory and resulting trajectory.
     % This should give a good visual representation of the spine's movement.
@@ -350,7 +411,7 @@ if plots_flag
     ylabel( sprintf('Sq. Err. (m^2)') );
     title('Total squared error for XYZ states')
     % Scale this plot to emphasize how small these errors are.
-    ylim([0 0.001]);
+    ylim([0 0.00125]);
     % Make the font larger for these subplots that get squished.
     %set(gca,'FontSize',13);
     % Make the second plot:
@@ -363,6 +424,8 @@ if plots_flag
     title('Total squared error for angle (\theta \gamma \psi) states');
     % Make the font larger for these subplots that get squished.
     %set(gca,'FontSize',13);
+    % Scale:
+    ylim([0 0.05]);
     hold off;
     
     % Let's try to combine anyway. Normalize by dividing by the mean value in each vector.
@@ -388,7 +451,8 @@ if plots_flag
     %plot(t, total_combined_error);
     %title('total_combined_error');
     
-    % Plot the error in position for all three of the vertebrae together
+    %% Calculate the "max errors" as a metric to use:
+    %max_error_x = 
 
 end
 

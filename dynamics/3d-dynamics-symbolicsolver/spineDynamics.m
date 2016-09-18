@@ -263,7 +263,7 @@ end
 
 disp('4%')
 
-for i = 1:N % Build time derivatives for each node
+for i = 1:N % Build time derivatives for each vertebra
     %Calculate time derivitaves etc. according to lagrangian dynamics
     fx(i) =  fulldiff(diff(Lagr(i) , dx(i)),{x(i),y(i),z(i),T(i),G(i),P(i)})...
                     - diff(Lagr(i) , x(i));

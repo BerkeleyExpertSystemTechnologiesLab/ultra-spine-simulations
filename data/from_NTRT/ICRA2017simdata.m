@@ -19,7 +19,23 @@ addpath('./hline_vline');
 logfile_base = '~/repositories/NTRTsim/resources/src/forcePlate/forcePlateDemo/logs/';
 % The timestamp for the file to read in
 % Copied from the name of the log file itself
-logfile_timestamp = '09102016_113901';
+% Top Left:
+%logfile_timestamp = '09102016_113901';
+% Top Right:
+%logfile_timestamp = '09102016_150150';
+% Corrected top right, with symmetric spine:
+%logfile_timestamp = '09122016_214927';
+% Corrected top left, with symmetric spine:
+%logfile_timestamp = '09122016_215445';
+% Corrected top right, with symmetric spine, slightly larger:
+%logfile_timestamp = '09122016_221708'
+% Corrected top left, with symmetric spine, slightly larger:
+%logfile_timestamp = '09122016_221235'
+% Testing:
+% Top right:
+logfile_timestamp = '09132016_184234';
+% Top left:
+%logfile_timestamp = '09132016_103617';
 % The calibration factor for the force plate readings.
 % Currently 5, since gravity = 98.1 and scale = 0.5.
 calib_factor = 5;
