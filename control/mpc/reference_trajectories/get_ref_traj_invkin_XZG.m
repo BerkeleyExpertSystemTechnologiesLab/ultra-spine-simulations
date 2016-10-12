@@ -41,7 +41,9 @@ c1 = 1e-4;
 % Note that we include the "direction" flag here.
 % pi/8 is approximately the max angle for vertebra 4 (3rd moving vertebra) at timestep 20 (max) from inv-kin on 2016-04-23.
 beta_0 = 0;
-beta_f = direction * pi/8; 
+%beta_f = direction * pi/8; 
+% On 2016-09-18: made beta larger for illustrating the trajectory in a figure for the ACC 2017 paper.
+beta_f = direction * pi/4;
 
 % Number of points to have in this trajectory. 
 % Note that it's been estimated that timesteps should only put the top tetras about 0.0014 units distance away from each other (in sequential
