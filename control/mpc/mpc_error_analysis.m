@@ -86,6 +86,10 @@ errors.tracking_squared_total = tracking_squared_total;
 tracking_total = tracking_XYZ_sum + tracking_angle_sum;
 errors.tracking_total = tracking_total;
 
+% Some other things to save:
+errors.dt = data.dt;
+errors.num_points_ref_traj = data.num_points_ref_traj;
+
 % Make plots, if flag is set
 if plots_flag
     % Calculate the time in seconds at each point.
@@ -406,26 +410,28 @@ if plots_flag
     subplot(2, 1, 1);
     % Adjust the error from meters to centimeters: since it's squared,
     % Changing m^2 to cm^2 requires mulitplication by 100^2
-    plot( t, tracking_XYZ_squared_sum, '.-');
+    plot( t, sqrt(tracking_XYZ_squared_sum)*100, '.-');
     xlabel('Time (msec)');
-    ylabel( sprintf('Sq. Err. (m^2)') );
-    title('Total squared error for XYZ states')
+    ylabel( sprintf('Sum Err. (cm)') );
+    title('Total error (abs. val.) for (x,y,z) states')
     % Scale this plot to emphasize how small these errors are.
-    ylim([0 0.00125]);
+    %ylim([0 0.00125]);
+    ylim([0 4]);
     % Make the font larger for these subplots that get squished.
     %set(gca,'FontSize',13);
     % Make the second plot:
     subplot(2, 1, 2);
     % Adjust this error to degrees squared, since that's more intuitive than rad^2.
     % That means multiply by (180/pi)^2
-    plot(t, tracking_angle_squared_sum, '.-');
+    plot(t, sqrt(tracking_angle_squared_sum)*180/pi, '.-');
     xlabel('Time (msec)');
-    ylabel( sprintf('Sq. Err. (rad^2)') );
-    title('Total squared error for angle (\theta \gamma \psi) states');
+    ylabel( sprintf('Sum Err. (deg)') );
+    title('Total error (abs. val.) for angle (\theta \gamma \psi) states');
     % Make the font larger for these subplots that get squished.
     %set(gca,'FontSize',13);
     % Scale:
-    ylim([0 0.05]);
+    %ylim([0 0.05]);
+    ylim([0 15]);
     hold off;
     
     % Let's try to combine anyway. Normalize by dividing by the mean value in each vector.
