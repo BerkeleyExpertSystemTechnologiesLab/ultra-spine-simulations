@@ -1,1 +1,0 @@
-Run the script ultra_spine_mpc.m to execute model-predictive control for the ULTRA spine robot!
