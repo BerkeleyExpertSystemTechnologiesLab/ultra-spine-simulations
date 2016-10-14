@@ -88,6 +88,12 @@ constraints = [constraints, states{N}(3) + .02 <= states{N}(15), states{N}(15) +
 
 %% Build up the objective
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Code used for the ACC 2017 Paper: 
+% Currently does not track velocities.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 % Scalar Multiplication Version: 
 % For some reason, YALMIP does not seem to do well with vector multiplications on arrays of sdpvars.
 % Or maybe my math is just wrong again (Drew 2016-04-25).
@@ -146,7 +152,9 @@ for k=2:(N-1)
     %objective = objective + r_smooth_mult * r_smooth_pow^k * norm(inputs{k} - inputs{k-1}, 2);
 end
 
-%% Old backup versions of objective-build-up
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Old backup versions of objective-build-up: these are unused, but kept just in case.
 % Vector Multiplication Version:
 % On 2016-04-25, this does not seem to work.
 % % First, track the current state.
@@ -239,41 +247,12 @@ end
 %     (3^N)*norm(states{N}(25:27) - states{N-1}(25:27));
 % % result: tracking was very odd, didn't work.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Code used for the ACC 2017 Paper: 
-% Currently does not track velocities.
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% %Copy in the older controller_XYZ code, modified to fit the 32-state reference, tracking angles too, all 3 vertebrae:
-% % For this current state:
-% objective = 25*norm(states{1}(1:6) - reference{1}(1:6), 2);
-% %objective = objective + 25*norm(states{1}(13:18) - reference{1}(13:18), 2);
-% %objective = objective + 25*norm(states{1}(25:30) - reference{1}(25:30), 2);
-% % For the remaining states in this horizon:
-% for k = 2:(N-1)
-%     objective = objective + (1/2)*(25^k)*norm(states{k}(1:6) - reference{k}(1:6), 2) + ...
-%         (1/2)*(25^k)*norm(states{k}(13:18) - reference{k}(13:18), 2) + ...
-%         (1/2)*(25^k)*norm(states{k}(25:30) - reference{k}(25:30), 2) + ...
-%         (1/24)*(3^k)*norm(inputs{k} - inputs{k-1}, inf) + ...
-%         (3^k)*(norm(states{k}(1:6) - states{k-1}(1:6))) + ...
-%         (3^k)*(norm(states{k}(13:18) - states{k-1}(13:18))) + ...
-%         (3^k)*(norm(states{k}(25:30) - states{k-1}(25:30))); % Also minimize change in state/input for smooth motion
-% end
-% % Add the objective for the last state in this horizon. There are no inputs for index k ==  N.
-% objective = objective + ...
-%       (1/2)*(25^N)*norm(states{N}(1:6) - reference{N}(1:6), 2) + (3^N)*norm(states{N}(1:6) - states{N-1}(1:6)) + ...
-%       (1/2)*(25^N)*norm(states{N}(13:18) - reference{N}(13:18), 2) + (3^N)*norm(states{N}(13:18) - states{N-1}(13:18)) + ...
-%       (1/2)*(25^N)*norm(states{N}(25:30) - reference{N}(25:30), 2) + (3^N)*norm(states{N}(25:30) - states{N-1}(25:30));
-% % result: ...
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 %% Attach final parts of the objective, return.
 % For the controller, need to include input parameters variables and solutions output variables
 parameters_in = {prev_in, states{1}, [A_t{:}], [B_t{:}], c_t, [reference{:}]};
 solutions_out = {[inputs{:}], [states{:}]};
 
-% Build controller object for faster computation during iteration
+% Build controller object.
 controller = optimizer(constraints, objective, sdpsettings('solver', 'gurobi', 'gurobi.TimeLimit', opt_time_limit, 'verbose', 1), parameters_in, solutions_out);
 
 

@@ -1,5 +1,6 @@
 % ultra_spine_mpc.m
-% Copyright 2016 Andrew P. Sabelhaus, Abishek Akella, Berkeley Emergent Space Tensegrities Lab
+% Copyright 2016 Andrew P. Sabelhaus, Abishek Akella, Zeerek Ahmad,
+% Berkeley Emergent Space Tensegrities Lab
 % This is the primary file for running the ULTRA Spine Model Predictive Control work.
 % This script calls one or more ultra_spine_mpc_single_simulation runs.
 
@@ -137,6 +138,16 @@ restLengths(1:4) = 0.1;
 restLengths(5:8) = 0.187;
 optimization_parameters.restLengths = restLengths;
 
+% SOME NOTES ON ROTATION DIRECTION:
+% These are all from the perspective of a ray starting at zero looking down the positive axis. (I've denoted it X+, Y+, etc.)
+% T+ clockwise around the X+ axis (rotates in the Y,Z plane)
+% T- counterclockwise around the X+ axis (rotates in the Y,Z plane)
+% G+ clockwise around Y+ axis (rotates in the X,Z plane)
+% G- counterclockwise around Y+ axis (rotates in the X,Z plane)
+% P+ clockwise around the Z+ axis (rotates in the X,Y plane)
+% P- counterclockwise around the Z+ axis (rotates in the X,Y plane)
+% The invkin trajectory used in this script rotates in G.
+
 % As of 2016-05-02, this script no longer defines the full length of a traj, but instead the length of each of the two parts.
 %optimization_parameters.num_points_ref_traj = 80; 
 optimization_parameters.num_points_ref_traj_tracking = 80; % for invkin, 80 gives a 0.0015 straight-line dist b/w points.
@@ -150,16 +161,14 @@ optimization_parameters.opt_time_limit = 8; % seconds
 % save_video = saves a video file, see function for more details.
 % save_data = saves a .mat file with the simulation results, see function for more details.
 % stringEnable = set to 1 plots the cables of the robot in the visualization
-% run_lqr = flag to run the finite-time receding-horizon LQR after MPC. 0 = MPC only, 1 = run lqr also
 % traj_is_full_system = flag representing whether traj is size 12 * whatever or 36 * whatever.
 %   NOTE that this full_system flag is calculated automatically below after loading in the reference traj.
 %   It is then inserted into the flags struct, before passing in to ultra_spine_mpc_single_simulation.
 
-flags.noise = 1;
+flags.noise = 0;
 flags.save_video = 1;
 flags.save_data = 1;
 flags.stringEnable = 1;
-flags.run_lqr = 0;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Define default plotting parameters
@@ -183,8 +192,6 @@ flags.run_lqr = 0;
 % mpc_result_thickness = thickness of the resulting trajectory output from MPC. Compare to traj.
 % plot_dt = timestep for animation. Used to slow the simulation down.
 % plotting_offset = frame offset for animation. See ultra_spine_mpc for its use.
-% lqr_result_color = color of the lines used to plot the centers of the vertebrae after running LQR.
-% lqr_result_thickness = thickness of the lines used to plot the centers of the vertebrae after running LQR.
 % anchor = position of the anchor location of the cables on one of a vertebra's nodes
 % video_quality = option that controls what type of video to output. 'low' is Motion JPEG 2000, 'high' is 
 
@@ -203,8 +210,6 @@ plotting_parameters.mpc_result_color = 'c-';
 plotting_parameters.mpc_result_thickness = 2;
 plotting_parameters.plot_dt = 0.01;
 plotting_parameters.plotting_offset = 30;
-plotting_parameters.lqr_result_color = 'g';
-plotting_parameters.lqr_result_thickness = 2;
 plotting_parameters.anchor = [0 0 plotting_parameters.rad];
 plotting_parameters.video_quality = 'low';
 
@@ -236,7 +241,7 @@ end
 % Manually change these according to the runs of MPC that this script should make.
 
 % Run 1:
-plotting_parameters_by_iteration{1}.video_quality = 'high';
+%plotting_parameters_by_iteration{1}.video_quality = 'high';
 %optimization_parameters_by_iteration{1}.vertebrae_do_not_track = {1,2};
 % for the circletop traj:
 %optimization_parameters_by_iteration{1}.num_points_ref_traj_tracking = 180;
@@ -269,81 +274,6 @@ assert( num_mpc_runs == size(optimization_parameters_by_iteration, 1), ...
             'Error! num_mpc_runs not equal to size of optimization_parameters_by_iteration. MPC simulation will fail.');
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Create list of trajectories that should be run
-
-% SOME NOTES ON ROTATION DIRECTION: these were found by changing ONLY these variables. Will not combine independently (recall, Euler angles.)
-% These are all from the perspective of a ray starting at zero looking down the positive axis. (I've denoted it X+, Y+, etc.)
-% T+ clockwise around the X+ axis (rotates in the Y,Z plane)
-% T- counterclockwise around the X+ axis (rotates in the Y,Z plane)
-% G+ clockwise around Y+ axis (rotates in the X,Z plane)
-% G- counterclockwise around Y+ axis (rotates in the X,Z plane)
-% P+ clockwise around the Z+ axis (rotates in the X,Y plane)
-% P- counterclockwise around the Z+ axis (rotates in the X,Y plane)
-
-% TO-DO: better format for loading in the trajectories, error checking.
-% NOTE THAT THIS IS CURRENTLY BROKEN: Since the different 'get_ref_traj' commands have different inputs, we can't
-% generalize a call to all of them. So, as of 2016-04-24, only allow the default inv_kin_XZG to run.
-
-% Trajectories for *top tetrahedron only*
-%[traj, ~] = get_ref_traj_circletop();
-%[traj, ~] = get_ref_traj_quartercircletop();
-%[traj, ~] = get_ref_traj_topbending1(); % Has trajectories along angles. NOT WORKING WELL as of 2016-02-28...
-%[traj, ~] = get_ref_traj_topbending2();
-%[traj, ~] = get_ref_traj_topbending_YZ();
-%[traj, ~] = get_ref_traj_toprotationtest(); % Has trajectories along angles.
-%[traj, ~]  = get_ref_traj_zero();
-
-% Trajectories for *all tetrahedra*
-% These have more input variables, define them here.
-%[traj, ~] = get_ref_traj_allbending_ccw_XZG(tetra_vertical_spacing)
-% [traj, ~] = get_ref_traj_invkin_XZG(optimization_parameters.tetra_vertical_spacing, ...
-%                 optimization_parameters.num_points_ref_traj_tracking, ...
-%                 optimization_parameters.direction);
-
-% Create a cell array of strings that represent the trajectories to run.
-% These will be eval'd to get the names of the functions to call.
-% Each function starts with 'get_ref_traj_', so exclude that part.
-trajectories_list = cell(num_mpc_runs, 1);
-
-% Name a default trajectory. The trajectory from the inverse kinematics script is a good default:
-default_traj = 'invkin_XZG';
-% The "partial" trajectory was my attempt to have a very very small amount of movement.
-% It might look like nothing is happening with that trajectory, since the movement is so small.
-%default_traj = 'invkin_XZG_partial';
-
-% Populate the list with this default
-for i=1:num_mpc_runs
-    trajectories_list{i} = default_traj;
-    %trajectories_list{i} = 'invkin_XZG_partial';
-end
-
-% Manually change these according to the runs of MPC that this script should make.
-
-% Run 1:
-
-% try the circletop trajectory. This should match Abishek's original results.
-%trajectories_list{1} = 'circletop_allvertebrae';
-
-% Upright equilibrium trajectory.
-%trajectories_list{1} = 'upright';
-
-% Partial inverse kinematics trajectory
-%trajectories_list{1} = 'invkin_XZG_partial';
-
-% Run 2:
-%trajectories_list{i} = ;
-
-% Run 3+
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Create list of controllers to use
-
-
-% AS OF 2016-04-24, THIS IS NOT IMPLEMENTED, since the XYZTGP controller is quite general already.
-% TO-DO: find a way to have the XYZTGP controller have different weights per dimension, not just one for all XYZ etc.
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Iterate over MPC runs. Begin the primary loop of this script
@@ -363,36 +293,19 @@ for mpc_iteration = 1:num_mpc_runs
     
     %% Reference Trajectory: Load in one of the trajectories
 
-    disp('Loading reference trajectory:');
-    disp(trajectories_list{mpc_iteration});
+    disp('Loading reference trajectory: invkin_XZG');
     
-    % In order to call the desired trajectory-returning function, this script
-    % creates a string of the entire command to call, then evaluates that string.
-    % So, create strings representing all the outputs and arguments to pass in to this function.
-    % Recall that each of these arguments are also a function of the iteration of MPC.
-    % TO-DO: can we implement MPC in python to make this less painful? Object-oriented programming would be wonderful here.
-    outputs = '[traj, ~] = ';
-    arguments = strcat('(', ...
-        'optimization_parameters_by_iteration{mpc_iteration}.tetra_vertical_spacing', ...
-        ',', ...
-        'optimization_parameters_by_iteration{mpc_iteration}.num_points_ref_traj_tracking', ...
-        ',', ...
-        'optimization_parameters_by_iteration{mpc_iteration}.direction', ...
-        ')');
-
-    % Create the full string of the command to execute
-    reference_loading_command = strcat( outputs, 'get_ref_traj_', trajectories_list{mpc_iteration}, arguments, ';');
-    % Execute the command. This should load in the traj matrix.
-    eval(reference_loading_command);
-    
-    % Trajectories for *all tetrahedra*
-    % These have more input variables, define them here.
-    %[traj, ~] = get_ref_traj_allbending_ccw_XZG(tetra_vertical_spacing)
-    %[traj, ~] = get_ref_traj_invkin_XZG(optimization_parameters.tetra_vertical_spacing, ...
-    %                optimization_parameters.num_points_ref_traj_tracking, ...
-    %                optimization_parameters.direction);
+    % The arguments to this function are: 1) vertical spacing between two vertebrae, number of points
+    %   to have in the trajectory (given a fixed bending angle), and the direction of rotation.
+    [traj, ~] = get_ref_traj_invkin_XZG( optimization_parameters_by_iteration{mpc_iteration}.tetra_vertical_spacing, ...
+                                         optimization_parameters_by_iteration{mpc_iteration}.num_points_ref_traj_tracking, ...
+                                         optimization_parameters_by_iteration{mpc_iteration}.direction);
 
     % Automatically check if the trajectory that was loaded is for the full spine (3 vertebrae) or just the top one.
+    % NOTE: this is used to make the script more flexible. By checking for the length of traj,
+    % the above command to load in a trajectory can be modified without needing to change
+    % other dimensions below. 
+    
     % Declare a flag variable:
     traj_is_full_system = 0;
     if ( size(traj,1) == 12)
@@ -421,7 +334,6 @@ for mpc_iteration = 1:num_mpc_runs
     %% Controller Initialization
     disp('Initializing YALMIP Controller...')
 
-    % TO-DO: have these functions create their own YALMIP variables. This copying the yalmip things around might be causing slow-downs.
     % TO-DO: remove the hard-coded '36' for number of states and replace with 12 * links.
 
     % Some notes:
@@ -432,13 +344,12 @@ for mpc_iteration = 1:num_mpc_runs
 
     % Initialize yalmip variables for changing controller parameters
     % Horizon length:
-    %horizon_length = 10;
     horizon_length = optimization_parameters_by_iteration{mpc_iteration}.horizon_length;
     
     disp('This iteration has horizon length:');
     disp(horizon_length);
     
-    % YALMIP variables:
+    % Some YALMIP variables that will be used for all different controllers
     inputs = sdpvar(repmat(8*links, 1, horizon_length-1), repmat(1, 1, horizon_length-1));
     states = sdpvar(repmat(12*links, 1, horizon_length), repmat(1, 1, horizon_length));
     A_t = sdpvar(repmat(12*links, 1, 12*links), repmat(1, 1, 12*links));
@@ -495,7 +406,7 @@ for mpc_iteration = 1:num_mpc_runs
         disp(k);
         % Controllers for 12 states
         %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZ(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
-        [controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZT(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
+        %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZT(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
         %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_XYZG(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
         %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_G(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
         %[controller{k}, ~, ~, ~, ~] = get_yalmip_controller_T(k, inputs, states, A_t, B_t, c_t, prev_in, reference);
@@ -517,9 +428,6 @@ for mpc_iteration = 1:num_mpc_runs
     other_data_to_save = {};
     other_data_to_save{1} = {'Q_track', Q_track};
     other_data_to_save{2} = {'Q_smooth', Q_smooth};
-
-    %mpc_results{mpc_iteration} = ultra_spine_mpc_single_simulation(traj, controller, optimization_parameters_by_iteration{mpc_iteration}, ...
-    %                flags, plotting_parameters_by_iteration{mpc_iteration}, other_data_to_save, paths);
     
     % Pass in the flags per iteration also:
     mpc_results{mpc_iteration} = ultra_spine_mpc_single_simulation(traj, controller, optimization_parameters_by_iteration{mpc_iteration}, ...

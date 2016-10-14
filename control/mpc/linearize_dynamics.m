@@ -3,7 +3,7 @@
 function [A, B, c] = linearize_dynamics(xbar, ubar, restLengths, links, dt)
 % Calculates linearized approximation to the dynamics given the current
 % state and input to linearize around. Linearization is calculated
-% numerically by determining model matrices A and B via the Jacobians of
+% numerically by determining model matrices A,B and c via the Jacobians of
 % the nonlinear dynamics function x' = f(x, u).
 %
 % Inputs:

@@ -180,7 +180,7 @@ end
 % Weighting approximations to determine system states at {t+1}.
 combinedState = initial_states + dt/6*(K1+2*K2+2*K3+K4)';
 
-% Add Gaussian noise, if desired.
+% Add a disturbance (Gaussian), if desired.
 if (noise)
     for k = 1:links
         % Used to be: systemStates(k, 1) = combinedState(12*(k-1)+1) + 0.001*randn(1); % x 

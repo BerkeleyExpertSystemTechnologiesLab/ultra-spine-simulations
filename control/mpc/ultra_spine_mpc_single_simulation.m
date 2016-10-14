@@ -64,7 +64,6 @@ noise = flags.noise;
 save_video = flags.save_video;
 save_data = flags.save_data;
 stringEnable = flags.stringEnable;
-run_lqr = flags.run_lqr;
 traj_is_full_system = flags.traj_is_full_system;
 
 spine_geometric_parameters = optimization_parameters.spine_geometric_parameters;
@@ -104,8 +103,6 @@ mpc_result_color = plotting_parameters.mpc_result_color;
 mpc_result_thickness = plotting_parameters.mpc_result_thickness;
 plot_dt = plotting_parameters.plot_dt;
 plotting_offset = plotting_parameters.plotting_offset;
-lqr_result_color = plotting_parameters.lqr_result_color;
-lqr_result_thickness = plotting_parameters.lqr_result_thickness;
 anchor = plotting_parameters.anchor;
 video_quality = plotting_parameters.video_quality;
 
@@ -135,7 +132,6 @@ if(save_data)
         'plotting_parameters', ...
         'refx', ...
         'restLengths', ...
-        'run_lqr', ...
         'spine_geometric_parameters', ...
         'start_time_string', ...
         'tetra_vertical_spacing', ...
@@ -263,6 +259,7 @@ for k = 1:links
     
     % Plot the tetrahedra.
     % Start the initial position of each tetrahedron at the bottom location: center at (0,0,0)
+    % These correspond to a2 through a5 in Figure 2 in the ACC 2017 paper.
     Tetra{k+1} = [(l^2 - (h/2)^2)^.5, 0, -h/2; ...
                 -(l^2 - (h/2)^2)^.5, 0, -h/2; ...
                 0, (l^2 - (h/2)^2)^.5, h/2; ...
@@ -351,7 +348,7 @@ disp('Starting MPC.')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Plot the results of the MPC
+%% Plot the results of the MPC (the locations of the centers of mass of the vertebrae)
 
 disp('Plotting resulting MPC trajectory for vertebrae centers.');
 
@@ -372,60 +369,9 @@ end
 drawnow;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Build Iterative LQR Controller
-% This is now only done if flagged.
-% TO-DO: this may not work as of 2016-08-30, more testing required.
-
-if (run_lqr)
-    disp('Building LQR Controllers for each timestep.')
-
-    % Create the weighting matrices Q and R
-    % Version 1: weight on the position states for each tetrahedron equally (no weight on velocity)
-    Q = zeros(12);
-    Q(1:6, 1:6) = eye(6);
-    Q_lqr = 5*kron(eye(3), Q);
-    R_lqr = 5*eye(8*links);
-
-    % Version 2: weight only on the position of the top tetrahedron
-    % Q = zeros(36);
-    % Q(25:30, 25:30) = 50 * eye(6);
-    % Q_lqr = Q;
-    % R_lqr = 2*eye(8*links);
-
-    % Version 3: weight on all states
-    % Q = 20 * eye(36);
-    % Q_lqr = Q;
-    % R_lqr = 2*eye(8*links);
-
-    tic;
-    P0 = zeros(36);
-    % Linearize the dynamics around the final point in the trajectory (timestep M.)
-    [A, B, ~] = linearize_dynamics(x_ref{M}, u_ref{M}, restLengths, links, dt);
-    % Calculate the gain K for this timestep (at the final timestep, P == the 0 matrix.)
-    K{1} = -((R_lqr + B'*P0*B)^-1)*B'*P0*A;
-    % Calculate the first matrix P for use in the finite-horizon LQR below
-    P_lqr{1} = Q_lqr + K{1}'*R_lqr*K{1} + (A + B*K{1})'*P0*(A + B*K{1});
-    % Iterate in creating the finite-horizon LQRs, moving backwards from the end state
-    for k = (M-1):-1:1
-        disp(strcat('LQR Controller Build iteration:',num2str(k)))
-        % Linearize the dynamics around this timestep
-        [A, B, ~] = linearize_dynamics(x_ref{k}, u_ref{k}, restLengths, links, dt);
-        % Calculate the gain K for this timestep, using the prior step's P
-        K{M-k+1} = -((R_lqr + B'*P_lqr{M-k}*B)^-1)*B'*P_lqr{M-k}*A;
-        % Calculate the P for this step using the gain K from this step.
-        P_lqr{M-k+1} = Q_lqr + K{M-k+1}'*R_lqr*K{M-k+1} + (A + B*K{M-k+1})'*P_lqr{M-k}*(A + B*K{M-k+1});
-    end
-    toc;
-
-end
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Perform forward simulation and plot results
+%% Perform forward simulation and move vertebrae along the path that was created, e.g., create the video.
 
 disp('Plotting vertebrae in motion along trajectory.');
-if run_lqr
-    disp('run_lqr flag is set, LQR will be run at each step in this motion.');
-end
 
 % Plot the cables for this spine position
 if (stringEnable)    
@@ -454,7 +400,7 @@ for k = 1:links
     dP(k) = 0;
 end
 
-% Loop through each timestep, using the LQR controller if flag is set, and plotting the tetrahedra and their cables.
+% Loop through each timestep, plotting the tetrahedra and their cables.
 s = 1;
 for t = 1:((M-1)+plotting_offset)
     if mod(t, frame) == 0
@@ -482,6 +428,8 @@ for t = 1:((M-1)+plotting_offset)
             % This section of code is the same as that in the initialization section, but instead, directly indexes the Tetra{} array.
             for k = 2:(links+1)
                 % Reset this specific tetrahedron to the initial state of the bottom tetra.
+                % Again, these correspond to a2 through a5, the nodal positions of the point masses of a single vertebra,
+                % in its local reference frame.
                 Tetra{k} = [(l^2 - (h/2)^2)^.5, 0, -h/2, 1; ...
                             -(l^2 - (h/2)^2)^.5, 0, -h/2, 1; ...
                             0, (l^2 - (h/2)^2)^.5, h/2, 1; ...
@@ -520,30 +468,13 @@ for t = 1:((M-1)+plotting_offset)
         systemStates(k, 12) = dP(k);
     end
     
-    % If we are just doing straight MPC, replay the state trajectory directly.
-    if (~run_lqr)
-        if ((t > plotting_offset) && (t < M + plotting_offset))
-            % just update systemStates to x_ref at t, since x_ref here is the output of MPC.
-            systemStates = reshape(x_ref{t-plotting_offset}, 12, 3)';
-            % Save the result as the next point in the performed trajectory.
-            actual_traj(:, s) = systemStates(links, :);
-            s = s + 1;
-        end
-    else
-        % Run the LQR controllers.
-        % Forward simulate using the controller
-        if ((t > plotting_offset) && (t < M + plotting_offset))
-            % Calculate the input to the system dynamics
-            % A general representation of u(t) = K(t) * (x(t) - x_{ref}(t)) + u_{ref}(t)
-            control = K{M+plotting_offset-t}*(reshape(systemStates', 36, 1) - x_ref{t-plotting_offset}) + u_ref{t-plotting_offset};
-            % Forward simulate using that control input
-            systemStates = simulate_dynamics(systemStates, restLengths, reshape(control, 8, 3)', dt, links, noise);
-            % Save the result as the next point in the performed trajectory
-            actual_traj(:, s) = systemStates(links, :); 
-            % Save the control results for examination later
-            actual_control_inputs(:,s) = control;
-            s = s + 1;
-        end
+    % Replay the state trajectory.
+    if ((t > plotting_offset) && (t < M + plotting_offset))
+        % just update systemStates to x_ref at t, since x_ref here is the output of MPC.
+        systemStates = reshape(x_ref{t-plotting_offset}, 12, 3)';
+        % Save the result as the next point in the performed trajectory.
+        actual_traj(:, s) = systemStates(links, :);
+        s = s + 1;
     end
     
     % Unfoil the new system states back into the series of individual variables
@@ -568,31 +499,13 @@ for t = 1:((M-1)+plotting_offset)
     videoFrames(t) = getframe(gcf);
 end
 
-% Plot the resultant trajectory, in full.
-if (run_lqr)
-    plot3(actual_traj(1, :), actual_traj(2, :), actual_traj(3, :), lqr_result_color, 'LineWidth', lqr_result_thickness);
-else
-    % just running MPC
-    % plot the x trajectory directly. Let's just do the top element:
-    %plot3(x_ref{
-    % this is going to require manipulating data. do it later.
-    %plot3(actual_traj(1,:), actual_traj(2,:), actual_traj(3,:), 'g', 'LineWidth', 2);
-end
-
+% Grab the final, last frame at the end of the simulation.
 videoFrames(t+1) = getframe(gcf);
-
-% Save the last frame, now with full trajectory plotted.
-% Save a few of them in a row for a better visualization.
-% for frames = 1:5
-%     videoFrames(t + frame) = getframe(gcf)
-% end
 
 % Record the time now, at the end of the script
 function_end = clock;
 % Record the difference, in minutes.
 elapsed_time = etime(function_end, function_start) / 60;
-
-
 
 % Save the data from this simulation, if the save_data flag is set.
 if(save_data)
