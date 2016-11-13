@@ -116,6 +116,12 @@ r = sym('r', [2, num_pm_unit, N]);
 %% TO-DO: do these dynamics need to change now that our spine
 % is not symmetric in 3D?
 
+% Answer: I think not. If we were calculating the rigid body dynamics,
+% not using point masses, then yes we'd have to calculate the center of mass
+% and express the rotational velocity/acceleration around that COM. But here,
+% we're just using point masses. The rotation here is one coordinate frame
+% versus another, which can be completely arbitrary, as along as it's consistent.
+
 %% Next, constrain the first unit. 
 
 %DEBUGGING
@@ -124,6 +130,46 @@ disp('Adding constraints on the first unit...');
 % The positions of its nodes are equal to a in both the
 % local and global coordinate frames, since this unit does not move.
 r(:,:,1) = a;
+
+%% Then, express the coordinates of each point mass in terms of the system states.
+
+%DEBUGGING
+disp('Assigning the point mass locations in terms of system states...');
+
+% We'll need to store rotation matrices for each moving unit,
+% each of which will be of size 2x2.
+%R = zeros(2,2,N-1);
+
+% For each of the 2...N units that are moving,
+% the point masses are rotated by the 3rd coordinate in that unit's block
+% of the state vector (the angle, theta) and translated by the 1st and 2nd
+% coordinates (the (x,z) vector.)
+for k=1:N-1
+    %DEBUGGING
+    disp(strcat('Assigning point mass locations for unit number: ', num2str(k+1)));
+    % At the k-th unit, calculate the index of the angle theta
+    % into the state vector, noting that the state vector starts at unit
+    % two, since the first unit does not move.
+    % Here, k=1 is unit 2, and so on.
+    x_index = 1 + (k-1)*num_states_per_unit;
+    z_index = 2 + (k-1)*num_states_per_unit;
+    theta_index = 3 + (k-1)*num_states_per_unit;
+    % Calculate the rotation matrix for this unit,
+    % with respect to the global coordinate system.
+    R(:,:,k) = [cos(xi(theta_index)),  -sin(xi(theta_index)); ...
+                sin(xi(theta_index)),   cos(xi(theta_index))];
+    % Then, the position of each point mass will be
+    % that mass's position in the local frame, rotated by R(k),
+    % translated by the amount between local/global ref frame.
+    % Iterate over each point mass:
+    for p=1:num_pm_unit
+        % The pm-th point mass is a column vector.
+        % Note that the index k is with respect to the moving units,
+        % so it's really the k+1th unit in terms of the point mass locations r.
+        % TO-DO: what's the direction of multiplication for rotation matrices????
+        r(:,p,k+1) = R(:,:,k)*a(:,p) + xi(x_index:z_index);
+    end
+end
 
 %DEBUGGING
 disp('Complete!');
