@@ -25,6 +25,12 @@ close all;
 % This is useful to see the symbolic variables that are created.
 debugging = 1;
 
+% As of 2016-11-13, fulldiff uses some functionality
+% that apparently will be deprecated in a future release of MATLAB.
+% For now, turn off that warning.
+% TO-DO: re-write fulldiff!
+warning off symbolic:sym:DeprecateFindsym
+
 % Throughout this script, I output some messages that show the progress
 % of the script during its calculations.
 % Those are labelled 'PROGRESS_BAR'.
@@ -46,8 +52,11 @@ disp('Defining tensegrity system physical parameters...');
 % We do this by first defining the local coordinate system
 % for one unit, using a series of point masses which are
 % assumed to be rigidly connected.
-% Then, for N-1 of these structures, symbolic calculations
-% of the velocities ...
+% Then, for N-1 of these structures, symbolically calculate
+% the velocities, kinetic and potential energies, the 
+% Lagrangian, and then the left-hand-side of Lagrange's equations.
+% After that, calculate the right-hand-side (the cable forces),
+% and call 'solve' to get xi_dot.
 
 % This script assumes that the first unit is fixed at the origin,
 % and that the first node of this first unit is at exactly (0,0,0).
@@ -117,6 +126,30 @@ else
     assert( (size(m,1) == num_pm_unit) && (size(m,2) == 1), error_msg);
 end
 
+% Lastly, define the cables that connect adjacent units.
+% These are modeled as spring-damper systems.
+% In order to determine the lengths of these cables, 
+% let's create a "connectivity matrix" that represents
+% which point mass locations are connect via cables to
+% the locations on adjacent units.
+% The following relation is assumed to hold for each 
+% pair of units in order, e.g., between 1 and 2, between 2 and 3, up to N.
+
+% The row index is the "from" node, and the column index is the "to" node.
+% Place a 1 where there is a cable connection, and a 0 where there is not.
+connections = zeros(num_pm_unit, num_pm_unit);
+% MANUALLY change the zeros to ones.
+% NOTE that these are assuming that a 'lower' unit is the 'from', 
+% and it is connecting to a 'to' that's 'above' it.
+% For example, with the inverted-Y spine vertebra, node 4 from a lower
+% vertebra connects to node 3 of the vertebra above it, 
+% but it's not true that node 3 from a lower vertebra connects to 
+% node 4 of the vertebra above it.
+% For our specific example, the following nodes are connected:
+connections(2,2) = 1;
+connections(3,3) = 1;
+connections(4,2) = 1;
+connections(4,3) = 1;
 
 %% 3) Create the symbolic variables for the solver to use
 
@@ -217,7 +250,7 @@ disp('Assigning the point mass locations in terms of system states...');
 % coordinates (the (x,z) vector.)
 for k=1:N-1
     %PROGRESS_BAR
-    disp(strcat('Assigning point mass locations for unit number: ', num2str(k+1)));
+    disp(strcat('     Assigning point mass locations for unit number: ', num2str(k+1)));
     % At the k-th unit, calculate the index of the angle theta
     % into the state vector, noting that the state vector starts at unit
     % two, since the first unit does not move.
@@ -252,7 +285,7 @@ disp('Assigning point mass velocities in terms of system states...');
 % For each of the moving units...
 for k=1:N-1
     %PROGRESS_BAR
-    disp(strcat('Calculating symbolic derivatives of point masses for unit number: ', num2str(k+1)));
+    disp(strcat('     Calculating symbolic derivatives of point masses for unit number: ', num2str(k+1)));
     % As before, calculate the indices into the state vector xi.
     % This is needed to specify the independent variables for differentiation.
     % The state variables for this unit start at intervals of num_states_per_unit apart,
@@ -281,7 +314,7 @@ disp('Substituting system states back into r_dot...');
 % Call the ni
 r_dot = replace_derivatives(r_dot, xi, num_states_per_unit, debugging);
 
-%% 7) Calculate the kinetic and potential energy, and the Lagrangian, for the whole system.
+%% 7) Calculate the kinetic and potential energy, and the Lagrangians, for the whole system.
 
 %PROGRESS_BAR
 disp('Solving for L = T-V for each unit...');
@@ -337,6 +370,9 @@ end
 
 %% 8) Finally, we can calculate the left-hand side of Lagrange's equations of motion.
 
+%PROGRESS_BAR
+disp('Calculating the left-hand-side of Lagranges equations...');
+
 % Lagrange's equation(s) of motion are of the following form:
 % (d/dt) * (partial L)/(partial xi_dot) - (partial L)/(partial xi)
 % ==
@@ -347,6 +383,17 @@ end
 % Let's also start up some parallel pools here for quicker calculation.
 pools = gcp;
 
+% Though we know that there are only 6 variables per unit here, let's still use 
+% the n variable to calculate which states are positions and
+% which are velocities, so this could be used for 2D and 3D dynamics in the future.
+% This variable should be 3: (when n=6)
+velocity_start_offset = num_states_per_unit/2;
+
+% Let's store a counter into the symbolic variables, which will index
+% into the ddt_L_xi_dot and L_xi variables, which will are the ones
+% which will really be solved lated.
+count = 1;
+
 % For each unit,
 for k=1:N-1
     % As before, calculate the indices into the state vector xi.
@@ -356,15 +403,51 @@ for k=1:N-1
     % For example, in the 6-state-per-unit spine vertebra, these
     % intervals are 1-6, 7-12, 13-18, ...
     unit_index_start = 1 + (k-1)*num_states_per_unit;
+    velocity_index_start = unit_index_start + velocity_start_offset;
     unit_index_end = (k)*num_states_per_unit;
+    % Create that set of independent variables for fulldiff:
     indep_vars = sym2cell(xi(unit_index_start:unit_index_end));
-    %r_dot(:,p,k+1) = fulldiff(r(:,p,k+1), indep_vars);
+    
     % Calculate the left-hand-side equations for this unit.
-    % The first term is the full time derivative of (partial L / partial xi_dot).
-    %ddt_L_xi_dot = fulldiff( Lagranian(k), 
+    % Iterate over the velocity coordinates for this unit:
+    % (e.g., 4-6, 10-12, ...)
+    for p = velocity_index_start:unit_index_end
+        % The first term is the full time derivative of (partial L / partial xi_dot).
+        % Note that I'm not storing L_xi_dot as a symbolic variable itself,
+        % it gets overwritten here. That's just because it is never used directly,
+        % we only calculate it in order to calcualate ddt_L_xi_dot.
+        % Note that we must index into 'Lagrangrian' via k+1 and not k,
+        % since Lagrangian(1) is the constant value for the not-moving unit.
+        L_xi_dot = diff(Lagrangian(k+1), xi(p));
+        % Then take the full time derivative:
+        ddt_L_xi_dot(count) = fulldiff( Lagrangian(k+1), indep_vars);
+        % Replace the dxi* terms in the symbolic variable:
+        ddt_L_xi_dot(count) = replace_derivatives(ddt_L_xi_dot(count), xi, num_states_per_unit, debugging);
+        
+        % The second term is derivatives with respect to the POSITION variables,
+        % so subtract away the +3 offset. 
+        % My apologies for all this index-shuffling.
+        L_xi(count) = diff(Lagrangian(k+1), xi( p - velocity_start_offset));
+        
+        % Do a quick simplify. Prior work used a parallel pool here,
+        % might as well do that again.
+        
+        
+        count = count+1;
+    end
 end
 
+% Now, the LHS = ddt_L_xi_dot - L_xi. Done!
 
+%% 9) Now, start calculating the cable forces.
+% Calculate the lengths of each cable, as well as the rate of change
+% of those lengths, so that we can calculate F = kx - c dx/dt.
+
+%PROGRESS_BAR
+disp('Calculating cable lengths...')
+
+%TO-DO: define symbolic variables above for cable lengths.
+% Here, calculate them as a function of the states xi.
 
 %% When it comes time to solve, remember to...
 
