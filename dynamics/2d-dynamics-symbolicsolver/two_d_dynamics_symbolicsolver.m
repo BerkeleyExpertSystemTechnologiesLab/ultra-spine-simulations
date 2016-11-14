@@ -16,7 +16,7 @@
 %   dlengths_dt
 %   lengths
 
-% Prepare the workspace:
+%% 1) Prepare the workspace:
 clc;
 clear all;
 close all;
@@ -33,7 +33,7 @@ debugging = 1;
 % the 'equal_masses' flag in the following section,
 % ...
 
-%% Geometric and physical parameters of the 2D tensegrity system
+%% 2) Geometric and physical parameters of the 2D tensegrity system
 
 %PROGRESS_BAR
 disp('Defining tensegrity system physical parameters...');
@@ -53,6 +53,9 @@ disp('Defining tensegrity system physical parameters...');
 % and that the first node of this first unit is at exactly (0,0,0).
 % There are N units, including the fixed one:
 N = 3;
+
+% Gravitational constant (used for calculating potential energy in Lagrangian):
+g = 9.8;
 
 % Here, we define the positions of each of the point masses
 % for a single unit's local coordinate system.
@@ -115,7 +118,7 @@ else
 end
 
 
-%% Create the symbolic variables for the solver to use
+%% 3) Create the symbolic variables for the solver to use
 
 %PROGRESS_BAR
 disp('Creating symbolic variables...');
@@ -159,8 +162,25 @@ r = sym('r', [2, num_pm_unit, N]);
 % These are of the same dimension as the position vectors.
 r_dot = sym('r_dot', [2, num_pm_unit, N]);
 
-%% TO-DO: do these dynamics need to change now that our spine
-% is not symmetric in 3D?
+% We'll be storing the Lagrangian, L = T-V, for each unit,
+% as a symbolic expression in terms of xi.
+% This will be a scalar for each unit, so store it as
+% a column vector.
+% TO-DO: should we be storing this for the 1st unit? L=0 always, there...
+Lagrangian = sym('Lagrangian', [N, 1]);
+
+% When we equate the left-hand side and right-hand side of Lagrange's equations,
+% to solve for xi_dot, we'll be equating some functions of each of the 
+% position coordinates in xi. E.g, functions of (x,z,theta) for all units.
+% Create a set of symbolic variables to store these functions.
+% This first one represents d/dt * (partial L / partial xi_dot), where xi_dot
+% are the velocities of each point mass.
+% We need one of these for each of the position variables, or half the state vector:
+ddt_L_xi_dot = sym('ddt_L_xi_dot', [size(xi,1)/2, 1]);
+% We also need the other left-hand-side term, (partial L / partial xi),
+L_xi = sym('L_xi', [size(xi,1)/2, 1]);
+
+%% TO-DO: do these dynamics need to change now that our spine is not symmetric in 3D?
 
 % Answer: I think not. If we were calculating the rigid body dynamics,
 % not using point masses, then yes we'd have to calculate the center of mass
@@ -168,7 +188,7 @@ r_dot = sym('r_dot', [2, num_pm_unit, N]);
 % we're just using point masses. The rotation here is one coordinate frame
 % versus another, which can be completely arbitrary, as along as it's consistent.
 
-%% Next, constrain the first unit. 
+%% 4) Next, constrain the first unit. 
 
 %PROGRESS_BAR
 disp('Adding constraints on the first unit...');
@@ -181,7 +201,7 @@ r(:,:,1) = a;
 % Make a matrix of zeros that fits exactly.
 r_dot(:,:,1) = zeros(size(r_dot(:,:,1)));
 
-%% Then, express the coordinates of each point mass in terms of the system states.
+%% 5) Then, express the coordinates of each point mass in terms of the system states.
 
 %PROGRESS_BAR
 disp('Assigning the point mass locations in terms of system states...');
@@ -218,12 +238,13 @@ for k=1:N-1
         % The pm-th point mass is a column vector.
         % Note that the index k is with respect to the moving units,
         % so it's really the k+1th unit in terms of the point mass locations r.
-        % TO-DO: what's the direction of multiplication for rotation matrices????
+        % r = R*a + e; where e is the position of the origin of the coordinate frame for 
+        % this unit, e.g., the value of the state vector for x and z for this unit.
         r(:,p,k+1) = R(:,:,k)*a(:,p) + xi(x_index:z_index);
     end
 end
 
-%% Similarly, express the velocities of each point mass in terms of xi.
+%% 6) Similarly, express the velocities of each point mass in terms of xi.
 
 %PROGRESS_BAR
 disp('Assigning point mass velocities in terms of system states...');
@@ -285,15 +306,100 @@ for k=1:N-1
             disp(strcat('     newvalue is: ', newvalue));
         end
         
-        % Add the field/value pair to the struct
-        %r_dot_sub_vars.eval(field) = value;
-        
         % Perform the substitution for this field/value pair
         r_dot = subs(r_dot, oldvalue, newvalue);
     end
 end
 
-%% Calculate the kinetic and potential energy, and the Lagrangian, for the whole system.
+%% 7) Calculate the kinetic and potential energy, and the Lagrangian, for the whole system.
+
+%PROGRESS_BAR
+disp('Solving for L = T-V for each unit...');
+
+% TO-DO: check all these calculations. The results
+% seem a bit too simple...
+
+% Use the same indexing as in the previous section.
+% HOWEVER, we need to calculate the Lagrangian for the first
+% unit, too, I think.
+% TO-DO: should I be setting Lagrangian(0)=0 since it's not moving,
+% or should it be nonzero since the masses have potential energy?
+for k=1:N
+    % For this unit, calculate the kinetic energy, (1/2)mv^2,
+    % as in T = (1/2)* sum( m(i)*r_dot(i)^2), for point masses i.
+    % Add in an extra simplify step to make things go faster, later.
+    T = sym;
+    for p=1:num_pm_unit
+        % Add the kinetic energy for this point mass,
+        % noting that the vector m has the masses for each point mass.
+        % Here, we use r_dot'*r_dot as the 2-norm.
+        T = T + (1/2) * m(p)*(r_dot(:,p,k)'*r_dot(:,p,k));
+    end
+    % Similarly, calculate the potential energy for this unit.
+    % The potential energy is gravity times the z component of each unit.
+    % Since the point masses may have different mass, do a loop.
+    V = sym;
+    for p=1:num_pm_unit
+        % Add the potential energy of this point mass,
+        % noting that the z component is the second row of r.
+        V = V + m(p)*g*r(2,p,k);
+    end
+        
+    % simplify both of these.
+    T = simplify(T);
+    V = simplify(V);
+    
+    % Calculate the Lagrangian, T-V;
+    Lagrangian(k) = T-V;
+    % Simplify this too.
+    Lagrangian(k) = simplify(Lagrangian(k));
+    
+    %DEBUGGING
+    if debugging
+        disp(strcat('Kinetic energy for unit: ', num2str(k), ' is'));
+        disp(T);
+        disp(strcat('Potential energy for unit: ', num2str(k), ' is'));
+        disp(V);
+        disp(strcat('Lagrangian for unit: ', num2str(k), ' is'));
+        disp(Lagrangian(k));
+    end
+end
+
+%% 8) Finally, we can calculate the left-hand side of Lagrange's equations of motion.
+
+% Lagrange's equation(s) of motion are of the following form:
+% (d/dt) * (partial L)/(partial xi_dot) - (partial L)/(partial xi)
+% ==
+% sum(forces acting on the masses due to the cables).
+% Here, the 'xi_dot' term is really just the velocity terms
+% inside xi, but I wrote it a bit lazily.
+
+% Let's also start up some parallel pools here for quicker calculation.
+pools = gcp;
+
+% For each unit,
+for k=1:N-1
+    % As before, calculate the indices into the state vector xi.
+    % This is needed to specify the independent variables for differentiation.
+    % The state variables for this unit start at intervals of num_states_per_unit apart,
+    % and end at the next interval of num_states_per unit.
+    % For example, in the 6-state-per-unit spine vertebra, these
+    % intervals are 1-6, 7-12, 13-18, ...
+    unit_index_start = 1 + (k-1)*num_states_per_unit;
+    unit_index_end = (k)*num_states_per_unit;
+    indep_vars = sym2cell(xi(unit_index_start:unit_index_end));
+    %r_dot(:,p,k+1) = fulldiff(r(:,p,k+1), indep_vars);
+    % Calculate the left-hand-side equations for this unit.
+    % The first term is the full time derivative of (partial L / partial xi_dot).
+    %ddt_L_xi_dot = fulldiff( Lagranian(k), 
+end
+
+
+
+%% When it comes time to solve, remember to...
+
+% Equate the coordinates in xi and xi_dot that are equivalent.
+%
 
 %% Script has finished.
 
