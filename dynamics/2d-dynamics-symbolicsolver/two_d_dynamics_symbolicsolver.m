@@ -278,38 +278,8 @@ end
 
 %PROGRESS_BAR
 disp('Substituting system states back into r_dot...');
-
-% Though we know that there are only 3 variables here, let's still use 
-% the num_states_per_unit variable to calculate which states are positions and
-% which are velocities.
-% This variable should be 3:
-velocity_start_offset = num_states_per_unit/2;
-% Iterate through all the units:
-for k=1:N-1
-    % Calculate the start and end indices for the positions at this index
-    % This will be, for example, 1, 7, 13, ...
-    unit_index_start = 1 + (k-1)*num_states_per_unit;
-    % This will be, for example, 3, 10, 15, ...
-    unit_position_end = unit_index_start + velocity_start_offset - 1;
-    % For each of the position variables in this unit:
-    for p=unit_index_start:unit_position_end
-        % The old variable for this specific position variable starts with a 'd', as output
-        % by fulldiff:
-        oldvalue = strcat('d', char(xi(p)));
-        % The new variable is the corresponding velocity state
-        newvalue = char(xi(p+velocity_start_offset));
-        
-        %DEBUGGING
-        if debugging
-            disp(strcat('     p is: ', num2str(p)));
-            disp(strcat('     oldvalue is: ', oldvalue));
-            disp(strcat('     newvalue is: ', newvalue));
-        end
-        
-        % Perform the substitution for this field/value pair
-        r_dot = subs(r_dot, oldvalue, newvalue);
-    end
-end
+% Call the ni
+r_dot = replace_derivatives(r_dot, xi, num_states_per_unit, debugging);
 
 %% 7) Calculate the kinetic and potential energy, and the Lagrangian, for the whole system.
 
