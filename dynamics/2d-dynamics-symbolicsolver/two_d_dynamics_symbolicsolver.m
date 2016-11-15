@@ -1,4 +1,5 @@
 % two_d_dynamics_symbolicsolver
+
 % Berkeley Emergent Space Tensegrities Lab and Andrew P. Sabelhaus
 % Copyright 2016
 % This script symbolically solves Lagrange's equation for 2-dimensional
@@ -6,15 +7,15 @@
 %   a rigid body that is defined by point masses at nodes, and where all the
 %   point masses are rigidly connected. Then, connection points between different
 %   "units" are defined, as pairs of nodes that have a cable between them.
-%   (TO-DO: what about for the "first" and "final" units?)
+%   Note that I might use the word "node" to talk about the location of a point mass.
 %   This is inspired by, and some of the terminology comes from, 
 %   the type-II tensegrity spine under development in the BEST Lab.
 % Many thanks to Jeff Friesen and Abishek Akella for earlier versions of this script.
 
 % This script generates multiple m-files:
-%   duct_accel
-%   dlengths_dt
-%   lengths
+%   xi_dot.m
+%   dlengths_dt.m
+%   lengths.m
 
 %% 1) Prepare the workspace:
 clc;
@@ -23,7 +24,7 @@ close all;
 
 % A flag to turn debugging on and off.
 % This is useful to see the symbolic variables that are created.
-debugging = 1;
+debugging = 0;
 
 % As of 2016-11-13, fulldiff uses some functionality
 % that apparently will be deprecated in a future release of MATLAB.
@@ -151,6 +152,16 @@ connections(3,3) = 1;
 connections(4,2) = 1;
 connections(4,3) = 1;
 
+% For later below, calculate how many cables we'll expect to have
+% in this system.
+% The 'nnz' command counts the number of nonzero elements in a matrix.
+num_cables_per_unit = nnz(connections);
+% Remembering that there is one set of cables between each two units,
+% the total number for the whole tensegrity system is then
+num_cables = num_cables_per_unit*(N-1);
+% Think about it this way: there is no set of cables reaching "upward"
+% from the final unit.
+
 %% 3) Create the symbolic variables for the solver to use
 
 %PROGRESS_BAR
@@ -212,6 +223,24 @@ Lagrangian = sym('Lagrangian', [N, 1]);
 ddt_L_xi_dot = sym('ddt_L_xi_dot', [size(xi,1)/2, 1]);
 % We also need the other left-hand-side term, (partial L / partial xi),
 L_xi = sym('L_xi', [size(xi,1)/2, 1]);
+
+% Now, for the cables:
+% Create a symbolic variable for the length of each cable.
+% Store them all in a single vector:
+lengths = sym('lengths', [num_cables, 1]);
+% We'll also need to store the rate of change of the cable lengths,
+% in order to calculate the damping force.
+dlengths_dt = sym('dlengths_dt', [num_cables, 1]);
+% Finally, we'll store the tensions due to each cable,
+% which are the forces that the cables enact on the rigid bodies.
+tensions = sym('tensions', [num_cables, 1]);
+
+% This system has inputs, too.
+% Here, let's have the inputs represent the rest length in the cables,
+% e.g., u is the new rest length of the spring-cable mechanism,
+% transformed into cable tensions below.
+% There is one rest length per cable.
+u = sym('u', [num_cables, 1]);
 
 %% TO-DO: do these dynamics need to change now that our spine is not symmetric in 3D?
 
@@ -286,21 +315,12 @@ disp('Assigning point mass velocities in terms of system states...');
 for k=1:N-1
     %PROGRESS_BAR
     disp(strcat('     Calculating symbolic derivatives of point masses for unit number: ', num2str(k+1)));
-    % As before, calculate the indices into the state vector xi.
-    % This is needed to specify the independent variables for differentiation.
-    % The state variables for this unit start at intervals of num_states_per_unit apart,
-    % and end at the next interval of num_states_per unit.
-    % For example, in the 6-state-per-unit spine vertebra, these
-    % intervals are 1-6, 7-12, 13-18, ...
-    unit_index_start = 1 + (k-1)*num_states_per_unit;
-    unit_index_end = (k)*num_states_per_unit;
     % For each of the point masses in this unit:
     for p=1:num_pm_unit
         % The velocity is the full derivative of position (with respect to time.)
         % Credit goes to Tim Jorris for the fulldiff function.
         % Note, however, that the independent variables must be passed in as a cell array.
-        indep_vars = sym2cell(xi(unit_index_start:unit_index_end));
-        r_dot(:,p,k+1) = fulldiff(r(:,p,k+1), indep_vars);
+        r_dot(:,p,k+1) = fulldiff(r(:,p,k+1), sym2cell(xi));
     end
 end
 
@@ -381,7 +401,7 @@ disp('Calculating the left-hand-side of Lagranges equations...');
 % inside xi, but I wrote it a bit lazily.
 
 % Let's also start up some parallel pools here for quicker calculation.
-pools = gcp;
+%pools = gcp;
 
 % Though we know that there are only 6 variables per unit here, let's still use 
 % the n variable to calculate which states are positions and
@@ -395,9 +415,9 @@ velocity_start_offset = num_states_per_unit/2;
 count = 1;
 
 % For each unit,
-for k=1:N-1
-    % As before, calculate the indices into the state vector xi.
-    % This is needed to specify the independent variables for differentiation.
+for k=1:N-1    
+    % We need to calculate some indices into the state vector xi.
+    % This is needed to determine how to take the derivatives for Lagrange's eqns.
     % The state variables for this unit start at intervals of num_states_per_unit apart,
     % and end at the next interval of num_states_per unit.
     % For example, in the 6-state-per-unit spine vertebra, these
@@ -405,9 +425,6 @@ for k=1:N-1
     unit_index_start = 1 + (k-1)*num_states_per_unit;
     velocity_index_start = unit_index_start + velocity_start_offset;
     unit_index_end = (k)*num_states_per_unit;
-    % Create that set of independent variables for fulldiff:
-    indep_vars = sym2cell(xi(unit_index_start:unit_index_end));
-    
     % Calculate the left-hand-side equations for this unit.
     % Iterate over the velocity coordinates for this unit:
     % (e.g., 4-6, 10-12, ...)
@@ -420,7 +437,7 @@ for k=1:N-1
         % since Lagrangian(1) is the constant value for the not-moving unit.
         L_xi_dot = diff(Lagrangian(k+1), xi(p));
         % Then take the full time derivative:
-        ddt_L_xi_dot(count) = fulldiff( Lagrangian(k+1), indep_vars);
+        ddt_L_xi_dot(count) = fulldiff( Lagrangian(k+1), sym2cell(xi));
         % Replace the dxi* terms in the symbolic variable:
         ddt_L_xi_dot(count) = replace_derivatives(ddt_L_xi_dot(count), xi, num_states_per_unit, debugging);
         
@@ -444,10 +461,62 @@ end
 % of those lengths, so that we can calculate F = kx - c dx/dt.
 
 %PROGRESS_BAR
-disp('Calculating cable lengths...')
+disp('Calculating cable forces...')
 
-%TO-DO: define symbolic variables above for cable lengths.
-% Here, calculate them as a function of the states xi.
+% The length of each cable is the distance between
+% the two point masses specified by the 'connections' matrix.
+% Remember that we've already calculated the location
+% of each of these point masses: they are in the 'r' matrix.
+% Keep a counter into the symbolic variables for the cables:
+cable_num = 1;
+% Let's iterate over the units, noting that the top unit
+% does not have any cables above it.
+for i=1:N-1
+    % The 'from' and 'to' unit for all cables with this pairing
+    % are i and i+1.
+    from_unit = i;
+    to_unit = i+1;
+    % Then, let's iterate over the connections matrix,
+    % calculating lengths if we find a 1.
+    % Iterate row-wise.
+    for k=1:num_cables_per_unit
+        for p=1:num_cables_per_unit
+            % If there is a cable between these indices:
+            if connections(k,p) == 1
+                %PROGRESS_BAR
+                disp(strcat('     Calculating symbolic length of cable num: ', num2str(cable_num)));
+                % Then pick out the two locations of the nodes
+                from_node = r(:,k,from_unit);
+                to_node = r(:,p,to_unit);
+                % Finally, the length is the 2-norm
+                % of the difference between these points.
+                lengths(cable_num) = norm(to_node-from_node, 2);
+                % Do a quick simplify step
+                lengths(cable_num) = simplify(lengths(cable_num));
+                
+                % Similarly, we can calculate the change in cable lengths.
+                %PROGRESS_BAR
+                disp(strcat('     Calculating symbolic dlengths_dt of cable num: ', num2str(cable_num)));
+                % Calculate by calling fulldiff again.
+                dlengths_dt(cable_num) = fulldiff( lengths(cable_num), sym2cell(xi));
+                % Replace out the derivatives and simplify:
+                dlengths_dt(cable_num) = simplify( ...
+                    replace_derivatives(dlengths_dt(cable_num), xi, num_states_per_unit, debugging));
+                
+                % Finally, calculate the tensions in each of these cables.
+                % TO-DO: need to decide how we want to do this!
+                % What is the input into the system? Is it a rest length change?
+                % That would make the most sense for me right now.
+                % NEED TO DECLARE THAT AS A SYMBOLIC VARIABLE ABOVE, something like u.
+                % ALSO TO-DO: have a spring constant and damping constant for each
+                % cable.
+                
+                % Increment the counter into the cables matrices.
+                cable_num = cable_num+1;
+            end
+        end
+    end
+end
 
 %% When it comes time to solve, remember to...
 
@@ -460,3 +529,29 @@ disp('Calculating cable lengths...')
 disp('Complete!');
 
 
+% SOME BACKUP CODE IF NEEDED:
+
+%     % As before, calculate the indices into the state vector xi.
+%     % This is needed to specify the independent variables for differentiation.
+%     % The state variables for this unit start at intervals of num_states_per_unit apart,
+%     % and end at the next interval of num_states_per unit.
+%     % For example, in the 6-state-per-unit spine vertebra, these
+%     % intervals are 1-6, 7-12, 13-18, ...
+%     unit_index_start = 1 + (k-1)*num_states_per_unit;
+%     unit_index_end = (k)*num_states_per_unit;
+%         indep_vars = sym2cell(xi(unit_index_start:unit_index_end));
+%         %r_dot(:,p,k+1) = fulldiff(r(:,p,k+1), indep_vars);
+
+%     % Pick out the indices of the two connection points
+%     % for this specific cable.
+%     % The 'from' and 'to' unit can be found the following way:
+%     
+%     % From: round down the index i divided by the number of cables per unit,
+%     % noting that an offset of 1 is required in two places. 
+%     % For our Y-spine example, cables 1-4 should have a 'from' of 1,
+%     % and cables 5-8 should have a 'from' of 2.
+%     from_unit = floor((i-1)/num_cables_per_unit) + 1;
+%     % To: we could either round up the division of the index i by that
+%     % same thing, or, we could just add one to from_unit, noting that
+%     % we're always assuming that cables connect two adjacent units.
+%     to_unit = from_unit + 1;
