@@ -11,11 +11,27 @@
 %   This is inspired by, and some of the terminology comes from, 
 %   the type-II tensegrity spine under development in the BEST Lab.
 % Many thanks to Jeff Friesen and Abishek Akella for earlier versions of this script.
+% PLEASE NOTE, VERY IMPORTANT:
+%   The dynamics created by this script assume that all tensions are nonnegative.
+%   If, for example, the units to the system cause some tensions to be negative,
+%   these dynamics will allow that cable to "push."
+%   So, if these are used, you MUST include constraints on the tensions such that
+%   the dynamics always hold. 
+%   You can do this through the 'tensions' symbolic variable that's calculated
+%   below, which gives a column vector of cable tensions as a function of
+%   the system state xi. This can be treated as some weird, nonconvex state constraint,
+%   something like tensions(xi) >= 0.
 
 % This script generates multiple m-files:
 %   xi_dot.m
+%   tensions.m
 %   dlengths_dt.m
 %   lengths.m
+
+% TO-DO: validate the use of the whole state vector xi for fulldiff.
+% This works if there are no velocity terms in the equations (which
+% is true for the positions), but MAY NOT BE TRUE for the LHS of Lagrange's equations
+% when we take the derivative of that partial.
 
 %% 1) Prepare the workspace:
 clc;
@@ -128,7 +144,7 @@ else
 end
 
 % Lastly, define the cables that connect adjacent units.
-% These are modeled as spring-damper systems.
+% These are modeled as spring-damper systems, F = k \delta x - c dx/dt.
 % In order to determine the lengths of these cables, 
 % let's create a "connectivity matrix" that represents
 % which point mass locations are connect via cables to
@@ -137,25 +153,47 @@ end
 % pair of units in order, e.g., between 1 and 2, between 2 and 3, up to N.
 
 % The row index is the "from" node, and the column index is the "to" node.
-% Place a 1 where there is a cable connection, and a 0 where there is not.
-connections = zeros(num_pm_unit, num_pm_unit);
-% MANUALLY change the zeros to ones.
+% At each location where there is a cable, specify the spring constant
+% and damping constant for that cable.
+% So, 'connections' will be a cell array, containing vectors of doubles.
+% Note that you can assign the constants however you'd like, including writing
+% out each one, but for the inverted-Y-spine example, 
+% let's declare some sets of constants for ease of use.
+% We'll have 'vertical' cables and 'saddle' cables, as defined by me.
+k_vert = 2000;
+k_saddle = 2000;
+c_vert = 100;
+c_saddle = 100;
+
+%connections = zeros(num_pm_unit, num_pm_unit);
+connections = cell(num_pm_unit, num_pm_unit);
 % NOTE that these are assuming that a 'lower' unit is the 'from', 
 % and it is connecting to a 'to' that's 'above' it.
 % For example, with the inverted-Y spine vertebra, node 4 from a lower
 % vertebra connects to node 3 of the vertebra above it, 
 % but it's not true that node 3 from a lower vertebra connects to 
 % node 4 of the vertebra above it.
-% For our specific example, the following nodes are connected:
-connections(2,2) = 1;
-connections(3,3) = 1;
-connections(4,2) = 1;
-connections(4,3) = 1;
+% For our specific example, the following nodes are connected,
+% with 2 vertical and 2 saddle cables:
+% connections(2,2) = 1;
+% connections(3,3) = 1;
+% connections(4,2) = 1;
+% connections(4,3) = 1;
+connections{2,2} = [k_vert, c_vert];
+connections{3,3} = [k_vert, c_vert];
+connections{4,2} = [k_saddle, c_saddle];
+connections{4,3} = [k_saddle, c_saddle];
 
 % For later below, calculate how many cables we'll expect to have
 % in this system.
 % The 'nnz' command counts the number of nonzero elements in a matrix.
-num_cables_per_unit = nnz(connections);
+%num_cables_per_unit = nnz(connections);
+% Now that 'connections' is a cell array, count up the nonzeros by 
+% checking 'isempty' on each element. The ~ negates 'isempty',
+% since we want to count non-empty elements.
+connections_locations = ~cellfun('isempty', connections);
+% Then, count the nonzeros.
+num_cables_per_unit = nnz(connections_locations);
 % Remembering that there is one set of cables between each two units,
 % the total number for the whole tensegrity system is then
 num_cables = num_cables_per_unit*(N-1);
@@ -482,9 +520,12 @@ for i=1:N-1
     for k=1:num_cables_per_unit
         for p=1:num_cables_per_unit
             % If there is a cable between these indices:
-            if connections(k,p) == 1
+            % (note that we can use the connections_locations 
+            %  matrix here, since that's already calculated,
+            %  instead of having to check ~isempty on connections.)
+            if connections_locations(k,p) == 1
                 %PROGRESS_BAR
-                disp(strcat('     Calculating symbolic length of cable num: ', num2str(cable_num)));
+                disp(strcat('     Calculating symbolic length of cable number: ', num2str(cable_num)));
                 % Then pick out the two locations of the nodes
                 from_node = r(:,k,from_unit);
                 to_node = r(:,p,to_unit);
@@ -496,20 +537,38 @@ for i=1:N-1
                 
                 % Similarly, we can calculate the change in cable lengths.
                 %PROGRESS_BAR
-                disp(strcat('     Calculating symbolic dlengths_dt of cable num: ', num2str(cable_num)));
+                disp(strcat('     Calculating symbolic dlengths_dt of cable number: ', num2str(cable_num)));
                 % Calculate by calling fulldiff again.
                 dlengths_dt(cable_num) = fulldiff( lengths(cable_num), sym2cell(xi));
                 % Replace out the derivatives and simplify:
                 dlengths_dt(cable_num) = simplify( ...
                     replace_derivatives(dlengths_dt(cable_num), xi, num_states_per_unit, debugging));
                 
-                % Finally, calculate the tensions in each of these cables.
-                % TO-DO: need to decide how we want to do this!
-                % What is the input into the system? Is it a rest length change?
-                % That would make the most sense for me right now.
-                % NEED TO DECLARE THAT AS A SYMBOLIC VARIABLE ABOVE, something like u.
-                % ALSO TO-DO: have a spring constant and damping constant for each
-                % cable.
+                % Next, calculate the (scalar) tensions in each of these cables.
+                %PROGRESS_BAR
+                disp(strcat('     Calculating symbolic tension of cable number: ', num2str(cable_num)));
+                % The input to the system, u, is the "rest length" of each cable,
+                % e.g., emulating a motor retracting a cable attached to a spring.
+                
+                % NOTE THAT right here is where the "cable pushing" problem
+                % occurs. It's fully possible for the calculated tension here to be
+                % "negative," making these dynamics equations no longer valid.
+                % Remember that the force in a cable is max( tension, 0).
+                % But, since including a "max" would make the resulting symbolic equations
+                % quite horrible, let's do the constraining later on.
+                
+                % F = k \delta x - c * d/dt (lengths)
+                tensions(cable_num) = ...
+                    connections{k,p}(1) * (lengths(cable_num) - u(cable_num)) ...
+                    - connections{k,p}(2) * dlengths_dt(cable_num);
+                
+                % Do a quick simplify step to give the symbolic solver
+                % an easier time later.
+                tensions(cable_num) = simplify(tensions(cable_num));
+                
+                % Now that the tension is expressed as a scalar, project it 
+                % along the position vector of the cable.
+                % TO-DO: could we calculate forces as vectors directly and skip this step?
                 
                 % Increment the counter into the cables matrices.
                 cable_num = cable_num+1;
@@ -517,6 +576,8 @@ for i=1:N-1
         end
     end
 end
+
+%% 10)
 
 %% When it comes time to solve, remember to...
 
