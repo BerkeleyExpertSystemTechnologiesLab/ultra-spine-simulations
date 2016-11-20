@@ -301,8 +301,6 @@ for i = 1:N % Build time derivatives for each vertebra
     disp('10%') 
 end
 
-return;
-
 % Again, building useless variables for link 1 to help with indexing
 lengths(1, 1) = 0;
 lengths(2, 1) = 0;
