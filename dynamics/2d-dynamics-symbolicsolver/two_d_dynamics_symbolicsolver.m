@@ -229,6 +229,13 @@ xi = sym('xi', [num_states, 1], 'real');
 % that as a symbolic variable also.
 % This will be our final result at the end of the script.
 xi_dot = sym('xi_dot', [num_states, 1], 'real');
+% In order to get the fulldiff results we want,
+% need to declare the derivatives of xi and second derivatives
+% of xi to both be real numbers.
+dxi = sym('dxi', [num_states, 1]);
+d2xi = sym('d2xi', [num_states, 1]);
+assume(dxi, 'real');
+assume(d2xi, 'real');
 
 % We will also need the position vectors for each point mass,
 % for each unit.
@@ -415,7 +422,7 @@ end
 %PROGRESS_BAR
 disp('Substituting system states back into r_dot...');
 % Swap out all the 'dxi(whatever)' for the xi+3 coordinate
-r_dot = replace_derivatives(r_dot, xi, num_states_per_unit, debugging);
+%r_dot = replace_derivatives(r_dot, xi, num_states_per_unit, debugging);
 
 %% 7) Calculate the kinetic and potential energy, and the Lagrangians, for the whole system.
 
@@ -525,7 +532,7 @@ for k=1:N-1
         % Then take the full time derivative:
         ddt_L_xi_dot(count) = fulldiff( Lagrangian(k+1), sym2cell(xi));
         % Replace the dxi* terms in the symbolic variable:
-        ddt_L_xi_dot(count) = replace_derivatives(ddt_L_xi_dot(count), xi, num_states_per_unit, debugging);
+        %ddt_L_xi_dot(count) = replace_derivatives(ddt_L_xi_dot(count), xi, num_states_per_unit, debugging);
         
         % The second term is derivatives with respect to the POSITION variables,
         % so subtract away the +3 offset. 
@@ -606,9 +613,10 @@ for i=1:N-1
                 % Calculate by calling fulldiff again.
                 dlengths_dt(cable_num) = fulldiff( lengths(cable_num), sym2cell(xi));
                 % Replace out the derivatives and simplify:
-                dlengths_dt(cable_num) = simplify( ...
-                    replace_derivatives(dlengths_dt(cable_num), xi, num_states_per_unit, debugging), num_simplify_steps);
-                
+                %dlengths_dt(cable_num) = simplify( ...
+                %    replace_derivatives(dlengths_dt(cable_num), xi, num_states_per_unit, debugging), num_simplify_steps);
+                dlengths_dt(cable_num) = simplify( dlengths_dt(cable_num), num_simplify_steps);
+
                 % Next, calculate the (scalar) tensions in each of these cables.
                 %PROGRESS_BAR
                 disp(strcat('     Calculating symbolic tension of cable number: ', num2str(cable_num)));
@@ -819,13 +827,22 @@ end
 
 %% 13) Equate the LHS and RHS of Lagrange's equations and solve!
 
+return
+
 disp('SOLVING LAGRANGES EQUATIONS...');
 
+% The solved accelerations are
+D2xi = sym('D2xi', [num_states, 1]);
+
+eqn1 = ddt_L_xi_dot(1) - L_xi(1) == global_forces(1);
+eqn2 = ddt_L_xi_dot(2) - L_xi(2) == global_forces(2);
+eqn3 = ddt_L_xi_dot(3) - L_xi(3) == global_forces(3);
+
 % The independent variables here are dxi4, dxi5, dxi6
-[dxi4, dxi5, dxi6] = solve( ddt_L_xi_dot(1) - L_xi(1) == global_forces(1), ...
-                   ddt_L_xi_dot(2) - L_xi(2) == global_forces(2), ...
-                   ddt_L_xi_dot(3) - L_xi(3) == global_forces(3), ...
-                   xi_dot(4), xi_dot(5), xi_dot(6));
+test = solve( ddt_L_xi_dot(1) - L_xi(1) == global_forces(1), ...
+              ddt_L_xi_dot(2) - L_xi(2) == global_forces(2), ...
+              ddt_L_xi_dot(3) - L_xi(3) == global_forces(3), ...
+              d2xi(1), d2xi(2), d2xi(3));
                
 % This doesn't work as of 2016-11-19, 7pm.
 

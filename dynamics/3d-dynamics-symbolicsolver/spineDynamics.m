@@ -490,6 +490,7 @@ for i = 2:(N-1)
     disp('60%')
     [D2x(i), D2y(i), D2z(i), D2T(i), D2G(i), D2P(i)] = solve(Fx(i)==fx(i), Fy(i)==fy(i),Fz(i) == fz(i), FT(i)==fT(i),...
                                        FG(i)==fG(i),FP(i)==fP(i),d2x(i),d2y(i),d2z(i),d2T(i),d2G(i),d2P(i));
+    return;
 end
 
 % Code for final tetrahedron at top of structure
