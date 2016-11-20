@@ -696,10 +696,12 @@ for i=2:N
                 % THIS IS THE ACTUAL, FINAL COMPUTATION FOR THE RIGHT-HAND SIDE
                 % OF LAGRANGE'S EQUATIONS!!!
                 % (note the transpose: this is a scalar.)
-                global_forces(q, i-1) = global_forces(q, i-1) + cov_bas_vec'*F_cable;
+                force_addition = simplify(cov_bas_vec'*F_cable, num_simplify_steps);
+                %global_forces(q, i-1) = global_forces(q, i-1) + cov_bas_vec'*F_cable;
+                global_forces(q, i-1) = global_forces(q, i-1) + force_addition;
                 %DEBUGGING
                 if debugging
-                    disp(strcat('Contribution to global force in direction ',num2str([q, i-1]), ' was ', char( cov_bas_vec'*F_cable )));
+                    disp(strcat('Contribution to global force for unit ', num2str(i), ' in direction ', num2str(q), ' was ', char( force_addition )));
                 end
             end
         % Now, also check if this cable is, instead, a "to" for this unit:
@@ -735,10 +737,12 @@ for i=2:N
                 % THIS IS THE ACTUAL, FINAL COMPUTATION FOR THE RIGHT-HAND SIDE
                 % OF LAGRANGE'S EQUATIONS!!!
                 % (note the transpose: this is a scalar.)
-                global_forces(q, i-1) = global_forces(q, i-1) + cov_bas_vec'*F_cable;
+                force_addition = simplify(cov_bas_vec'*F_cable, num_simplify_steps);
+                %global_forces(q, i-1) = global_forces(q, i-1) + cov_bas_vec'*F_cable;
+                global_forces(q, i-1) = global_forces(q, i-1) + force_addition;
                 %DEBUGGING
                 if debugging
-                    disp(strcat('Contribution to global force for unit ', num2str(i), ' in direction ', num2str(q), ' was ', char( cov_bas_vec'*F_cable )));
+                    disp(strcat('Contribution to global force for unit ', num2str(i), ' in direction ', num2str(q), ' was ', char( force_addition )));
                 end
             end
         end
@@ -801,6 +805,12 @@ end
 return;
 
 disp('SOLVING LAGRANGES EQUATIONS...');
+
+%test = solve( ddt_L_xi_dot(1) - L_xi(1) == global_forces(1), xi_dot(4)) %, ddt_L_xi_dot(2) - L_xi(2) == global_forces(2), ddt_L_xi_dot(3) - L_xi(3) == global_forces(3))
+xi_dot4_1 = solve(ddt_L_xi_dot(1) - L_xi(1) == global_forces(1), xi_dot(4));
+xi_dot4_2 = solve(ddt_L_xi_dot(2) - L_xi(2) == global_forces(2), xi_dot(4));
+xi_dot4_3 = solve(ddt_L_xi_dot(3) - L_xi(3) == global_forces(3), xi_dot(4));
+
 
 % The independent variables here are dxi4, dxi5, dxi6, dxi10, dxi11, dxi12
 [dxi4, dxi5, dxi6, dxi10, dxi11, dxi12] = solve( ddt_L_xi_dot(1) - L_xi(1) == global_forces(1,1), ...
