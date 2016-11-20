@@ -279,6 +279,15 @@ dlengths_dt = sym('dlengths_dt', [num_cables, 1]);
 % which are the forces that the cables enact on the rigid bodies.
 tensions = sym('tensions', [num_cables, 1]);
 
+% As of 2016-11-19: This didn't work. The MATLAB solve/simplify commands
+% don't work if 'tensions' is full of the actual tensions on the cables.
+% I guess that makes some sense, maybe the sines and cosines make things cancel.
+% So, instead, let's keep a completely separate set of tensions,
+% not solving for the tensions as a function of system states,
+% but then substitute one for the other later once Lagrange's equations are solved.
+% Call it "t" for tension
+tensions_unsolved = sym('t', size(tensions));
+
 % Each cable will have not just a tension, but also the two locations
 % where the tension acts. 
 % The first column is the "from" location, and the second
@@ -672,8 +681,12 @@ for i=2:N
             % cable k, noting that this cable will pull this unit
             % "upward" since it's the 'from'.
             % This force is tension * direction,
-            % where direction is (to - from), 
-            F_cable = tensions(k) * (tension_points(:,2,k) - tension_points(:,1,k));
+            % where direction is (to - from).
+            % NOTE that since the solver doesn't work when plugging in the actual
+            % tension directly, let's use the symbolic tension for now, then substitute
+            % back later below.
+            %F_cable = tensions(k) * (tension_points(:,2,k) - tension_points(:,1,k));
+            F_cable = tensions_unsolved(k) * (tension_points(:,2,k) - tension_points(:,1,k));
             % Run a simplify step
             F_cable = simplify(F_cable, num_simplify_steps);
             % Next, calculate (partial r \ partial q_i) for the
@@ -713,8 +726,12 @@ for i=2:N
             % cable k, noting that this cable will pull this unit
             % "downward" since it's the 'to'.
             % This force is tension * direction,
-            % where direction is (from - to), 
-            F_cable = tensions(k) * (tension_points(:,1,k) - tension_points(:,2,k));
+            % where direction is (from - to).
+            % NOTE that since the solver doesn't work when plugging in the actual
+            % tension directly, let's use the symbolic tension for now, then substitute
+            % back later below.
+            %F_cable = tensions(k) * (tension_points(:,1,k) - tension_points(:,2,k));
+            F_cable = tensions_unsolved(k) * (tension_points(:,1,k) - tension_points(:,2,k));
             % Run a simplify step
             F_cable = simplify(F_cable, num_simplify_steps);
             % Next, calculate (partial r \ partial q_i) for the
@@ -802,25 +819,15 @@ end
 
 %% 13) Equate the LHS and RHS of Lagrange's equations and solve!
 
-return;
-
 disp('SOLVING LAGRANGES EQUATIONS...');
 
-%test = solve( ddt_L_xi_dot(1) - L_xi(1) == global_forces(1), xi_dot(4)) %, ddt_L_xi_dot(2) - L_xi(2) == global_forces(2), ddt_L_xi_dot(3) - L_xi(3) == global_forces(3))
-xi_dot4_1 = solve(ddt_L_xi_dot(1) - L_xi(1) == global_forces(1), xi_dot(4));
-xi_dot4_2 = solve(ddt_L_xi_dot(2) - L_xi(2) == global_forces(2), xi_dot(4));
-xi_dot4_3 = solve(ddt_L_xi_dot(3) - L_xi(3) == global_forces(3), xi_dot(4));
-
-
-% The independent variables here are dxi4, dxi5, dxi6, dxi10, dxi11, dxi12
-[dxi4, dxi5, dxi6, dxi10, dxi11, dxi12] = solve( ddt_L_xi_dot(1) - L_xi(1) == global_forces(1,1), ...
-                   ddt_L_xi_dot(2) - L_xi(2) == global_forces(2,1), ...
-                   ddt_L_xi_dot(3) - L_xi(3) == global_forces(3,1), ...
-                   ddt_L_xi_dot(4) - L_xi(4) == global_forces(1,2), ...
-                   ddt_L_xi_dot(5) - L_xi(5) == global_forces(2,2), ...
-                   ddt_L_xi_dot(6) - L_xi(6) == global_forces(3,2), ...
-                   xi_dot(4), xi_dot(5), xi_dot(6), ...
-                   xi_dot(10), xi_dot(11), xi_dot(12));
+% The independent variables here are dxi4, dxi5, dxi6
+[dxi4, dxi5, dxi6] = solve( ddt_L_xi_dot(1) - L_xi(1) == global_forces(1), ...
+                   ddt_L_xi_dot(2) - L_xi(2) == global_forces(2), ...
+                   ddt_L_xi_dot(3) - L_xi(3) == global_forces(3), ...
+                   xi_dot(4), xi_dot(5), xi_dot(6));
+               
+% This doesn't work as of 2016-11-19, 7pm.
 
 %% Script has finished.
 
