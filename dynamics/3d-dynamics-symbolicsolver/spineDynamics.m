@@ -54,7 +54,7 @@ spine_geometric_parameters.m_t = m_t;
 spine_geometric_parameters.FoS = FoS;
 spine_geometric_parameters.m = m;
 % The path where we want to save these parameters as a .mat file:
-spine_geometric_parameters_path = 'spine_geometric_parameters';
+spine_geometric_parameters_path = 'spine_geometric_parameters_test';
 
 % Creating Parallel Pools for Computing
 pools = gcp;
@@ -490,7 +490,7 @@ for i = 2:(N-1)
     disp('60%')
     [D2x(i), D2y(i), D2z(i), D2T(i), D2G(i), D2P(i)] = solve(Fx(i)==fx(i), Fy(i)==fy(i),Fz(i) == fz(i), FT(i)==fT(i),...
                                        FG(i)==fG(i),FP(i)==fP(i),d2x(i),d2y(i),d2z(i),d2T(i),d2G(i),d2P(i));
-    return;
+    %return;
 end
 
 % Code for final tetrahedron at top of structure
@@ -700,11 +700,11 @@ save(spine_geometric_parameters_path, 'spine_geometric_parameters');
 %% Generate MATLAB functions
 Dyn_eqn = [D2x(2); D2y(2); D2z(2); D2T(2); D2G(2); D2P(2); D2x(3); D2y(3); D2z(3); D2T(3); D2G(3); D2P(3); D2x(4); D2y(4); D2z(4); D2T(4); D2G(4); D2P(4)];
 
-matlabFunction(Dyn_eqn,'file','duct_accel','Vars',[x(2); y(2); z(2); T(2); G(2); P(2); dx(2); dy(2); dz(2); dT(2); dG(2); dP(2); tensions(:, 2); ...
+matlabFunction(Dyn_eqn,'file','duct_accel_test','Vars',[x(2); y(2); z(2); T(2); G(2); P(2); dx(2); dy(2); dz(2); dT(2); dG(2); dP(2); tensions(:, 2); ...
     x(3); y(3); z(3); T(3); G(3); P(3); dx(3); dy(3); dz(3); dT(3); dG(3); dP(3); tensions(:, 3); ...
     x(4); y(4); z(4); T(4); G(4); P(4); dx(4); dy(4); dz(4); dT(4); dG(4); dP(4); tensions(:, 4)]);
-matlabFunction(lengths,'file','lengths','Vars',[x(2); y(2); z(2); T(2); G(2); P(2); x(3); y(3); z(3); T(3); G(3); P(3); x(4); y(4); z(4); T(4); G(4); P(4)]);
-matlabFunction(dlengths_dt,'file','dlengths_dt','Vars',[x(2); y(2); z(2); T(2); G(2); P(2); dx(2); dy(2); dz(2); dT(2); dG(2); dP(2); ...
+matlabFunction(lengths,'file','lengths_test','Vars',[x(2); y(2); z(2); T(2); G(2); P(2); x(3); y(3); z(3); T(3); G(3); P(3); x(4); y(4); z(4); T(4); G(4); P(4)]);
+matlabFunction(dlengths_dt,'file','dlengths_dt_test','Vars',[x(2); y(2); z(2); T(2); G(2); P(2); dx(2); dy(2); dz(2); dT(2); dG(2); dP(2); ...
     x(3); y(3); z(3); T(3); G(3); P(3); dx(3); dy(3); dz(3); dT(3); dG(3); dP(3);
     x(4); y(4); z(4); T(4); G(4); P(4); dx(4); dy(4); dz(4); dT(4); dG(4); dP(4)]);
 disp('100%')
