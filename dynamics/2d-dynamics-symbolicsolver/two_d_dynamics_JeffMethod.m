@@ -47,7 +47,7 @@ disp('Running the 2D version of Jeff Friesens dynamics derivation...');
 %       are 5 point masses in this model. Includes FoS too. (kg).
 
 g = 9.81;
-N = 3;
+N = 2;
 l = 0.15;
 h = 0.15;
 m_t = 0.142;
@@ -475,13 +475,27 @@ save(spine_geometric_parameters_path, 'spine_geometric_parameters');
 
 % NOTE: NEED TO ADJUST THE INDICES HERE IF N IS CHANGED.
 
-Dyn_eqn = [D2x(2); D2z(2); D2T(2); D2x(3); D2z(3); D2T(3)];
+% For 3 vertebrae:
+% Dyn_eqn = [D2x(2); D2z(2); D2T(2); D2x(3); D2z(3); D2T(3)];
+% matlabFunction(Dyn_eqn,'file','two_d_spine_accel','Vars',[x(2); z(2); T(2); dx(2); dz(2); dT(2); tensions(:, 2); ...
+%     x(3); z(3); T(3); dx(3); dz(3); dT(3); tensions(:, 3)]);
+% matlabFunction(lengths,'file','two_d_spine_lengths','Vars',[x(2); z(2); T(2); x(3); z(3); T(3)]);
+% matlabFunction(dlengths_dt,'file','two_d_spine_dlengths_dt','Vars',[x(2); z(2); T(2); dx(2); dz(2); dT(2); ...
+%     x(3); z(3); T(3); dx(3); dz(3); dT(3)]);
 
-matlabFunction(Dyn_eqn,'file','two_d_spine_accel','Vars',[x(2); z(2); T(2); dx(2); dz(2); dT(2); tensions(:, 2); ...
-    x(3); z(3); T(3); dx(3); dz(3); dT(3); tensions(:, 3)]);
-matlabFunction(lengths,'file','two_d_spine_lengths','Vars',[x(2); z(2); T(2); x(3); z(3); T(3)]);
-matlabFunction(dlengths_dt,'file','two_d_spine_dlengths_dt','Vars',[x(2); z(2); T(2); dx(2); dz(2); dT(2); ...
-    x(3); z(3); T(3); dx(3); dz(3); dT(3)]);
+% For 2 vertebrae:
+Dyn_eqn = [D2x(2); D2z(2); D2T(2)];
+matlabFunction(Dyn_eqn,'file','two_d_spine_accel','Vars',[x(2); z(2); T(2); dx(2); dz(2); dT(2); tensions(:, 2)]);
+matlabFunction(lengths,'file','two_d_spine_lengths','Vars',[x(2); z(2); T(2)]);
+matlabFunction(dlengths_dt,'file','two_d_spine_dlengths_dt','Vars',[x(2); z(2); T(2); dx(2); dz(2); dT(2)]);
 disp('100%')
 
  
+
+
+
+
+
+
+
+
