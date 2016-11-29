@@ -18,17 +18,18 @@ dt = 0.001;
 % Geometry of the spine, for plotting purposes
 spine_geometric_parameters_path = 'spine_geometric_parameters_2D.mat';
 load(spine_geometric_parameters_path);
+% ...so now, there should be a struct called 'spine_geometric_parameters' in the workspace.
 
 %% 3) Set up the simulation
 
 % The initial conditions of the spine will be: not moving,
 % slightly upwards in z, zero in x, with some rotation.
 % These are just guesses for now.
-xi_0 = [0; 0.1; 0.1; 0; 0; 0];
+xi_0 = [-0.05; 0.15; 0.1; 0; 0; 0];
 % The inputs to the system will be constant here:
 % let's not change the rest lengths, just have them all be tight for the moment.
 % The first two rest lengths are for the vertical cables, the second two are for the saddle.
-u = [0.01; 0.02; 0.01; 0.01];
+u = [0.01; 0.01; 0.1; 0.1];
 
 % We'll simulate for the following amount of time, in seconds:
 t = 1;
@@ -41,14 +42,32 @@ xi = zeros(6, steps+1);
 % Put in xi_0 into this matrix
 xi(:,1) = xi_0;
 
-%% 4) Perform the simulation
+%% 4) Perform the simulation, and plot the moving vertebra
+
+% Set up the window.
+figure;
+hold on;
+axis([-0.2, 0.2, -0.2, 0.2]);
+% Plot the first location of the spine:
+handles = plot_2d_spine(xi(:,1), spine_geometric_parameters);
+drawnow;
 
 for i=1:steps
     % Forward simulate this step
+    % DEBUGGING:
+    dt * i
     % Note that we're not using any of the multiple-step functionality that's 
     % built-in to simulate_2d_spine_dynamics, e.g., only one forward-Euler integration
     % per call to simulate_2_spine_dynamics.
     xi(:,i+1) = simulate_2d_spine_dynamics(xi(:,i), u, dt, 1);
+    % Plot the vertebrae at this timestep:
+    % clear the window
+    for j = 1:length(handles)
+        delete(handles{j});
+    end
+    % plot:
+    handles = plot_2d_spine(xi(:,i+1), spine_geometric_parameters);
+    drawnow;
 end
 
 %% 5) Plot the results
