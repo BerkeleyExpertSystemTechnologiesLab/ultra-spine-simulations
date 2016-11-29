@@ -23,13 +23,17 @@ load(spine_geometric_parameters_path);
 %% 3) Set up the simulation
 
 % The initial conditions of the spine will be: not moving,
-% slightly upwards in z, zero in x, with some rotation.
+% slightly translated in (x,z), with some rotation.
 % These are just guesses for now.
-xi_0 = [-0.05; 0.15; 0.1; 0; 0; 0];
+xi_0 = [-0.05; 0.15; pi/4; 0; 0; 0];
 % The inputs to the system will be constant here:
 % let's not change the rest lengths, just have them all be tight for the moment.
 % The first two rest lengths are for the vertical cables, the second two are for the saddle.
-u = [0.01; 0.01; 0.1; 0.1];
+% NOTE that this has an INVERSE relationship with "how tight the cable is."
+% A longer rest length means a more-slack cable.
+% These are in meters I suppose, but the units are only relevant in comparison to the
+% spring constant and damping constant in the getTensions file.
+u = [0.12; 0.12; 0.12; 0.1];
 
 % We'll simulate for the following amount of time, in seconds:
 t = 1;
@@ -47,7 +51,7 @@ xi(:,1) = xi_0;
 % Set up the window.
 figure;
 hold on;
-axis([-0.2, 0.2, -0.2, 0.2]);
+axis([-0.2, 0.2, -0.1, 0.3]);
 % Plot the first location of the spine:
 handles = plot_2d_spine(xi(:,1), spine_geometric_parameters);
 drawnow;
@@ -55,7 +59,7 @@ drawnow;
 for i=1:steps
     % Forward simulate this step
     % DEBUGGING:
-    dt * i
+    %dt * i
     % Note that we're not using any of the multiple-step functionality that's 
     % built-in to simulate_2d_spine_dynamics, e.g., only one forward-Euler integration
     % per call to simulate_2_spine_dynamics.
@@ -78,6 +82,7 @@ dt_list = 0:dt:t;
 % Plot each system state
 figure;
 subplot(6, 1, 1);
+title('2D Spine Simulation Results');
 plot(dt_list, xi(1,:));
 ylabel('x');
 subplot(6, 1, 2);

@@ -4,11 +4,12 @@ function [ xi_kp1 ] = simulate_2d_spine_dynamics( xi, inputs, dt, num_steps )
 %   the "inverted-Y" shape, using the basic Euler integration method.
 %   This function uses the dynamics functions, solved symbolically,
 %   which are:
-%       two_d_spine_lengths
-%       two_d_spine_dlengths_dt
 %       two_d_spine_getTensions
 %       two_d_spine_accel
-%   These m-files must be in the same folder or in the MATLAB path.
+%   Note that the two_d_spine_getTensions function calls the following:
+%       two_d_spine_lengths
+%       two_d_spine_dlengths_dt
+%   All these m-files must be in the same folder or in the MATLAB path.
 %   Inputs to this function:
 %       xi, the system states, \in R^6, which are: [x, z, theta, dx, dz, dTheta]
 %       inputs, the rest lengths of each of the four cables in the system
@@ -48,7 +49,7 @@ for i = 1:num_steps
     % At this timestep:
     % 1) Calculate the cable tensions
     Tensions = two_d_spine_getTensions(x, z, theta, dx, dz, dtheta, ...
-        inputs(1), inputs(2), inputs(3), inputs(4));
+        inputs(1), inputs(2), inputs(3), inputs(4))
     % 2) Calculate the accelerations at this timestep
     accel = two_d_spine_accel(x, z, theta, dx, dz, dtheta, ...
         Tensions(1), Tensions(2), Tensions(3), Tensions(4));

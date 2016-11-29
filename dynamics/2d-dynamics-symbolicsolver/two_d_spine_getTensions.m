@@ -12,7 +12,7 @@ function [ Te ] = two_d_spine_getTensions(x2,z2,T2,dx2,dz2,dT2,...
 
 % spring and damping constants
 K = 2000;
-c = -100;
+c = -50;
 
 % correct for... something?
 x2 = x2 + (abs(x2)<1e-8)*1e-6;
