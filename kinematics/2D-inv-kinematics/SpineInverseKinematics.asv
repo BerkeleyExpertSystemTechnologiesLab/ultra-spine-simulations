@@ -45,11 +45,8 @@ C_base = [ 1  0  0  0  0  0  0  0 ;  %A
 
 %Number of tetrahedra (spine nodes)
 N = 5;
-% B = zeros(N*6,N*4);
-% C = zeros((N-1)*8,N*4);
-B = zeros(N*size(B_base,1),N*size(B_base,2));
-C = zeros((N-1)*size(C_base,1),N*size(B_base,2));
-% B and C need to be the same width
+B = zeros(N*size(B_base));
+C = zeros((N-1)*8,N*4);
 
 %Connectivity Matrices superimposed for number of tetrahedra
 for i=0:N-1
@@ -223,7 +220,7 @@ while frame < num_frames_to_render
     A= [C_A' *diag(C_A*tetraNodes(:,1));
         C_A' *diag(C_A*tetraNodes(:,2));
         C_A' *diag(C_A*tetraNodes(:,3))];
-    A_g = pinv(A);
+    A_g = pinv( A);
     A_g_A=A_g*A;
     V=(eye(length(A_g_A))-A_g_A);
     [Q,R,E] = qr(V);
@@ -242,7 +239,7 @@ while frame < num_frames_to_render
     V=Q(:,1:j-1);
     
     % Run the actual optimization for the inverse kinematics
-    w = quadprog(V(1:(N-1)*8,:)'*K_scale*V(1:(N-1)*8,:), V(1:(N-1)*8,:)'*K_scale*A_g(1:(N-1)*8,:)*F, -V(1:(N-1)*8,:), A_g(1:(N-1)*8,:)*F-pretension,[],[],[],[],[],options);
+    w = quadprog(V(1:(N-1)*8,:)'*K_scale*V(1:(N-1)*8,:),V(1:(N-1)*8,:)'*K_scale*A_g(1:(N-1)*8,:)*F,-V(1:(N-1)*8,:),A_g(1:(N-1)*8,:)*F-pretension,[],[],[],[],[],options);
     q=A_g*F + V*w;
     
     stringLengths=getLengths(cablePts(:,1),cablePts(:,2),cablePts(:,3));
