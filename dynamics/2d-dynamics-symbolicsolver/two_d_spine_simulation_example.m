@@ -14,7 +14,7 @@ clc;
 %% 2) Declare constants, read in the geometric parameters of the spine
 
 % Simulation timestep
-dt = 0.001;
+dt = 0.005;
 % Geometry of the spine, for plotting purposes
 spine_geometric_parameters_path = 'spine_geometric_parameters_2D.mat';
 load(spine_geometric_parameters_path);

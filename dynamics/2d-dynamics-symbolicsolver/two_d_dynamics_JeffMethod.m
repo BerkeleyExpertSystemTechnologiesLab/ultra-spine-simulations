@@ -50,17 +50,13 @@ g = 9.81;
 N = 2;
 l = 0.15;
 h = 0.15;
-m_t = 0.142;
-FoS = 1.2;
-m = (m_t/5) * FoS;
+m = 0.034;
 
 % Store all these parameters as a struct for later use.
 spine_geometric_parameters.g = g;
 spine_geometric_parameters.N = N;
 spine_geometric_parameters.l = l;
 spine_geometric_parameters.h = h;
-spine_geometric_parameters.m_t = m_t;
-spine_geometric_parameters.FoS = FoS;
 spine_geometric_parameters.m = m;
 % The path where we want to save these parameters as a .mat file:
 spine_geometric_parameters_path = 'spine_geometric_parameters_2D';

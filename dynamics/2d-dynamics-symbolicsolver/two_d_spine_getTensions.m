@@ -15,9 +15,9 @@ K = 2000;
 c = -50;
 
 % correct for... something?
-x2 = x2 + (abs(x2)<1e-8)*1e-6;
-z2 = z2 + (abs(z2)<1e-8)*1e-6;
-T2 = T2 + (abs(T2)<1e-8)*1e-6;
+% x2 = x2 + (abs(x2)<1e-8)*1e-6;
+% z2 = z2 + (abs(z2)<1e-8)*1e-6;
+% T2 = T2 + (abs(T2)<1e-8)*1e-6;
 
 % calculate the lengths of all the cables
 L = two_d_spine_lengths(x2,z2,T2);
