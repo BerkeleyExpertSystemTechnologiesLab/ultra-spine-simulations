@@ -1,4 +1,4 @@
-% two_d_dynamics_symbolicsolver.m
+%% two_d_dynamics_symbolicsolver.m
 
 % Berkeley Emergent Space Tensegrities Lab and Andrew P. Sabelhaus
 % Copyright 2016
@@ -34,9 +34,9 @@
 % when we take the derivative of that partial.
 
 %% 1) Prepare the workspace:
-clc;
-clear all;
-close all;
+%clc;
+%clear all;
+%close all;
 
 % A flag to turn debugging on and off.
 % This is useful to see the symbolic variables that are created.
@@ -133,7 +133,7 @@ m = zeros(num_pm_unit, 1);
 % First, a version where all the masses are equal
 if equal_masses
     % Let's say each unit has a certain total mass:
-    unit_total_mass = 0.142;
+    unit_total_mass = 0.1360;
     % Then, the mass of each point will be:
     m_each = unit_total_mass / num_pm_unit;
     % Put into our vector of masses:
@@ -420,7 +420,7 @@ end
 % any second derivatives in r_dot.
 
 %PROGRESS_BAR
-disp('Substituting system states back into r_dot...');
+%disp('Substituting system states back into r_dot...');
 % Swap out all the 'dxi(whatever)' for the xi+3 coordinate
 %r_dot = replace_derivatives(r_dot, xi, num_states_per_unit, debugging);
 
@@ -482,6 +482,10 @@ for k=1:N
 end
 
 %% 8) Finally, we can calculate the left-hand side of Lagrange's equations of motion.
+
+% NOTE: errors start in this section.
+% For example, Jeff's code only has 2nd derivatives and xi3 (theta) 
+% in fx(2), but my ddt_L_xi_dot(1)-ddt_L_xi_dot(1) has xi4 terms in it (dxi1).
 
 %PROGRESS_BAR
 disp('Calculating the left-hand-side of Lagranges equations...');
