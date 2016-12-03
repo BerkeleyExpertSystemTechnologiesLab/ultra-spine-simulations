@@ -232,10 +232,10 @@ xi = sym('xi', [num_states, 1], 'real');
 % In order to get the fulldiff results we want,
 % need to declare the derivatives of xi and second derivatives
 % of xi to both be real numbers.
-%dxi = sym('dxi', [num_states, 1]);
-%d2xi = sym('d2xi', [num_states, 1]);
-%assume(dxi, 'real');
-%assume(d2xi, 'real');
+dxi = sym('dxi', [num_states, 1]);
+d2xi = sym('d2xi', [num_states, 1]);
+assume(dxi, 'real');
+assume(d2xi, 'real');
 
 % We will also need the position vectors for each point mass,
 % for each unit.
@@ -292,8 +292,8 @@ tensions = sym('tensions', [num_cables, 1]);
 % So, instead, let's keep a completely separate set of tensions,
 % not solving for the tensions as a function of system states,
 % but then substitute one for the other later once Lagrange's equations are solved.
-% Call it "t" for tension
-%tensions_unsolved = sym('t', size(tensions));
+% Call it "tensions_un" for tensions unsolved.
+tensions_un = sym('tensions_un', size(tensions));
 
 % Each cable will have not just a tension, but also the two locations
 % where the tension acts. 
@@ -420,9 +420,9 @@ end
 % any second derivatives in r_dot.
 
 %PROGRESS_BAR
-disp('Substituting system states back into r_dot...');
+%disp('Substituting system states back into r_dot...');
 % Swap out all the 'dxi(whatever)' for the xi+3 coordinate
-r_dot = replace_derivatives(r_dot, xi, num_states_per_unit, debugging);
+%r_dot = replace_derivatives(r_dot, xi, num_states_per_unit, debugging);
 
 %% 7) Calculate the kinetic and potential energy, and the Lagrangians, for the whole system.
 
@@ -532,14 +532,14 @@ for k=1:N-1
         % WHEN THIS IS FIXED, and I use replace_derivatives again
         % We'll differentiate with respect to the correct position in xi,
         % like this:
-        L_xi_dot = diff(Lagrangian(k+1), xi(p));
+        %L_xi_dot = diff(Lagrangian(k+1), xi(p));
         % FOR NOW: we need to use a dxi variable.
-        %L_xi_dot = diff(Lagrangian(k+1), dxi(p - velocity_start_offset));
+        L_xi_dot = diff(Lagrangian(k+1), dxi(p - velocity_start_offset));
         
         % Then take the full time derivative:
         ddt_L_xi_dot(count) = fulldiff( L_xi_dot, sym2cell(xi));
         % Replace the dxi* terms in the symbolic variable:
-        ddt_L_xi_dot(count) = replace_derivatives(ddt_L_xi_dot(count), xi, num_states_per_unit, debugging);
+        %ddt_L_xi_dot(count) = replace_derivatives(ddt_L_xi_dot(count), xi, num_states_per_unit, debugging);
         
         % The second term is derivatives with respect to the POSITION variables,
         % so subtract away the +3 offset. 
@@ -629,9 +629,9 @@ for i=1:N-1
                 % Calculate by calling fulldiff again.
                 dlengths_dt(cable_num) = fulldiff( lengths(cable_num), sym2cell(xi));
                 % Replace out the derivatives and simplify:
-                dlengths_dt(cable_num) = simplify( ...
-                    replace_derivatives(dlengths_dt(cable_num), xi, num_states_per_unit, debugging), num_simplify_steps);
-                %dlengths_dt(cable_num) = simplify( dlengths_dt(cable_num), num_simplify_steps);
+                %dlengths_dt(cable_num) = simplify( ...
+                %    replace_derivatives(dlengths_dt(cable_num), xi, num_states_per_unit, debugging), num_simplify_steps);
+                dlengths_dt(cable_num) = simplify( dlengths_dt(cable_num), num_simplify_steps);
 
                 % Next, calculate the (scalar) tensions in each of these cables.
                 %PROGRESS_BAR
@@ -709,8 +709,8 @@ for i=2:N
             % NOTE that since the solver doesn't work when plugging in the actual
             % tension directly, let's use the symbolic tension for now, then substitute
             % back later below.
-            F_cable = tensions(k) * (tension_points(:,2,k) - tension_points(:,1,k));
-            %F_cable = tensions_unsolved(k) * (tension_points(:,2,k) - tension_points(:,1,k));
+            %F_cable = tensions(k) * (tension_points(:,2,k) - tension_points(:,1,k));
+            F_cable = tensions_un(k) * (tension_points(:,2,k) - tension_points(:,1,k));
             % Run a simplify step
             F_cable = simplify(F_cable, num_simplify_steps);
             % Next, calculate (partial r \ partial q_i) for the
@@ -754,8 +754,8 @@ for i=2:N
             % NOTE that since the solver doesn't work when plugging in the actual
             % tension directly, let's use the symbolic tension for now, then substitute
             % back later below.
-            F_cable = tensions(k) * (tension_points(:,1,k) - tension_points(:,2,k));
-            %F_cable = tensions_unsolved(k) * (tension_points(:,1,k) - tension_points(:,2,k));
+            %F_cable = tensions(k) * (tension_points(:,1,k) - tension_points(:,2,k));
+            F_cable = tensions_un(k) * (tension_points(:,1,k) - tension_points(:,2,k));
             % Run a simplify step
             F_cable = simplify(F_cable, num_simplify_steps);
             % Next, calculate (partial r \ partial q_i) for the
@@ -846,28 +846,70 @@ xi_dot = xi_dot';
 
 %% 13) Equate the LHS and RHS of Lagrange's equations and solve!
 
-return
-
 disp('SOLVING LAGRANGES EQUATIONS...');
 
 % Call the solved states xi_dot_soln.
-
-eqn1 = ddt_L_xi_dot(1) - L_xi(1) == global_forces(1);
-eqn2 = ddt_L_xi_dot(2) - L_xi(2) == global_forces(2);
-eqn3 = ddt_L_xi_dot(3) - L_xi(3) == global_forces(3);
-
-% The independent variables here are dxi4, dxi5, dxi6
-% test = solve( ddt_L_xi_dot(1) - L_xi(1) == global_forces(1), ...
-%               ddt_L_xi_dot(2) - L_xi(2) == global_forces(2), ...
-%               ddt_L_xi_dot(3) - L_xi(3) == global_forces(3), ...
-%               d2xi(1), d2xi(2), d2xi(3));
+% Note that at this point, the tensions are still
+% independent variables: we'll plug the actual tensions, as functions
+% of the system state, back into the solution once it's computed.
                
-xi_dot_soln = solve( ddt_L_xi_dot(1) - L_xi(1) == global_forces(1), ...
+% xi_dot_soln = solve( ddt_L_xi_dot(1) - L_xi(1) == global_forces(1), ...
+%                      ddt_L_xi_dot(2) - L_xi(2) == global_forces(2), ...
+%                      ddt_L_xi_dot(3) - L_xi(3) == global_forces(3), ...
+%                      xi_dot)          
+                 
+d2xi_solved = solve( ddt_L_xi_dot(1) - L_xi(1) == global_forces(1), ...
                      ddt_L_xi_dot(2) - L_xi(2) == global_forces(2), ...
                      ddt_L_xi_dot(3) - L_xi(3) == global_forces(3), ...
-                     xi_dot)          
+                     d2xi(1), d2xi(2), d2xi(3))  
           
-% This doesn't work as of 2016-11-19, 7pm.
+% This solves, as of 2016-12-03.
+
+%% 14) Substitute the solved tensions back into the accelerations and simplify
+
+disp('Finally, substitute tensions back into solved accelerations, and replace with states inthe xi vector...');
+
+% First, replace the tensions inside the accelerations
+% Create a symbolic variable for the three accelerations
+d2xi_solved_sub = sym('d2xi_solved_sub', [num_states/2, 1], 'real');
+d2xi_solved_sub(1) = subs(d2xi_solved.d2xi1, tensions_un, tensions);
+d2xi_solved_sub(2) = subs(d2xi_solved.d2xi2, tensions_un, tensions);
+d2xi_solved_sub(3) = subs(d2xi_solved.d2xi3, tensions_un, tensions);
+
+% Then, replace the 'dxi' terms with the approprate terms in xi
+% Create a symbolic variable to store the solution:
+xi_dot_soln = sym('xi_dot_soln', [num_states, 1], 'real');
+% The first three terms of the solution are just the last three terms xi
+% (this means: the derivative of position is velocity, etc. Think
+xi_dot_soln(1) = xi(4);
+xi_dot_soln(2) = xi(5);
+xi_dot_soln(3) = xi(6);
+% The last three are the accelerations, with derivatives replaced.
+xi_dot_soln(4) = replace_derivatives(d2xi_solved_sub(1), xi, num_states_per_unit, debugging);
+xi_dot_soln(5) = replace_derivatives(d2xi_solved_sub(2), xi, num_states_per_unit, debugging);
+xi_dot_soln(6) = replace_derivatives(d2xi_solved_sub(3), xi, num_states_per_unit, debugging);
+
+%% 15) Write MATLAB functions(s).
+
+disp('Writing MATLAB functions to files...');
+
+% For both the tensions and dlengths_dt, need to replace derivatives
+% with states in xi.
+dlengths_dt_sub = replace_derivatives(dlengths_dt, xi, num_states_per_unit, debugging);
+tensions_sub = replace_derivatives(tensions, xi, num_states_per_unit, debugging);
+
+% Need to write our lengths, dlengths_dt, tensions, 
+% and finally, xi_dot_soln.
+% Note that lengths and dlengths_dt are just functions of state,
+% but tensions and xi_dot are functions of state and inputs,
+disp('     Writing lengths function...');
+matlabFunction(lengths,'file','two_d_spine_lengths_new','Vars',xi);
+disp('     Writing dlengths_dt function...');
+matlabFunction(dlengths_dt_sub,'file','two_d_spine_dlengths_dt_new','Vars',xi);
+disp('     Writing tensions function...');
+matlabFunction(tensions_sub,'file','two_d_spine_tensions_new','Vars',{xi,u});
+disp('     Writing xi_dot function... USE THIS ONE FOR DYNAMICS SIMULATIONS.');
+matlabFunction(xi_dot_soln,'file','two_d_spine_xi_dot','Vars',{xi,u});
 
 %% Script has finished.
 
