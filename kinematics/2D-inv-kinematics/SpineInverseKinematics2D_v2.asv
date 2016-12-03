@@ -7,14 +7,11 @@
 %
 % Author: Mallory Daly
 % Created: 12/1/16
-% Modified: 12/2/16
+% Modified: 12/1/16
 
 clear; close all
 
-%% Spine Parameters
-% Specific to case: 2D spine with two tetrahedra, stacked vertically.
-
-% Load spine data
+%% Load Spine Parameters
 load('spine_geometric_parameters_2D.mat')
 
 % Geometric parameters
@@ -25,11 +22,6 @@ w = sqrt(length^2-(h/2)^2); % width from center of tetra
 % Mass and force parameters
 g = spine_geometric_parameters.g; % m/s^2
 m = spine_geometric_parameters.m; % kg
-
-% Number of bars, cables, and nodes
-r = 6; % bars
-s = 4; % cables
-n = 8; % nodes
 
 %% Connectivity Matrices
 % See H.-J. Schek's "The Force Density Method for Form Finding and
@@ -68,11 +60,6 @@ C_fixed = [0  0  0  0;  %  1
       
 C = [C_free C_fixed];
 
-%% VARIABLES: Translation and rotation of free tetrahedron
-xTrans = 0*w; % horizontal translation
-zTrans = 6/3*h; % vertical translation
-theta = pi/20; % rotation (degrees)
-
 %% Nodal Positions
 % Coordinate system such that nodes 6 and 8 are on the x axis and nodes 5
 % and 7 are centered on the z axis.
@@ -82,22 +69,18 @@ theta = pi/20; % rotation (degrees)
 x_fixed = [  0  -w   0   w]';
 z_fixed = [h/2   0   h   0]';
 
-% Rotation matrix for given angle of theta
-rot = [cos(theta), -sin(theta);
-       sin(theta),  cos(theta)];
-   
-% Need to multiply each node by the rotation matrix and add the (x,z)
-% offset from the xi state vector. Copy out (x,z) offset to a 2x4 matrix to
-% make this easier.
-xz_offset = repmat([xTrans; zTrans], 1, 4);
+% VARIABLES: Values to translate center
+hTrans = 1/3*w; % horizontal translation
+vTrans = 1/3*h; % vertical translation
 
-% Translate and rotate position of fixed nodes to get coordinates of free
-% nodes
-xz_free = rot*[x_fixed'; z_fixed'] + xz_offset;
+% Translate center
+xCenter = x_fixed(1)+hTrans;
+zCenter = z_fixed(1)+vTrans;
 
-% Extract x and z of free nodes
-x_free = xz_free(1,:)';
-z_free = xz_free(2,:)';
+% Free nodal positions relative to base
+%               1           2           3           4
+x_free = [xCenter   xCenter-w     xCenter   xCenter+w]';
+z_free = [zCenter zCenter-h/2 zCenter+h/2 zCenter-h/2]';
 
 % Combined nodal positions
 x = [x_free; x_fixed];
@@ -106,14 +89,10 @@ z = [z_free; z_fixed];
 % Plot nodal positions
 % figure
 % plot(x,z,'.','MarkerSize',10)
-figure
-plot(x_fixed,z_fixed,'k.','MarkerSize',10)
-hold on
-plot(x_free,z_free,'r.','MarkerSize',10)
 % figure
-% geometry.l = length;
-% geometry.h = h;
-% plot_2d_spine([xTrans zTrans theta],geometry)
+% plot(x_fixed,z_fixed,'k.','MarkerSize',10)
+% hold on
+% plot(x_free,z_free,'r.','MarkerSize',10)
 
 %% Lengths of Bars and Cables
 % Don't actually need this, but started making it because it was in Schek's
@@ -121,85 +100,59 @@ plot(x_free,z_free,'r.','MarkerSize',10)
 
 % Rows 1-6 are bars
 % Rows 7-10 are cables
-l = [ length;  % 1
-      h/2;  % 2
-      length;  % 3
-      length;  % 4
-      h/2;  % 5
-      length;  % 6
-      norm([x(2),z(2)]-[x(6),z(6)]);  % 7
-      norm([x(2),z(2)]-[x(7),z(7)]);  % 8
-      norm([x(4),z(4)]-[x(7),z(7)]);  % 9
-      norm([x(4),z(4)]-[x(8),z(8)])]; %10
+l = [           length;  % 1
+                   h/2;  % 2
+                length;  % 3
+                length;  % 4
+                   h/2;  % 5
+                length;  % 6
+       norm(x(2)-x(6));  % 7
+       norm(x(2)-x(7));  % 8
+       norm(x(4)-x(7));  % 9
+       norm(x(4)-x(8))]; %10
 % The forces in the cables will depend on F = k*(l-l0)
 
 % Diagonal length matrix
 L = diag(l);
-L_cables = diag(l(7:10));
 
-%% Loading of the tetrahedrons
-% Assume equal distribution of mass at point nodes. Bottom four (fixed)
-% nodes support weight of top four (free) nodes.
-px = zeros(n,1);
-pz = [-m*g*ones(n/2,1); m*g*ones(n/2,1)];
-p = [px; pz];
-
-%% Set Up Optimization Problem
+%% Set Up Optimization Problem (Bars and Cables)
 % See J. Friesen's "DuCTT: a Tensegrity Robot for Exploring Duct Systems."
 % He adapts Schek's work to solve for force density in Section III.
+
+% Define number of bars, cables, and nodes
+r = 6; % bars
+s = 4; % cables
+n = 8; % nodes
 
 % Define A matrix
 A = [C'*diag(C*x);
      C'*diag(C*z)];
 
-% Take last s columns of the A matrix, which correspond to the cables
-As = A(:,end-(s-1):end);
-
-% VARIABLE: Minimum force densities for each cable
-c = zeros(s,1);
-
 % Moore-Penrose Pseudoinverse
-As_pinv = pinv(As);
-V = eye(size(As_pinv*As))-As_pinv*As;
+A_pinv = pinv(A);
+V = eye(size(A_pinv*A))-A_pinv*A;
+
+% Loading of the tetrahedrons (assume equal distribution of mass at point
+% nodes)
+px = zeros(n,1);
+pz = -m*g*ones(n,1);
+p = [px; pz];
+
+% VARIABLE: Minimum minimum force densities for each cable
+c = zeros(r+s,1);
 
 % Set up QUADPROG
 H = 2*(V'*V);
-f = (2*V'*As_pinv*p)';
-Aineq = -V;
-bineq = -(c - As_pinv*p);
+f = (2*V'*A_pinv*p)';
+A = -V;
+b = -(c - A_pinv*p);
 
 % Call QUADPROG
-wOpt = quadprog(H,f,Aineq,bineq);
+wOpt = quadprog(H,f,A,b)
 
 % Find q
-qOpt = As_pinv*p + V*wOpt;
+qOpt = A_pinv*p + V*wOpt
 
-%% Find the Forces in the Cables
-f = L_cables*qOpt
-
-%% Set Up Optimization Problem (Bars and Cables)
-% See J. Friesen's "DuCTT: a Tensegrity Robot for Exploring Duct Systems."
-% He adapts Schek's work to solve for force density in Section III.
-% 
-% % Moore-Penrose Pseudoinverse
-% A_pinv = pinv(A);
-% V = eye(size(A_pinv*A))-A_pinv*A;
-% 
-% % VARIABLE: Minimum force densities for each cable
-% c = zeros(r+s,1);
-% 
-% % Set up QUADPROG
-% H = 2*(V'*V);
-% f = (2*V'*A_pinv*p)';
-% A = -V;
-% b = -(c - A_pinv*p);
-% 
-% % Call QUADPROG
-% wOpt = quadprog(H,f,A,b)
-% 
-% % Find q
-% qOpt = A_pinv*p + V*wOpt
-% 
 % % Solve with YALMIP
 % yalmip('clear')
 % w = sdpvar(size(V,2),1);
@@ -210,3 +163,30 @@ f = L_cables*qOpt
 % % optimize(constr,obj)
 % wOpt_Y = value(w)
 % qOpt_Y = As_pinv*p + V*wOpt_Y
+
+%% Set Up Optimization Problem (Just Cables)
+% The result should be the same. If 
+
+% If I want to 
+
+% % Take last s columns of the A matrix, which correspond to the cables
+% As = A(:,end-(s-1):end);
+
+% VARIABLE: Minimum minimum force densities for each cable
+% c = zeros(s,1);
+
+% % Moore-Penrose Pseudoinverse
+% As_pinv = pinv(As);
+% V = eye(size(As_pinv*As))-As_pinv*As;
+
+% % Set up QUADPROG
+% H = 2*(V'*V);
+% f = (2*V'*As_pinv*p)';
+% Aineq = -V;
+% bineq = -(c - As_pinv*p);
+% 
+% % Call QUADPROG
+% wOpt = quadprog(H,f,Aineq,bineq)
+% 
+% % Find q
+% qOpt = As_pinv*p + V*wOpt

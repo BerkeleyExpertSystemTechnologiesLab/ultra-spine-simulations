@@ -224,7 +224,7 @@ while frame < num_frames_to_render
         C_A' *diag(C_A*tetraNodes(:,2));
         C_A' *diag(C_A*tetraNodes(:,3))];
     A_g = pinv(A);
-    A_g_A=A_g*A;
+    A_g_A = A_g*A;
     V=(eye(length(A_g_A))-A_g_A);
     [Q,R,E] = qr(V);
     [m , n] = size(R);
@@ -240,6 +240,7 @@ while frame < num_frames_to_render
         i=i+1;
     end
     V=Q(:,1:j-1);
+    % DREW: Why do you do this decomposition and change V?
     
     % Run the actual optimization for the inverse kinematics
     w = quadprog(V(1:(N-1)*8,:)'*K_scale*V(1:(N-1)*8,:), V(1:(N-1)*8,:)'*K_scale*A_g(1:(N-1)*8,:)*F, -V(1:(N-1)*8,:), A_g(1:(N-1)*8,:)*F-pretension,[],[],[],[],[],options);
