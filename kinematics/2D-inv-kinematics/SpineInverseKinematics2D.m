@@ -70,7 +70,7 @@ C = [C_free C_fixed];
 
 %% VARIABLES: Translation and rotation of free tetrahedron
 xTrans = 0*w; % horizontal translation
-zTrans = 2/3*h; % vertical translation
+zTrans = 6/3*h; % vertical translation
 theta = pi/20; % rotation (degrees)
 
 %% Nodal Positions
