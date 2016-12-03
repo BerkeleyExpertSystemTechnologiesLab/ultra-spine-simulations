@@ -48,15 +48,16 @@ dt_step = dt / num_steps;
 for i = 1:num_steps
     % At this timestep:
     % 1) Calculate the cable tensions
-    Tensions = two_d_spine_getTensions(x, z, theta, dx, dz, dtheta, ...
-        inputs(1), inputs(2), inputs(3), inputs(4))
+    %Tensions = two_d_spine_getTensions(x, z, theta, dx, dz, dtheta, ...
+    %    inputs(1), inputs(2), inputs(3), inputs(4))
     % 2) Calculate the accelerations at this timestep
-    accel = two_d_spine_accel(x, z, theta, dx, dz, dtheta, ...
-        Tensions(1), Tensions(2), Tensions(3), Tensions(4));
+    %accel = two_d_spine_accel(x, z, theta, dx, dz, dtheta, ...
+    %    Tensions(1), Tensions(2), Tensions(3), Tensions(4));
     % 3) Form the xi_dot vector out of these 3 accelerations
     %    as well as the velocities from the current state
-    xi_dot = [dx; dz; dtheta; accel(1); accel(2); accel(3)];
+    %xi_dot = [dx; dz; dtheta; accel(1); accel(2); accel(3)];
     % 4) Forward-integrate using Euler's method
+    xi_dot = two_d_spine_xi_dot(xi, inputs);
     xi_kp1 = xi + dt_step*xi_dot;
     % 5) update xi for the next iteration
     xi = xi_kp1;
