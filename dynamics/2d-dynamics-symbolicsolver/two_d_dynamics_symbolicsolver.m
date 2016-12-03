@@ -34,9 +34,9 @@
 % when we take the derivative of that partial.
 
 %% 1) Prepare the workspace:
-%clc;
-%clear all;
-%close all;
+clc;
+clear all;
+close all;
 
 % A flag to turn debugging on and off.
 % This is useful to see the symbolic variables that are created.
@@ -228,14 +228,14 @@ xi = sym('xi', [num_states, 1], 'real');
 % as in the equation xi_dot = f(xi, u), so we need to declare
 % that as a symbolic variable also.
 % This will be our final result at the end of the script.
-xi_dot = sym('xi_dot', [num_states, 1], 'real');
+%xi_dot = sym('xi_dot', [num_states, 1], 'real');
 % In order to get the fulldiff results we want,
 % need to declare the derivatives of xi and second derivatives
 % of xi to both be real numbers.
-dxi = sym('dxi', [num_states, 1]);
-d2xi = sym('d2xi', [num_states, 1]);
-assume(dxi, 'real');
-assume(d2xi, 'real');
+%dxi = sym('dxi', [num_states, 1]);
+%d2xi = sym('d2xi', [num_states, 1]);
+%assume(dxi, 'real');
+%assume(d2xi, 'real');
 
 % We will also need the position vectors for each point mass,
 % for each unit.
@@ -293,7 +293,7 @@ tensions = sym('tensions', [num_cables, 1]);
 % not solving for the tensions as a function of system states,
 % but then substitute one for the other later once Lagrange's equations are solved.
 % Call it "t" for tension
-tensions_unsolved = sym('t', size(tensions));
+%tensions_unsolved = sym('t', size(tensions));
 
 % Each cable will have not just a tension, but also the two locations
 % where the tension acts. 
@@ -420,26 +420,17 @@ end
 % any second derivatives in r_dot.
 
 %PROGRESS_BAR
-%disp('Substituting system states back into r_dot...');
+disp('Substituting system states back into r_dot...');
 % Swap out all the 'dxi(whatever)' for the xi+3 coordinate
-%r_dot = replace_derivatives(r_dot, xi, num_states_per_unit, debugging);
+r_dot = replace_derivatives(r_dot, xi, num_states_per_unit, debugging);
 
 %% 7) Calculate the kinetic and potential energy, and the Lagrangians, for the whole system.
 
 %PROGRESS_BAR
 disp('Solving for L = T-V for each unit...');
 
-% TO-DO: check all these calculations. The results
-% seem a bit too simple...
-
 % Use the same indexing as in the previous section.
-% HOWEVER, we need to calculate the Lagrangian for the first
-% unit, too, I think.
-% TO-DO: should I be setting Lagrangian(0)=0 since it's not moving,
-% or should it be nonzero since the masses have potential energy?
-% ANSWER, MAYBE: it doesn't matter, since that Lagrangian is a constant scalar,
-% and we never use the Lagrangians directly: they're always as derivatives,
-% so no matter what Lagrangian(0) is, diff(Lagrangian(0)) is always 0.
+% Note that Lagrangian(1) doesn't matter, it's never used.
 for k=1:N
     % For this unit, calculate the kinetic energy, (1/2)mv^2,
     % as in T = (1/2)* sum( m(i)*r_dot(i)^2), for point masses i.
@@ -483,9 +474,11 @@ end
 
 %% 8) Finally, we can calculate the left-hand side of Lagrange's equations of motion.
 
-% NOTE: errors start in this section.
-% For example, Jeff's code only has 2nd derivatives and xi3 (theta) 
-% in fx(2), but my ddt_L_xi_dot(1)-ddt_L_xi_dot(1) has xi4 terms in it (dxi1).
+% AS OF COMMIT 093d381, this is consistent with Jeff's work.
+% The bug was that I had been differentiating against Lagrangian(k+1)
+% where it needed to be ddt_L_xi_dot, and also that since we're using
+% dxi now instead of replacing derivatives, the variable of differentiation 
+% had to be updated.
 
 %PROGRESS_BAR
 disp('Calculating the left-hand-side of Lagranges equations...');
@@ -536,17 +529,17 @@ for k=1:N-1
         % Note that we must index into 'Lagrangrian' via k+1 and not k,
         % since Lagrangian(1) is the constant value for the not-moving unit.
         
-        % WHEN THIS IS FIXED, and I use replace_derivatives againm
+        % WHEN THIS IS FIXED, and I use replace_derivatives again
         % We'll differentiate with respect to the correct position in xi,
         % like this:
-        %L_xi_dot = diff(Lagrangian(k+1), xi(p));
+        L_xi_dot = diff(Lagrangian(k+1), xi(p));
         % FOR NOW: we need to use a dxi variable.
-        L_xi_dot = diff(Lagrangian(k+1), dxi(p - velocity_start_offset));
+        %L_xi_dot = diff(Lagrangian(k+1), dxi(p - velocity_start_offset));
         
         % Then take the full time derivative:
         ddt_L_xi_dot(count) = fulldiff( L_xi_dot, sym2cell(xi));
         % Replace the dxi* terms in the symbolic variable:
-        %ddt_L_xi_dot(count) = replace_derivatives(ddt_L_xi_dot(count), xi, num_states_per_unit, debugging);
+        ddt_L_xi_dot(count) = replace_derivatives(ddt_L_xi_dot(count), xi, num_states_per_unit, debugging);
         
         % The second term is derivatives with respect to the POSITION variables,
         % so subtract away the +3 offset. 
@@ -575,10 +568,7 @@ end
 %    variable.
 % This comparison can be seem from his line 491, where he 
 % calls D2x(i) = solve(Fx(i) == fx(i)).
-% The dimensions of fx(i) are 
-
-% CHECK: do my ddt_L_xi_dot have 2nd-order derivatives in them?
-% Jeff's do. That's where he gets the xi_dot terms to solve for.
+% The dimensions of fx(i) are 1x1.
 
 %% 9) Now, start calculating the cable forces.
 % Calculate the lengths of each cable, as well as the rate of change
@@ -586,6 +576,18 @@ end
 
 %PROGRESS_BAR
 disp('Calculating cable tensions...')
+
+% An important assumption:
+% Below, the cable "speeds", the rate-of-length-change of the cables,
+% which are scalar quantities, 
+% are calculated as a function of the system states. This assumes
+% that the rate of length change of the cables can be related directly
+% to the velocity of the tensegrity units (e.g., vertebrae).
+% This isn't necessarily clear to Drew right now: can we come up 
+% with a counterexample where these dlength/dt quantities don't relate
+% to the vertebrae velocities in the way we assume? For example, does an
+% angular velocity between two vertebrae get captured properly in these cable "speeds"?
+% Need to think more about if this is valid or not...
 
 % The length of each cable is the distance between
 % the two point masses specified by the 'connections' matrix.
@@ -627,9 +629,9 @@ for i=1:N-1
                 % Calculate by calling fulldiff again.
                 dlengths_dt(cable_num) = fulldiff( lengths(cable_num), sym2cell(xi));
                 % Replace out the derivatives and simplify:
-                %dlengths_dt(cable_num) = simplify( ...
-                %    replace_derivatives(dlengths_dt(cable_num), xi, num_states_per_unit, debugging), num_simplify_steps);
-                dlengths_dt(cable_num) = simplify( dlengths_dt(cable_num), num_simplify_steps);
+                dlengths_dt(cable_num) = simplify( ...
+                    replace_derivatives(dlengths_dt(cable_num), xi, num_states_per_unit, debugging), num_simplify_steps);
+                %dlengths_dt(cable_num) = simplify( dlengths_dt(cable_num), num_simplify_steps);
 
                 % Next, calculate the (scalar) tensions in each of these cables.
                 %PROGRESS_BAR
@@ -707,8 +709,8 @@ for i=2:N
             % NOTE that since the solver doesn't work when plugging in the actual
             % tension directly, let's use the symbolic tension for now, then substitute
             % back later below.
-            %F_cable = tensions(k) * (tension_points(:,2,k) - tension_points(:,1,k));
-            F_cable = tensions_unsolved(k) * (tension_points(:,2,k) - tension_points(:,1,k));
+            F_cable = tensions(k) * (tension_points(:,2,k) - tension_points(:,1,k));
+            %F_cable = tensions_unsolved(k) * (tension_points(:,2,k) - tension_points(:,1,k));
             % Run a simplify step
             F_cable = simplify(F_cable, num_simplify_steps);
             % Next, calculate (partial r \ partial q_i) for the
@@ -752,8 +754,8 @@ for i=2:N
             % NOTE that since the solver doesn't work when plugging in the actual
             % tension directly, let's use the symbolic tension for now, then substitute
             % back later below.
-            %F_cable = tensions(k) * (tension_points(:,1,k) - tension_points(:,2,k));
-            F_cable = tensions_unsolved(k) * (tension_points(:,1,k) - tension_points(:,2,k));
+            F_cable = tensions(k) * (tension_points(:,1,k) - tension_points(:,2,k));
+            %F_cable = tensions_unsolved(k) * (tension_points(:,1,k) - tension_points(:,2,k));
             % Run a simplify step
             F_cable = simplify(F_cable, num_simplify_steps);
             % Next, calculate (partial r \ partial q_i) for the
@@ -838,6 +840,9 @@ for i=1:N-1
         xi_dot(k) = fulldiff(xi(k), xi(k));
     end
 end
+% xi_dot should be a column vector.
+assume(xi_dot, 'real');
+xi_dot = xi_dot';
 
 %% 13) Equate the LHS and RHS of Lagrange's equations and solve!
 
@@ -845,19 +850,23 @@ return
 
 disp('SOLVING LAGRANGES EQUATIONS...');
 
-% The solved accelerations are
-D2xi = sym('D2xi', [num_states, 1]);
+% Call the solved states xi_dot_soln.
 
 eqn1 = ddt_L_xi_dot(1) - L_xi(1) == global_forces(1);
 eqn2 = ddt_L_xi_dot(2) - L_xi(2) == global_forces(2);
 eqn3 = ddt_L_xi_dot(3) - L_xi(3) == global_forces(3);
 
 % The independent variables here are dxi4, dxi5, dxi6
-test = solve( ddt_L_xi_dot(1) - L_xi(1) == global_forces(1), ...
-              ddt_L_xi_dot(2) - L_xi(2) == global_forces(2), ...
-              ddt_L_xi_dot(3) - L_xi(3) == global_forces(3), ...
-              d2xi(1), d2xi(2), d2xi(3));
+% test = solve( ddt_L_xi_dot(1) - L_xi(1) == global_forces(1), ...
+%               ddt_L_xi_dot(2) - L_xi(2) == global_forces(2), ...
+%               ddt_L_xi_dot(3) - L_xi(3) == global_forces(3), ...
+%               d2xi(1), d2xi(2), d2xi(3));
                
+xi_dot_soln = solve( ddt_L_xi_dot(1) - L_xi(1) == global_forces(1), ...
+                     ddt_L_xi_dot(2) - L_xi(2) == global_forces(2), ...
+                     ddt_L_xi_dot(3) - L_xi(3) == global_forces(3), ...
+                     xi_dot)          
+          
 % This doesn't work as of 2016-11-19, 7pm.
 
 %% Script has finished.
