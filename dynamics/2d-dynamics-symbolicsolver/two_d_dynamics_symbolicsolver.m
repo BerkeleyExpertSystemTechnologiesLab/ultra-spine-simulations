@@ -526,15 +526,25 @@ for k=1:N-1
     % Iterate over the velocity coordinates for this unit:
     % (e.g., 4-6, 10-12, ...)
     for p = velocity_index_start:unit_index_end
+        %PROGRESS_BAR
+        disp(strcat('Calculating the LHS of Lagr. Eqns. for state pair: ', ...
+            char(xi(p-velocity_start_offset)), ', ', char(xi(p))));
         % The first term is the full time derivative of (partial L / partial xi_dot).
         % Note that I'm not storing L_xi_dot as a symbolic variable itself,
         % it gets overwritten here. That's just because it is never used directly,
         % we only calculate it in order to calcualate ddt_L_xi_dot.
         % Note that we must index into 'Lagrangrian' via k+1 and not k,
         % since Lagrangian(1) is the constant value for the not-moving unit.
-        L_xi_dot = diff(Lagrangian(k+1), xi(p));
+        
+        % WHEN THIS IS FIXED, and I use replace_derivatives againm
+        % We'll differentiate with respect to the correct position in xi,
+        % like this:
+        %L_xi_dot = diff(Lagrangian(k+1), xi(p));
+        % FOR NOW: we need to use a dxi variable.
+        L_xi_dot = diff(Lagrangian(k+1), dxi(p - velocity_start_offset));
+        
         % Then take the full time derivative:
-        ddt_L_xi_dot(count) = fulldiff( Lagrangian(k+1), sym2cell(xi));
+        ddt_L_xi_dot(count) = fulldiff( L_xi_dot, sym2cell(xi));
         % Replace the dxi* terms in the symbolic variable:
         %ddt_L_xi_dot(count) = replace_derivatives(ddt_L_xi_dot(count), xi, num_states_per_unit, debugging);
         
