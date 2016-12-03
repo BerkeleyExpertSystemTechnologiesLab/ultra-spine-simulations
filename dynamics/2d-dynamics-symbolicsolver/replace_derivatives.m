@@ -35,6 +35,11 @@ velocity_start_offset = n/2;
 % Create the 'result' variable.
 result = input;
 
+%DEBUGGING
+if debugging
+    disp('Replacing derivatives...');
+end
+
 % Iterate through all the units:
 for k=1:N
     % Calculate the start and end indices for the positions at this index

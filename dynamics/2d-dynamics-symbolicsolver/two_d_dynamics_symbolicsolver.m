@@ -168,8 +168,8 @@ end
 % We'll have 'vertical' cables and 'saddle' cables, as defined by me.
 k_vert = 2000;
 k_saddle = 2000;
-c_vert = 100;
-c_saddle = 100;
+c_vert = -50;
+c_saddle = -50;
 
 connections = cell(num_pm_unit, num_pm_unit);
 % NOTE that these are assuming that a 'lower' unit is the 'from', 
@@ -869,6 +869,13 @@ d2xi_solved = solve( ddt_L_xi_dot(1) - L_xi(1) == global_forces(1), ...
 
 disp('Finally, substitute tensions back into solved accelerations, and replace with states inthe xi vector...');
 
+% TESTING: create an 'accel' function that does not substitute the tensions that were calculated.
+d2xi_solved_un = sym('d1xi_solved_un', [num_states/2, 1], 'real');
+% The solved accelerations, without replacing tensions_un->tensions:
+d2xi_solved_un(1) = replace_derivatives(d2xi_solved.d2xi1, xi, num_states_per_unit, debugging);
+d2xi_solved_un(2) = replace_derivatives(d2xi_solved.d2xi2, xi, num_states_per_unit, debugging);
+d2xi_solved_un(3) = replace_derivatives(d2xi_solved.d2xi3, xi, num_states_per_unit, debugging);
+
 % First, replace the tensions inside the accelerations
 % Create a symbolic variable for the three accelerations
 d2xi_solved_sub = sym('d2xi_solved_sub', [num_states/2, 1], 'real');
@@ -903,13 +910,16 @@ tensions_sub = replace_derivatives(tensions, xi, num_states_per_unit, debugging)
 % Note that lengths and dlengths_dt are just functions of state,
 % but tensions and xi_dot are functions of state and inputs,
 disp('     Writing lengths function...');
-matlabFunction(lengths,'file','two_d_spine_lengths_new','Vars',xi);
+matlabFunction(lengths,'file','two_d_spine_lengths_new','Vars',{[xi]});
 disp('     Writing dlengths_dt function...');
-matlabFunction(dlengths_dt_sub,'file','two_d_spine_dlengths_dt_new','Vars',xi);
+matlabFunction(dlengths_dt_sub,'file','two_d_spine_dlengths_dt_new','Vars',{[xi]});
 disp('     Writing tensions function...');
 matlabFunction(tensions_sub,'file','two_d_spine_tensions_new','Vars',{xi,u});
 disp('     Writing xi_dot function... USE THIS ONE FOR DYNAMICS SIMULATIONS.');
 matlabFunction(xi_dot_soln,'file','two_d_spine_xi_dot','Vars',{xi,u});
+% Testing: does the acceleration solution, without substituting tension, work properly?
+disp('     Writing accelerations solution, without tensions substituted... (TESTING)');
+matlabFunction(d2xi_solved_un,'file','two_d_spine_accel_new','Vars',{xi,tensions_un});
 
 %% Script has finished.
 

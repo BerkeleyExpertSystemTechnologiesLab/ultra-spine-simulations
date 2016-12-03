@@ -49,10 +49,18 @@ for i = 1:num_steps
     % At this timestep:
     % 1) Calculate the cable tensions
     %Tensions = two_d_spine_getTensions(x, z, theta, dx, dz, dtheta, ...
-    %    inputs(1), inputs(2), inputs(3), inputs(4))
+    %    inputs(1), inputs(2), inputs(3), inputs(4));
+    % TEST: does the new tensions calculation work with the old acceleration calculation?
+    % If yes: then the forces are correct, at least.
+    % Answer: no. However, behavior looks the same between the (New Tensions + Old Accel) and (New xi_dot) attempts.
+    % This would seem to imply that something's wrong in the forces we calculate.
+    %Tensions = two_d_spine_tensions_new(xi, inputs);
     % 2) Calculate the accelerations at this timestep
     %accel = two_d_spine_accel(x, z, theta, dx, dz, dtheta, ...
-    %    Tensions(1), Tensions(2), Tensions(3), Tensions(4));
+    %    Tensions(1), Tensions(2), Tensions(3), Tensions(4))
+    % TEST: does the new accelerations, without replacing Tensions directly, still work using the older tensions calculations?
+    % RESULT: System is stable, but incorrect: no rotation is applied! The vertebra stays in its same orientation, as if it was fixed in theta.
+    %accel = two_d_spine_accel_new(xi, Tensions)
     % 3) Form the xi_dot vector out of these 3 accelerations
     %    as well as the velocities from the current state
     %xi_dot = [dx; dz; dtheta; accel(1); accel(2); accel(3)];

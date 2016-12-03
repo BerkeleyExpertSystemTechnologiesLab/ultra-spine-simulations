@@ -36,7 +36,7 @@ xi_0 = [-0.05; 0.15; pi/4; 0; 0; 0];
 u = [0.12; 0.12; 0.12; 0.1];
 
 % We'll simulate for the following amount of time, in seconds:
-t = 1;
+t = 0.5;
 % That means, with our dt, we'll have the following iterations of 
 % forward-Euler simulation:
 steps = t / dt;
