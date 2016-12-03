@@ -32,7 +32,7 @@ handles = {};
 % Plot the bottom (not-moving) spine
 % First, the four nodes, as circles:
 for i=1:size(a,2);
-    handles{end+1} = plot(a(1,i), a(2,i), 'k.', 'markersize', 40);
+    handles{end+1} = plot(a(1,i), a(2,i), 'k.', 'MarkerSize', 40);
 end
 
 % Plot the vertebra itself (lines between nodes)
