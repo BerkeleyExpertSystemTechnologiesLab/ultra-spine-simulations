@@ -33,7 +33,7 @@ xi_0 = [-0.05; 0.15; pi/4; 0; 0; 0];
 % A longer rest length means a more-slack cable.
 % These are in meters I suppose, but the units are only relevant in comparison to the
 % spring constant and damping constant in the getTensions file.
-u = [0.12; 0.12; 0.12; 0.1];
+u = [0.12; 0.12; 0.12; 0.09];
 
 % We'll simulate for the following amount of time, in seconds:
 t = 0.5;
@@ -59,7 +59,6 @@ drawnow;
 for i=1:steps
     % Forward simulate this step
     % DEBUGGING:
-    %dt * i
     % Note that we're not using any of the multiple-step functionality that's 
     % built-in to simulate_2d_spine_dynamics, e.g., only one forward-Euler integration
     % per call to simulate_2_spine_dynamics.
