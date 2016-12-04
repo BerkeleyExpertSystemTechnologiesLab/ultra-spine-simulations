@@ -20,16 +20,22 @@ c = -50;
 % T2 = T2 + (abs(T2)<1e-8)*1e-6;
 
 % calculate the lengths of all the cables
-L = two_d_spine_lengths(x2,z2,T2);
+% TEST: does this work for the new lengths?
+% RESULT: Yes, it does. New lengths is correct.
+L = two_d_spine_lengths_new([x2;z2;T2;dx2;dz2;dT2]);
+%L = two_d_spine_lengths(x2,z2,T2);
 
 % calculate the velocities of all the cables
-dlengths = two_d_spine_dlengths_dt(x2,z2,T2,dx2,dz2,dT2);
+% TEST: does this work for the new dlengths_dt?
+% RESULT: Yes, it does. New dlengths_dt is correct.
+%dlengths = two_d_spine_dlengths_dt(x2,z2,T2,dx2,dz2,dT2);
+dlengths = two_d_spine_dlengths_dt_new([x2;z2;T2;dx2;dz2;dT2]);
 
 % index into the 'lengths' result to get the distances between nodes
 % for the correct vertebra. (note, here, we only have 2 vertebrae, so 
 % we just want the second column from these matrices.
-L = L(:, 2);
-dlengths = dlengths(:, 2);
+%L = L(:, 2);
+%dlengths = dlengths(:, 2);
 
 % calculate the \delta x for each cable/spring
 stretch_length = [L(1) - inp1;

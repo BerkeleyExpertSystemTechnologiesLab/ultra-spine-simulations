@@ -35,6 +35,11 @@ velocity_start_offset = n/2;
 % Create the 'result' variable.
 result = input;
 
+%DEBUGGING
+if debugging
+    disp('Replacing derivatives...');
+end
+
 % Iterate through all the units:
 for k=1:N
     % Calculate the start and end indices for the positions at this index
@@ -51,11 +56,11 @@ for k=1:N
         newvalue = char(xi(p+velocity_start_offset));
         
         %DEBUGGING
-        if debugging
-            disp(strcat('     p is: ', num2str(p)));
-            disp(strcat('     oldvalue is: ', oldvalue));
-            disp(strcat('     newvalue is: ', newvalue));
-        end
+%         if debugging
+%             disp(strcat('     p is: ', num2str(p)));
+%             disp(strcat('     oldvalue is: ', oldvalue));
+%             disp(strcat('     newvalue is: ', newvalue));
+%         end
         
         % Perform the substitution for this field/value pair
         result = subs(result, oldvalue, newvalue);

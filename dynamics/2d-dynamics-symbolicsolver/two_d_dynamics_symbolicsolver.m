@@ -34,9 +34,9 @@
 % when we take the derivative of that partial.
 
 %% 1) Prepare the workspace:
-%clc;
-%clear all;
-%close all;
+clc;
+clear all;
+close all;
 
 % A flag to turn debugging on and off.
 % This is useful to see the symbolic variables that are created.
@@ -168,8 +168,9 @@ end
 % We'll have 'vertical' cables and 'saddle' cables, as defined by me.
 k_vert = 2000;
 k_saddle = 2000;
-c_vert = 100;
-c_saddle = 100;
+% NOTE THAT these damping constants should be POSITIVE.
+c_vert = 25;
+c_saddle = 25;
 
 connections = cell(num_pm_unit, num_pm_unit);
 % NOTE that these are assuming that a 'lower' unit is the 'from', 
@@ -228,7 +229,7 @@ xi = sym('xi', [num_states, 1], 'real');
 % as in the equation xi_dot = f(xi, u), so we need to declare
 % that as a symbolic variable also.
 % This will be our final result at the end of the script.
-xi_dot = sym('xi_dot', [num_states, 1], 'real');
+%xi_dot = sym('xi_dot', [num_states, 1], 'real');
 % In order to get the fulldiff results we want,
 % need to declare the derivatives of xi and second derivatives
 % of xi to both be real numbers.
@@ -292,8 +293,8 @@ tensions = sym('tensions', [num_cables, 1]);
 % So, instead, let's keep a completely separate set of tensions,
 % not solving for the tensions as a function of system states,
 % but then substitute one for the other later once Lagrange's equations are solved.
-% Call it "t" for tension
-tensions_unsolved = sym('t', size(tensions));
+% Call it "tensions_un" for tensions unsolved.
+tensions_un = sym('tensions_un', size(tensions));
 
 % Each cable will have not just a tension, but also the two locations
 % where the tension acts. 
@@ -429,17 +430,8 @@ end
 %PROGRESS_BAR
 disp('Solving for L = T-V for each unit...');
 
-% TO-DO: check all these calculations. The results
-% seem a bit too simple...
-
 % Use the same indexing as in the previous section.
-% HOWEVER, we need to calculate the Lagrangian for the first
-% unit, too, I think.
-% TO-DO: should I be setting Lagrangian(0)=0 since it's not moving,
-% or should it be nonzero since the masses have potential energy?
-% ANSWER, MAYBE: it doesn't matter, since that Lagrangian is a constant scalar,
-% and we never use the Lagrangians directly: they're always as derivatives,
-% so no matter what Lagrangian(0) is, diff(Lagrangian(0)) is always 0.
+% Note that Lagrangian(1) doesn't matter, it's never used.
 for k=1:N
     % For this unit, calculate the kinetic energy, (1/2)mv^2,
     % as in T = (1/2)* sum( m(i)*r_dot(i)^2), for point masses i.
@@ -483,9 +475,11 @@ end
 
 %% 8) Finally, we can calculate the left-hand side of Lagrange's equations of motion.
 
-% NOTE: errors start in this section.
-% For example, Jeff's code only has 2nd derivatives and xi3 (theta) 
-% in fx(2), but my ddt_L_xi_dot(1)-ddt_L_xi_dot(1) has xi4 terms in it (dxi1).
+% AS OF COMMIT 093d381, this is consistent with Jeff's work.
+% The bug was that I had been differentiating against Lagrangian(k+1)
+% where it needed to be ddt_L_xi_dot, and also that since we're using
+% dxi now instead of replacing derivatives, the variable of differentiation 
+% had to be updated.
 
 %PROGRESS_BAR
 disp('Calculating the left-hand-side of Lagranges equations...');
@@ -526,15 +520,25 @@ for k=1:N-1
     % Iterate over the velocity coordinates for this unit:
     % (e.g., 4-6, 10-12, ...)
     for p = velocity_index_start:unit_index_end
+        %PROGRESS_BAR
+        disp(strcat('Calculating the LHS of Lagr. Eqns. for state pair: ', ...
+            char(xi(p-velocity_start_offset)), ', ', char(xi(p))));
         % The first term is the full time derivative of (partial L / partial xi_dot).
         % Note that I'm not storing L_xi_dot as a symbolic variable itself,
         % it gets overwritten here. That's just because it is never used directly,
         % we only calculate it in order to calcualate ddt_L_xi_dot.
         % Note that we must index into 'Lagrangrian' via k+1 and not k,
         % since Lagrangian(1) is the constant value for the not-moving unit.
-        L_xi_dot = diff(Lagrangian(k+1), xi(p));
+        
+        % WHEN THIS IS FIXED, and I use replace_derivatives again
+        % We'll differentiate with respect to the correct position in xi,
+        % like this:
+        %L_xi_dot = diff(Lagrangian(k+1), xi(p));
+        % FOR NOW: we need to use a dxi variable.
+        L_xi_dot = diff(Lagrangian(k+1), dxi(p - velocity_start_offset));
+        
         % Then take the full time derivative:
-        ddt_L_xi_dot(count) = fulldiff( Lagrangian(k+1), sym2cell(xi));
+        ddt_L_xi_dot(count) = fulldiff( L_xi_dot, sym2cell(xi));
         % Replace the dxi* terms in the symbolic variable:
         %ddt_L_xi_dot(count) = replace_derivatives(ddt_L_xi_dot(count), xi, num_states_per_unit, debugging);
         
@@ -545,7 +549,7 @@ for k=1:N-1
         
         % Do a quick simplify. Prior work used a parallel pool here,
         % might as well do that again.
-        
+        % ...
         
         count = count+1;
     end
@@ -565,10 +569,7 @@ end
 %    variable.
 % This comparison can be seem from his line 491, where he 
 % calls D2x(i) = solve(Fx(i) == fx(i)).
-% The dimensions of fx(i) are 
-
-% CHECK: do my ddt_L_xi_dot have 2nd-order derivatives in them?
-% Jeff's do. That's where he gets the xi_dot terms to solve for.
+% The dimensions of fx(i) are 1x1.
 
 %% 9) Now, start calculating the cable forces.
 % Calculate the lengths of each cable, as well as the rate of change
@@ -576,6 +577,18 @@ end
 
 %PROGRESS_BAR
 disp('Calculating cable tensions...')
+
+% An important assumption:
+% Below, the cable "speeds", the rate-of-length-change of the cables,
+% which are scalar quantities, 
+% are calculated as a function of the system states. This assumes
+% that the rate of length change of the cables can be related directly
+% to the velocity of the tensegrity units (e.g., vertebrae).
+% This isn't necessarily clear to Drew right now: can we come up 
+% with a counterexample where these dlength/dt quantities don't relate
+% to the vertebrae velocities in the way we assume? For example, does an
+% angular velocity between two vertebrae get captured properly in these cable "speeds"?
+% Need to think more about if this is valid or not...
 
 % The length of each cable is the distance between
 % the two point masses specified by the 'connections' matrix.
@@ -638,9 +651,11 @@ for i=1:N-1
                 % as the cables become 'slack.'
                 
                 % F = k \delta x - c * d/dt (lengths)
+                % NOTE THAT it seems that dlengths_dt really contains -d/dt(lengths), 
+                % so it's a "+" here.
                 tensions(cable_num) = ...
                     connections{k,p}(1) * (lengths(cable_num) - u(cable_num)) ...
-                    - connections{k,p}(2) * dlengths_dt(cable_num);
+                    + connections{k,p}(2) * dlengths_dt(cable_num);
                 
                 % Do a quick simplify step to give the symbolic solver
                 % an easier time later.
@@ -698,7 +713,7 @@ for i=2:N
             % tension directly, let's use the symbolic tension for now, then substitute
             % back later below.
             %F_cable = tensions(k) * (tension_points(:,2,k) - tension_points(:,1,k));
-            F_cable = tensions_unsolved(k) * (tension_points(:,2,k) - tension_points(:,1,k));
+            F_cable = tensions_un(k) * (tension_points(:,2,k) - tension_points(:,1,k));
             % Run a simplify step
             F_cable = simplify(F_cable, num_simplify_steps);
             % Next, calculate (partial r \ partial q_i) for the
@@ -743,7 +758,7 @@ for i=2:N
             % tension directly, let's use the symbolic tension for now, then substitute
             % back later below.
             %F_cable = tensions(k) * (tension_points(:,1,k) - tension_points(:,2,k));
-            F_cable = tensions_unsolved(k) * (tension_points(:,1,k) - tension_points(:,2,k));
+            F_cable = tensions_un(k) * (tension_points(:,1,k) - tension_points(:,2,k));
             % Run a simplify step
             F_cable = simplify(F_cable, num_simplify_steps);
             % Next, calculate (partial r \ partial q_i) for the
@@ -786,26 +801,29 @@ disp('Calling simplify on the global cable forces, in parallel...');
 pools = gcp;
 % Each simplify has one output, and will take our input
 % alongside a set number of simplify steps.
-pf1 = parfeval(pools, @simplify, 1, global_forces(1,1), 'Steps', num_simplify_steps);
-pf2 = parfeval(pools, @simplify, 1, global_forces(2,1), 'Steps', num_simplify_steps);
-pf3 = parfeval(pools, @simplify, 1, global_forces(3,1), 'Steps', num_simplify_steps);
-%pf4 = parfeval(pools, @simplify, 1, global_forces(1,2), 'Steps', 10);
-%pf5 = parfeval(pools, @simplify, 1, global_forces(2,2), 'Steps', 10);
-%pf6 = parfeval(pools, @simplify, 1, global_forces(3,2), 'Steps', 10);
+% We'll keep a cell array of all the pools:
+% Note that N is the total number of units, including the not-moving unit.
+global_forces_pools = cell(num_states/2, N-1);
+% Index along the number of the unit, first.
+for i=1:size(global_forces,2)
+    % Then, for each of the 3 directions (x,z,theta) per unit:
+    for j=1:num_states/2
+        % Create a pool to simplify each of the (three) global forces
+        % for this unit
+        global_forces_pools{j,i} = parfeval(pools, @simplify, 1, global_forces(j,i), 'Steps', num_simplify_steps);
+    end
+end
 
+% Then, fetch the outputs from the pools:
 disp('Fetching simplified outputs from parallel pool...');
-disp('Fx, Unit 1...');
-global_forces(1,1) = fetchOutputs(pf1);
-disp('Fz, Unit 1...');
-global_forces(2,1) = fetchOutputs(pf2);
-disp('Ftheta, Unit 1...');
-global_forces(3,1) = fetchOutputs(pf3);
-%disp('Fx, Unit 2...');
-%global_forces(1,2) = fetchOutputs(pf4);
-%disp('Fz, Unit 2...');
-%global_forces(2,2) = fetchOutputs(pf5);
-%disp('Ftheta, Unit 2...');
-%global_forces(3,2) = fetchOutputs(pf6);
+% As above, index first by unit number, then by direction.
+for i=1:size(global_forces,2)
+    for j=1:num_states/2
+        disp(strcat('     Fetching forces for direction:', num2str(j), ' , for unit number: ', num2str(i)));
+        global_forces(j,i) = fetchOutputs(global_forces_pools{j,i});
+    end
+end
+
 
 %% 12) Before solving, need to express xi_dot properly.
 
@@ -828,78 +846,228 @@ for i=1:N-1
         xi_dot(k) = fulldiff(xi(k), xi(k));
     end
 end
+% xi_dot should be a column vector.
+assume(xi_dot, 'real');
+xi_dot = xi_dot';
 
 %% 13) Equate the LHS and RHS of Lagrange's equations and solve!
 
-return
-
 disp('SOLVING LAGRANGES EQUATIONS...');
 
-% The solved accelerations are
-D2xi = sym('D2xi', [num_states, 1]);
+% Note that at this point, the tensions are still
+% independent variables: we'll plug the actual tensions, as functions
+% of the system state, back into the solution once it's computed.
 
-eqn1 = ddt_L_xi_dot(1) - L_xi(1) == global_forces(1);
-eqn2 = ddt_L_xi_dot(2) - L_xi(2) == global_forces(2);
-eqn3 = ddt_L_xi_dot(3) - L_xi(3) == global_forces(3);
+% Create a symbolic array of all the equations that will be solved.
+% There will be (number of directions)*(number of moving units) equations.
+% For example, with 2 moving units, that's 3*2 = 6 equations.
+Lagr_eqns = sym('Lagr_eqns', [(num_states/2)*(N-1), 1], 'real');
+% Loop through and assign each equation:
+for i=1:length(Lagr_eqns)
+    % Unfortunately, I've used different indexing for the LHS and RHS of
+    % Lagrange's equations. The LHS are in a list, and the RHS are in
+    % a (num_states/2) x (N-1) array. For example, 3x1 for 2 tensegrity units
+    % (one static, the other moving.)
+    % This was because we iterated over the cables for the calculation of the RHS,
+    % not the units as in the LHS.
+    % However, the list is ordered according to unit, so we can say:
+    % (where "direction" is x,z, or theta, which is 1 to 3):
+    direction = mod(i-1,num_states/2) + 1;
+    % This gives, for example: i=2, direction=2, i=8, direction=2, etc.
+    % Similarly, calculate the unit number:
+    unit_num = ceil(i / (num_states/2));
+    % This gives, for example: i=2, unit=1, i=8, unit=3, etc.
+    Lagr_eqns(i) = (ddt_L_xi_dot(i) - L_xi(i) == global_forces(direction, unit_num));
+    % These look something like:
+    % ddt_L_xi_dot(1) - L_xi(1) == global_forces(1,1), ...
+    % ddt_L_xi_dot(2) - L_xi(2) == global_forces(2,1), ...
+    % ddt_L_xi_dot(3) - L_xi(3) == global_forces(3,1), ...
+    % ddt_L_xi_dot(4) - L_xi(4) == global_forces(1,2), ...
+    % ddt_L_xi_dot(5) - L_xi(5) == global_forces(2,2), ...
+    % ddt_L_xi_dot(6) - L_xi(6) == global_forces(3,2), ...
+end
 
-% The independent variables here are dxi4, dxi5, dxi6
-test = solve( ddt_L_xi_dot(1) - L_xi(1) == global_forces(1), ...
-              ddt_L_xi_dot(2) - L_xi(2) == global_forces(2), ...
-              ddt_L_xi_dot(3) - L_xi(3) == global_forces(3), ...
-              d2xi(1), d2xi(2), d2xi(3));
-               
-% This doesn't work as of 2016-11-19, 7pm.
+% Finally, solve all these equations simultaneously,
+% with the independent variables being the accelerations.
+% Make a big vector of the accelerations, noting that
+% we get one acceleration result per Lagrange's equation:
+accel_vars = sym('accel_vars',size(Lagr_eqns), 'real');
+for i=1:length(accel_vars)
+    % The acceleration variables are d2xi(1), d2xi(2), d2xi(3), d2xi(6), d2xi(7),...
+    % Indexing goes:
+    % 4 to 7
+    % 5 to 8
+    % 6 to 9
+    % 7 to 13
+    % 8 to 14
+    % 9 to 15
+    unit_num = ceil(i / (num_states/2));
+    accel_index = i + (unit_num-1)*(num_states/2);
+    accel_vars(i) = d2xi(accel_index);
+end
+
+% SOLVE LAGRANGE'S EQUATIONS! This is the culmination of all the code
+% in this script!
+d2xi_solved = solve( Lagr_eqns, accel_vars);
+
+
+%% 14) Substitute the solved tensions back into the accelerations and simplify
+
+disp('Finally, substitute tensions back into solved accelerations, and replace with states in the xi vector...');
+
+% This script produces four different forms of the equations of motion,
+% and the end-user can simulate or use any of the three depending on 
+% what the problem specifies. These four are:
+% 1) Separate acceleration and tension functions. This approach
+%       requires that the tensions function be called to calculate
+%       the cable tensions given a system state and inputs, then these
+%       tensions are used in the acceleration calculation function.
+%       This approach is useful, for example, when running Model-Predictive Control
+%       and trying to use a continous/smooth dynamics function but
+%       constrain the tensions to be non-negative.
+% 2) Separate acceleration and tension functions, with constraints
+%       included for nonnegative tensions. In this case, the
+%       tensions function is NOT smooth, since any nonnegative tensions
+%       are replaced with 0 tension. This approach is useful for
+%       simulating realistic system dynamics while checking the tensions
+%       separately for another purpose (not sure what you'd want to do,
+%       but here it is just in case!)
+% 3) Combined xi_dot function that includes both the acceleration and tension
+%       calculations, and does not include constraints on the cable tensions.
+%       This function is smooth, but it allows cables to "push".
+%       Use this function VERY CAREFULLY, since if the tensions are
+%       negative, the simulation becomes incorrect. This approach
+%       may be useful if your controller does not operate in regions
+%       of the state space where tensions are negative: if so, no need
+%       to constrain the cable tensions and make the problem more difficult
+%       than it needs to be. ALSO, this is the same sort of dynamics function
+%       that Skelton uses in his work, as well as folks working on 6-bar spherical
+%       tensegrity systems, since those are fully in tension most of the time.
+% 4) Combined xi_dot function that includes constraints on cable tensions.
+%       As with the separate tension/accel functions with constraints, this
+%       approach has non-smooth dynamics due to the constraint. This approach
+%       is probably the easiest and most realistic to use when simulating the
+%       dynamics of the system, since you don't have to consider constraints
+%       independently, and have only one function to be called instead of two.
+%       However, it does "hide" the non-smooth behavior in a sense, in that
+%       there is no real way to determine if cables are slack or in tension,
+%       other than to use this approach in combination with one of the above.
+
+%PROGRESS_BAR
+disp('Preparing acceleration solutions for dynamics approach #1...');
+% 1) Create an 'accel' function that does not substitute the tensions that were calculated.
+%    Note that d2xi_solved is a column vector, same size as accel_vars from above.
+%    The prefix "un_" is used here to designate "un-substituted".
+d2xi_solved_un = sym('d1xi_solved_un', size(accel_vars), 'real');
+% The solved accelerations, without replacing tensions_un->tensions:
+for i=1:length(d2xi_solved_un)
+    % The output of 'solve' is a struct, so the getfield
+    % function can be used to extract its elements.
+    % Note that there are still dxi terms that must be converted back
+    % into xi states, via the replace_derivatives function.
+    % Note that getfield takes a string as the second argument, not a sym.
+    d2xi_solved_un(i) = replace_derivatives(getfield(d2xi_solved, char(d2xi(i))), ...
+        xi, num_states_per_unit, debugging);
+end
+% d2xi_solved_un(1) = replace_derivatives(d2xi_solved.d2xi1, xi, num_states_per_unit, debugging);
+% d2xi_solved_un(2) = replace_derivatives(d2xi_solved.d2xi2, xi, num_states_per_unit, debugging);
+% d2xi_solved_un(3) = replace_derivatives(d2xi_solved.d2xi3, xi, num_states_per_unit, debugging);
+
+%PROGRESS_BAR
+disp('Preparing acceleration solutions for dynamics approach #3...');
+% 3) Create a single xi_dot: replace the tensions inside the accelerations
+%    This is the same as above, but now, an additional substitution step:
+d2xi_solved_sub = sym('d2xi_solved_sub', size(accel_vars), 'real');
+% We'll also need to store the solved xi_dot:
+xi_dot_soln = sym('xi_dot_soln',[num_states, 1], 'real');
+for i=1:length(d2xi_solved_sub)
+    % The output of 'solve' is a struct, so the getfield
+    % function can be used to extract its elements.
+    % Note that there are still dxi terms that must be converted back
+    % into xi states, via the replace_derivatives function.
+    % Note that getfield takes a string as the second argument, not a sym.
+    d2xi_solved_sub(i) = getfield(d2xi_solved, char(d2xi(i)));
+    % Then, substitute for the solved tensions:
+    d2xi_solved_sub(i) = subs(d2xi_solved_sub(i), tensions_un, tensions);
+    % Finally, insert into the solved xi_dot location, and perform
+    % the same derivative replacement as above.
+    % Indexing is:
+    % 1 to 4
+    % 2 to 5
+    % 3 to 6
+    % 4 to 10
+    % 5 to 11
+    % 6 to 12
+    % ...
+    unit_num = ceil(i / (num_states/2));
+    accel_index = i + unit_num*(num_states/2);
+    % Insert into the solution vector:
+    xi_dot_soln(accel_index) = replace_derivatives(d2xi_solved_sub(i), ...
+        xi, num_states_per_unit, debugging);
+    % For the xi_dot_soln vector, the appropriate xi state
+    % should also be assigned. For example, the derivative of xi(1)
+    % is xi(4), etc.
+    % Do that here, since we're indexing into the xi_dot_soln vector anyway.
+    % This looks like:
+    % xi_dot_soln(1) = xi(4);
+    % xi_dot_soln(2) = xi(5);
+    % xi_dot_soln(3) = xi(6);
+    % xi_dot_soln(7) = xi(10);
+    % ...
+    % So the indexing in terms of i is:
+    % i=1, velocity_index=1, accel_index=4;
+    % i=4, velocity_index=7, accel_index=10;
+    velocity_index = i + (unit_num-1)*(num_states/2);
+    % Insert into solution vector, recalling that 'xi'
+    % is still the same symbolic variable as at the top of this script
+    % (nothing is assigned to xi.)
+    xi_dot_soln(velocity_index) = xi(accel_index);
+end
+% d2xi_solved_sub = sym('d2xi_solved_sub', [num_states/2, 1], 'real');
+% d2xi_solved_sub(1) = subs(d2xi_solved.d2xi1, tensions_un, tensions);
+% d2xi_solved_sub(2) = subs(d2xi_solved.d2xi2, tensions_un, tensions);
+% d2xi_solved_sub(3) = subs(d2xi_solved.d2xi3, tensions_un, tensions);
+
+% Then, replace the 'dxi' terms with the approprate terms in xi
+% Create a symbolic variable to store the solution:
+%xi_dot_soln = sym('xi_dot_soln', [num_states, 1], 'real');
+% The first three terms of the solution are just the last three terms xi
+% (this means: the derivative of position is velocity, etc. Think
+% xi_dot_soln(1) = xi(4);
+% xi_dot_soln(2) = xi(5);
+% xi_dot_soln(3) = xi(6);
+% % The last three are the accelerations, with derivatives replaced.
+% xi_dot_soln(4) = replace_derivatives(d2xi_solved_sub(1), xi, num_states_per_unit, debugging);
+% xi_dot_soln(5) = replace_derivatives(d2xi_solved_sub(2), xi, num_states_per_unit, debugging);
+% xi_dot_soln(6) = replace_derivatives(d2xi_solved_sub(3), xi, num_states_per_unit, debugging);
+
+%% 15) Write MATLAB functions(s).
+
+disp('Writing MATLAB functions to files...');
+
+% For both the tensions and dlengths_dt, need to replace derivatives
+% with states in xi.
+dlengths_dt_sub = replace_derivatives(dlengths_dt, xi, num_states_per_unit, debugging);
+tensions_sub = replace_derivatives(tensions, xi, num_states_per_unit, debugging);
+
+% Need to write our lengths, dlengths_dt, tensions, 
+% and finally, xi_dot_soln.
+% Note that lengths and dlengths_dt are just functions of state,
+% but tensions and xi_dot are functions of state and inputs,
+disp('     Writing lengths function...');
+matlabFunction(lengths,'file','two_d_spine_lengths','Vars',{[xi]});
+disp('     Writing dlengths_dt function...');
+matlabFunction(dlengths_dt_sub,'file','two_d_spine_dlengths_dt','Vars',{[xi]});
+disp('     Writing tensions function...');
+matlabFunction(tensions_sub,'file','two_d_spine_tensions','Vars',{xi,u});
+disp('     Writing xi_dot function... USE THIS ONE FOR DYNAMICS SIMULATIONS.');
+matlabFunction(xi_dot_soln,'file','two_d_spine_xi_dot','Vars',{xi,u});
+% Testing: does the acceleration solution, without substituting tension, work properly?
+disp('     Writing accelerations solution, without tensions substituted... (TESTING)');
+matlabFunction(d2xi_solved_un,'file','two_d_spine_accel','Vars',{xi,tensions_un});
 
 %% Script has finished.
 
 %DEBUGGING
 disp('Complete!');
-
-
-% SOME BACKUP CODE IF NEEDED:
-
-%     % As before, calculate the indices into the state vector xi.
-%     % This is needed to specify the independent variables for differentiation.
-%     % The state variables for this unit start at intervals of num_states_per_unit apart,
-%     % and end at the next interval of num_states_per unit.
-%     % For example, in the 6-state-per-unit spine vertebra, these
-%     % intervals are 1-6, 7-12, 13-18, ...
-%     unit_index_start = 1 + (k-1)*num_states_per_unit;
-%     unit_index_end = (k)*num_states_per_unit;
-%         indep_vars = sym2cell(xi(unit_index_start:unit_index_end));
-%         %r_dot(:,p,k+1) = fulldiff(r(:,p,k+1), indep_vars);
-
-%     % Pick out the indices of the two connection points
-%     % for this specific cable.
-%     % The 'from' and 'to' unit can be found the following way:
-%     
-%     % From: round down the index i divided by the number of cables per unit,
-%     % noting that an offset of 1 is required in two places. 
-%     % For our Y-spine example, cables 1-4 should have a 'from' of 1,
-%     % and cables 5-8 should have a 'from' of 2.
-%     from_unit = floor((i-1)/num_cables_per_unit) + 1;
-%     % To: we could either round up the division of the index i by that
-%     % same thing, or, we could just add one to from_unit, noting that
-%     % we're always assuming that cables connect two adjacent units.
-%     to_unit = from_unit + 1;
-
-% tension_vec = sym('tension_vec', [num_cables, 2]);
-% % Since we're assuming positive tension,
-% % that means that each of these stored cable forces
-% % will be acting in the + direction against the "upper" of 
-% % the two units it connects to.
-% % TO-DO: work through what happens when the tension forces
-% % are in either the -x or -z direction, as with the saddle cables.
-
-%                 % Now that the tension is expressed as a scalar, project it 
-%                 % along the position vector of the cable.
-%                 % TO-DO: could we calculate forces as vectors directly and skip this step?
-%                 tension_vec(cable_num) = tensions(cable_num) * (to_node - from_node);
-%                 % ...note that these vectors are now in the LOCAL coordinate system 
-%                 % of the "to" unit.
-%                 % Do a simplification step, as always.
-%                 tension_vec(cable_num) = simplify(tension_vec(cable_num));
-
-
-
 
