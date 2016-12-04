@@ -69,7 +69,8 @@ L=0.2; %m, Edge of tetra
 %tetrahedron are multiplied by the same translations repeatedly... this way
 %coupled actuation is straightforward if you kinematically constrain
 %yourself to these 4 degrees of freedom
-z = 0.075; %vertical height
+% z = 0.075; %vertical height
+z = 0.75; %vertical height
 xR = 0;    %x rotation bending
 yR = 0;    %y rotation bending
 zR = 0;    %torsional rotation

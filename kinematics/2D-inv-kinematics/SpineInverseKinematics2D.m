@@ -24,7 +24,7 @@ w = sqrt(length^2-(h/2)^2); % width from center of tetra
 
 % Mass and force parameters
 g = spine_geometric_parameters.g; % m/s^2
-m = spine_geometric_parameters.m; % kg
+m = 10*spine_geometric_parameters.m; % kg/node
 
 % Number of bars, cables, and nodes
 r = 6; % bars
@@ -70,8 +70,8 @@ C = [C_free C_fixed];
 
 %% VARIABLES: Translation and rotation of free tetrahedron
 xTrans = 0*w; % horizontal translation
-zTrans = 6/3*h; % vertical translation
-theta = pi/20; % rotation (degrees)
+zTrans = 2*h; % vertical translation
+theta = 0; % rotation (radians)
 
 %% Nodal Positions
 % Coordinate system such that nodes 6 and 8 are on the x axis and nodes 5
@@ -116,8 +116,6 @@ plot(x_free,z_free,'r.','MarkerSize',10)
 % plot_2d_spine([xTrans zTrans theta],geometry)
 
 %% Lengths of Bars and Cables
-% Don't actually need this, but started making it because it was in Schek's
-% paper.
 
 % Rows 1-6 are bars
 % Rows 7-10 are cables
@@ -137,9 +135,9 @@ l = [ length;  % 1
 L = diag(l);
 L_cables = diag(l(7:10));
 
-%% Loading of the tetrahedrons
+%% Loading of the Tetrahedrons
 % Assume equal distribution of mass at point nodes. Bottom four (fixed)
-% nodes support weight of top four (free) nodes.
+% nodes support weight of structure.
 px = zeros(n,1);
 pz = [-m*g*ones(n/2,1); m*g*ones(n/2,1)];
 p = [px; pz];
@@ -156,7 +154,7 @@ A = [C'*diag(C*x);
 As = A(:,end-(s-1):end);
 
 % VARIABLE: Minimum force densities for each cable
-c = zeros(s,1);
+c = 0.1*ones(s,1);
 
 % Moore-Penrose Pseudoinverse
 As_pinv = pinv(As);
@@ -169,12 +167,12 @@ Aineq = -V;
 bineq = -(c - As_pinv*p);
 
 % Call QUADPROG
-wOpt = quadprog(H,f,Aineq,bineq);
+wOpt = quadprog(H,f,Aineq,bineq)
 
 % Find q
-qOpt = As_pinv*p + V*wOpt;
+qOpt = As_pinv*p + V*wOpt
 
-%% Find the Forces in the Cables
+% Find the Forces in the cables
 f = L_cables*qOpt
 
 %% Set Up Optimization Problem (Bars and Cables)
@@ -200,13 +198,14 @@ f = L_cables*qOpt
 % % Find q
 % qOpt = A_pinv*p + V*wOpt
 % 
-% % Solve with YALMIP
-% yalmip('clear')
-% w = sdpvar(size(V,2),1);
-% options = sdpsettings('solver','quadprog','verbose',2);
-% obj = w'*(V'*V)*w + 2*w'*V'*As_pinv*p;
-% constr = As_pinv*p + V*w - c >= 0;
-% optimize(constr,obj,options)
-% % optimize(constr,obj)
-% wOpt_Y = value(w)
-% qOpt_Y = As_pinv*p + V*wOpt_Y
+% Solve with YALMIP
+yalmip('clear')
+w = sdpvar(size(V,2),1);
+options = sdpsettings('solver','quadprog','verbose',2);
+obj = w'*(V'*V)*w + 2*w'*V'*As_pinv*p;
+constr = As_pinv*p + V*w - c >= 0;
+optimize(constr,obj,options)
+% optimize(constr,obj)
+wOpt_Y = value(w)
+qOpt_Y = As_pinv*p + V*wOpt_Y
+f = L_cables*qOpt_Y
