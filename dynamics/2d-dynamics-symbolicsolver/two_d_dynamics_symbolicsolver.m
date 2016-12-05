@@ -42,6 +42,12 @@ close all;
 % This is useful to see the symbolic variables that are created.
 debugging = 1;
 
+% Some paths to the files that will be saved.
+% These are the names of the functions and files that are generated at the
+% end of this script. Change these to whatever you want!
+% They are all relative paths with respect to the current folder.
+two_d_geometry_path = 'two_d_geometry.mat';
+
 % As of 2016-11-13, fulldiff uses some functionality
 % that apparently will be deprecated in a future release of MATLAB.
 % For now, turn off that warning.
@@ -120,7 +126,33 @@ a = [ 0,        0; ...
 % point masses there are per unit:
 num_pm_unit = size(a,2);
 % ... again noting that a is transposed.
-  
+
+% This script, itself, does not depend on the connections between
+% point masses within a unit. They could be connected in any way,
+% it doesn't matter. HOWEVER, for plotting purposes,
+% it's useful to define which node-node connections should be
+% plotted.
+% Call these "bars" since the tensegrity unit will consist
+% of bars that connect nodes. 
+% Note that this matrix must be symmetric:
+% If point 2 is connected to point 3, then point 3
+% is connected to point 2 by definition.
+% THUS, BY CONVENTION, use the lower triangle
+% Enforce this by putting "NaN"
+% in the places that we won't be using.
+% Note also that there should be no "1"s along the
+% main diagonal: nodes don't connect to themselves.
+% The "NaN" function generates matrices of NaN,
+% and the "triu" generates upper triangular matrices.
+bars = triu(NaN(num_pm_unit, num_pm_unit));
+%bars = zeros(num_pm_unit, num_pm_unit);
+% Insert a "1" where two nodes are connected.
+% For our specific example, each of the outer nodes
+% is connected to the center node, and that's it.
+bars(2,1) = 1;
+bars(3,1) = 1;
+bars(4,1) = 1;
+
 % Similarly, define the mass of each point mass.
 % This could be done either of the following ways, you pick,
 % depending on if the mass in each unit is evenly distributed
@@ -179,7 +211,8 @@ connections = cell(num_pm_unit, num_pm_unit);
 % vertebra connects to node 3 of the vertebra above it, 
 % but it's not true that node 3 from a lower vertebra connects to 
 % node 4 of the vertebra above it.
-% For our specific example, the following nodes are connected,
+% For our specific example, the following nodes have cable connections
+% between them,
 % with 2 vertical and 2 saddle cables:
 connections{2,2} = [k_vert, c_vert];
 connections{3,3} = [k_vert, c_vert];
@@ -201,6 +234,26 @@ num_cables = num_cables_per_unit*(N-1);
 % Think about it this way: there is no set of cables reaching "upward"
 % from the final unit.
 
+% Save all of this geometry information in a struct, for plotting later.
+two_d_geometry.N = N;
+two_d_geometry.g = g; % even though this isn't geometry, it's useful to save.
+two_d_geometry.a = a;
+two_d_geometry.num_pm_unit = num_pm_unit;
+two_d_geometry.bars = bars;
+two_d_geometry.connections = connections;
+two_d_geometry.connections_locations = connections_locations;
+two_d_geometry.num_cables_per_unit = num_cables_per_unit;
+two_d_geometry.num_cables = num_cables;
+% For backwards compatibility: if the leg length and height variables
+% are declared, save them too.
+if exist('leg','var')
+    % I had called this "l" in the past.
+    two_d_geometry.l = leg;
+end
+if exist('h','var')
+    two_d_geometry.h = h;
+end
+
 %% 3) Create the symbolic variables for the solver to use
 
 %PROGRESS_BAR
@@ -218,6 +271,10 @@ disp('Creating symbolic variables...');
 % the number of state variables is
 num_states_per_unit = 6;
 num_states = (N-1)*num_states_per_unit;
+
+% Add this to the geometry struct, too.
+two_d_geometry.num_states_per_unit = num_states_per_unit;
+two_d_geometry.num_states = num_states;
 
 % NOTE that we constrain these symbolic variables
 % to be in the real numbers. Complex-number distance vectors
@@ -306,7 +363,7 @@ tensions_un = sym('tensions_un', size(tensions));
 % So, the third column here are the "from" and "to" indices
 % of a specific cable, thus a 2x3 matrix.
 % An example would be:
-% [ rx_from, rzfrom; rx_to, rz_to; 2, 3]'
+% [ rx_from, rz_from; rx_to, rz_to; 2, 3]'
 % ...for a cable connecting units 2 and 3, with the from node
 % located on unit 2, and the to node on unit 3.
 tension_points = sym('tension_points', [2, 3, num_cables]);
@@ -606,8 +663,12 @@ for i=1:N-1
     % Then, let's iterate over the connections matrix,
     % calculating lengths if we find a 1.
     % Iterate row-wise.
-    for k=1:num_cables_per_unit
-        for p=1:num_cables_per_unit
+    % TO-DO: should these be indexed according to point masses
+    % or according to cables? I believe the connections_locations matrix
+    % is of size (num_pm_unit)x(num_pm_unit).
+    %for k=1:num_cables_per_unit
+    for k=1:num_pm_unit
+        for p=1:num_pm_unit
             % If there is a cable between these indices:
             % (note that we can use the connections_locations 
             %  matrix here, since that's already calculated,
@@ -1049,6 +1110,9 @@ disp('Writing MATLAB functions to files...');
 % with states in xi.
 dlengths_dt_sub = replace_derivatives(dlengths_dt, xi, num_states_per_unit, debugging);
 tensions_sub = replace_derivatives(tensions, xi, num_states_per_unit, debugging);
+
+% Save the geometry struct:
+save(two_d_geometry_path, 'two_d_geometry');
 
 % Need to write our lengths, dlengths_dt, tensions, 
 % and finally, xi_dot_soln.

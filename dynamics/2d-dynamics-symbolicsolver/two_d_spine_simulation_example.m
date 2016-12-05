@@ -16,9 +16,9 @@ clc;
 % Simulation timestep
 dt = 0.001;
 % Geometry of the spine, for plotting purposes
-spine_geometric_parameters_path = 'spine_geometric_parameters_2D.mat';
-load(spine_geometric_parameters_path);
-% ...so now, there should be a struct called 'spine_geometric_parameters' in the workspace.
+geometry_path = 'two_d_geometry.mat';
+load(geometry_path);
+% ...so now, there should be a struct called 'two_d_geometry' in the workspace.
 
 %% 3) Set up the simulation
 
@@ -53,7 +53,7 @@ figure;
 hold on;
 axis([-0.2, 0.2, -0.1, 0.3]);
 % Plot the first location of the spine:
-handles = plot_2d_spine(xi(:,1), spine_geometric_parameters);
+handles = plot_2d_spine(xi(:,1), two_d_geometry);
 drawnow;
 
 for i=1:steps
@@ -69,7 +69,7 @@ for i=1:steps
         delete(handles{j});
     end
     % plot:
-    handles = plot_2d_spine(xi(:,i+1), spine_geometric_parameters);
+    handles = plot_2d_spine(xi(:,i+1), two_d_geometry);
     drawnow;
 end
 
