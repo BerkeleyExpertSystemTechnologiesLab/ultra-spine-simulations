@@ -23,6 +23,7 @@ a = geometry.a;
 num_pm_unit = geometry.num_pm_unit;
 bars = geometry.bars;
 connections_locations = geometry.connections_locations;
+num_states_per_unit = geometry.num_states_per_unit;
 
 % From the xi state vector passed in, calculate the number of states:
 num_states = length(xi);
@@ -68,19 +69,19 @@ end
 % Call the locations of the moving nodes "b".
 % In order to not have a special case for unit 2,
 % let's insert the "a" matrix as the first element of b.
-b = zeros(size(a), N);
+b = zeros([size(a), N]);
 b(:,:,1) = a;
 
 % For each moving unit:
-for unit = 2:(N)
+for unit = 2:N
     % 2.1) Calculate the node locations for this unit.
     % The theta coordinate for this unit is:
-    % unit=1, theta=3
-    % unit=2, theta=9
-    % unit=3, theta=15
+    % unit=2, theta=3
+    % unit=3, theta=9
+    % unit=4, theta=15
     % ...
-    % Example: -1 * 3 + 6 == -3 + 6 == 3.
-    theta_index = (unit-)*(num_states_per_unit/2) + num_states_per_unit;
+    % Example: -(1-2) * 3 + 6 == -3 + 6 == 3.
+    theta_index = (unit-2)*(num_states_per_unit/2) + num_states_per_unit;
     theta = xi(theta_index);
     % Also pick out the x,z states for this unit.
     % TO-DO: clean up this code, bad indexing.
@@ -90,7 +91,7 @@ for unit = 2:(N)
     % These are the locations a, translated by (x,z), and rotated by theta.
     % The rotation matrix for this given angle of theta is:
     rot = [ cos(theta),    -sin(theta);
-            sin(theta),     cos(theta];
+            sin(theta),     cos(theta)];
     % We need to multiply each point in a by rot,
     % and add the (x,z) offset from the xi state vector.
     % To make this easier, so that we can use matrix algebra,
@@ -126,8 +127,8 @@ for unit = 2:(N)
                 % Plot between this unit
                 % and the one below it.
                 % The "from", at unit i, comes first, then the "to" at unit j.
-                handles{end+1} = line( [b(i,1,unit-1), b(j,1,unit)], ...
-                    [b(i,2,unit-1), b(j,2,unit)], 'Color', 'b');
+                handles{end+1} = line( [b(1,i,unit-1), b(1,j,unit)], ...
+                    [b(2,i,unit-1), b(2,j,unit)], 'Color', 'b');
             end
         end
     end
