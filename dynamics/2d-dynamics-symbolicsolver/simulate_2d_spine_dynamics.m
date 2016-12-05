@@ -71,8 +71,9 @@ for i = 1:num_steps
             % this method.
             xi_dot = two_d_spine_xi_dot(xi, inputs);
         case 4
-            disp('Case 4 not supported at the moment.');
-            xi_dot = zeros(6,1);
+            % Approach 4 uses the xi_dot function with the logistic
+            % barrier on the tensions included.
+            xi_dot = two_d_spine_xi_dot_barrier(xi, inputs);
     end
     % Next, now that xi_dot is calculated, 
     % Forward-Euler integration:

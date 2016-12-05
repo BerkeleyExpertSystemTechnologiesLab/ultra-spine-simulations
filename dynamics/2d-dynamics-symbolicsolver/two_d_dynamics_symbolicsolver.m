@@ -186,7 +186,7 @@ else
     assert( (size(m,1) == num_pm_unit) && (size(m,2) == 1), error_msg);
 end
 
-% Lastly, define the cables that connect adjacent units.
+% Next, define the cables that connect adjacent units.
 % These are modeled as spring-damper systems, F = k \delta x - c dx/dt.
 % In order to determine the lengths of these cables, 
 % let's create a "connectivity matrix" that represents
@@ -258,6 +258,15 @@ end
 if exist('h','var')
     two_d_geometry.h = h;
 end
+
+% For the logistic barrier function, declare two constants that control
+% its form and location.
+% See below for more information about what these are and what they do.
+% Take a look at the Wikipedia page about analytic approximations to 
+% the step function:
+% https://en.wikipedia.org/wiki/Heaviside_step_function#Analytic_approximations
+logistic_k = 500;
+logistic_x0 = 0.01;
 
 %% 3) Create the symbolic variables for the solver to use
 
@@ -977,6 +986,41 @@ end
 % in this script!
 d2xi_solved = solve( Lagr_eqns, accel_vars);
 
+%% 14) Create a version of the solved tensions that includes a barrier-function constraint
+
+% One possible way to solve the "negative tensions" problem
+% would be to constrain all the cable forces to be nonnegative, manually
+% changing any negative tensions to 0 if they are negative.
+% Another approach would be to multiply the tension functions by
+% some approximation to the step function: if tension is less than 0,
+% then this step function makes the tension zero.
+
+% A smooth approximation to the unit-step function is the logistic function:
+% https://en.wikipedia.org/wiki/Logistic_function
+% This is of the form: f(x) = 1 / (1 + exp( -k*(x-x0))),
+% where k is the steepness of the curve,
+% and x0 is the midpoint of the curve (which is effectively
+% an offset, laterally, from x=0.)
+% These constants are declared above as k_logistic, x0_logistic.
+
+% First, do a replace_derivatives step on the tensions, so they don't
+% have to be modified later:
+tensions_sub = replace_derivatives(tensions, xi, num_states_per_unit, debugging);
+
+% A new symbolic variable for the tensions with barrier:
+tensions_sub_barrier = tensions_sub;
+
+% For each tension force, add a barrier function:
+for i=1:length(tensions_sub_barrier)
+    % The new logistic function looks like
+    % f(x) = 1 / (1 + exp( -k*(x-x0)))
+    logistic_func = 1 / (1 + ...
+        exp(-logistic_k*(tensions_sub_barrier(i) - logistic_x0)));
+    % The rectified tension is then the original tension
+    % multiplied by this logistic function.
+    tensions_sub_barrier(i) = logistic_func*tensions_sub_barrier(i);
+end
+
 
 %% 14) Substitute the solved tensions back into the accelerations and simplify
 
@@ -1036,14 +1080,10 @@ for i=1:length(d2xi_solved_un)
     d2xi_solved_un(i) = replace_derivatives(getfield(d2xi_solved, char(d2xi(i))), ...
         xi, num_states_per_unit, debugging);
 end
-% Finally, the tensions themselves just need a replace_derivatives step:
-tensions_sub = replace_derivatives(tensions, xi, num_states_per_unit, debugging);
 
 %PROGRESS_BAR
 disp('Preparing acceleration solutions for dynamics approach #2...');
-% 2) This approach uses the accel function as above, but we need to 
-%    include a constraint on the tensions.
-tensions_sub_piecewise = (tensions_sub >= 0).*tensions_sub;
+disp('     tensions_sub_barrier was created above.');
 
 %PROGRESS_BAR
 disp('Preparing acceleration solutions for dynamics approach #3...');
@@ -1100,24 +1140,24 @@ end
 disp('Preparing accelerations solutions for dynamics approach #4...');
 % 4) Create a single xi_dot: replace the tensions inside the accelerations
 %    This is the same as above, but now, an additional substitution step on
-%    the tensions, using the tensions with piecewise behavior.
-d2xi_solved_sub_pw = sym('d2xi_solved_sub_pw', size(accel_vars), 'real');
+%    the tensions, using the tensions with the barrier function included.
+d2xi_solved_sub_barrier = sym('d2xi_solved_sub_barrier', size(accel_vars), 'real');
 % We'll also need to store the solved xi_dot:
-xi_dot_soln_pw = sym('xi_dot_soln_pw',[num_states, 1], 'real');
-for i=1:length(d2xi_solved_sub_pw)
+xi_dot_soln_barrier = sym('xi_dot_soln_barrier',[num_states, 1], 'real');
+for i=1:length(d2xi_solved_sub_barrier)
     % The output of 'solve' is a struct, so the getfield
     % function can be used to extract its elements.
     % Note that there are still dxi terms that must be converted back
     % into xi states, via the replace_derivatives function.
     % Note that getfield takes a string as the second argument, not a sym.
-    d2xi_solved_sub_pw(i) = getfield(d2xi_solved, char(d2xi(i)));
+    d2xi_solved_sub_barrier(i) = getfield(d2xi_solved, char(d2xi(i)));
     % Differently than above: do the replace_derivatives step now, before 
     % substitution, since tensions_sub_piecewise already has its derivatives replaced.
-    d2xi_solved_sub_pw(i) = replace_derivatives(d2xi_solved_sub_pw(i), xi, ...
+    d2xi_solved_sub_barrier(i) = replace_derivatives(d2xi_solved_sub_barrier(i), xi, ...
         num_states_per_unit, debugging);
     % Then, substitute for the solved tensions, using the piecewise 
     % symbolic expression from above:
-    d2xi_solved_sub_pw(i) = subs(d2xi_solved_sub_pw(i), tensions_un, tensions_sub_piecewise);
+    d2xi_solved_sub_barrier(i) = subs(d2xi_solved_sub_barrier(i), tensions_un, tensions_sub_barrier);
     % Finally, insert into the solved xi_dot location, and perform
     % the same derivative replacement as above.
     % Indexing is:
@@ -1132,7 +1172,7 @@ for i=1:length(d2xi_solved_sub_pw)
     unit_num = ceil(i / (num_states/2));
     accel_index = i + unit_num*(num_states/2);
     % Insert into the solution vector:
-    xi_dot_soln_pw(accel_index) = d2xi_solved_sub_pw(i);
+    xi_dot_soln_barrier(accel_index) = d2xi_solved_sub_barrier(i);
     % For the xi_dot_soln vector, the appropriate xi state
     % should also be assigned. For example, the derivative of xi(1)
     % is xi(4), etc.
@@ -1150,7 +1190,7 @@ for i=1:length(d2xi_solved_sub_pw)
     % Insert into solution vector, recalling that 'xi'
     % is still the same symbolic variable as at the top of this script
     % (nothing is assigned to xi.)
-    xi_dot_soln_pw(velocity_index) = xi(accel_index);
+    xi_dot_soln_barrier(velocity_index) = xi(accel_index);
 end
 
 %% 15) Write MATLAB functions(s).
@@ -1183,8 +1223,8 @@ matlabFunction(d2xi_solved_un,'file','two_d_spine_accel','Vars',{xi,tensions_un}
 %PROGRESS_BAR
 disp('     Writing functions for dynamics approach #2:');
 disp('     (Note: please use the same accel function as approach 1).');
-disp('     Writing the tensions function with piecewise behavior...');
-matlabFunction(tensions_sub_piecewise,'file','two_d_spine_tensions_pw','Vars',{xi,u});
+disp('     Writing the tensions function with barrier included...');
+matlabFunction(tensions_sub_barrier,'file','two_d_spine_tensions_barrier','Vars',{xi,u});
 
 %PROGRESS_BAR
 disp('     Writing functions for dynamics approach #3:');
@@ -1193,8 +1233,8 @@ matlabFunction(xi_dot_soln,'file','two_d_spine_xi_dot','Vars',{xi,u});
 
 %PROGRESS_BAR
 disp('     Writing functions for dynamics approach #4:');
-disp('     Writing xi_dot piecewise function...');
-matlabFunction(xi_dot_soln_pw,'file','two_d_spine_xi_dot_pw','Vars',{xi,u});
+disp('     Writing xi_dot, with barrier function...');
+matlabFunction(xi_dot_soln_barrier,'file','two_d_spine_xi_dot_barrier','Vars',{xi,u});
 
 %% Script has finished.
 

@@ -24,7 +24,7 @@ load(geometry_path);
 % Specifically, we can include slack-cable constraints or not.
 % This parameter determines which approach to take.
 % See the dynamics derivation script for more information.
-dyn_type = 2;
+dyn_type = 4;
 
 disp(strcat('Using dynamics approach #', num2str(dyn_type), ', for xi_dot calculations.'));
 
