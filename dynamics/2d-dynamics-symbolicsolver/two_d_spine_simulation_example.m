@@ -20,6 +20,14 @@ geometry_path = 'two_d_geometry.mat';
 load(geometry_path);
 % ...so now, there should be a struct called 'two_d_geometry' in the workspace.
 
+% For the dynamics simulation, there are multiple ways to calculate the dynamics.
+% Specifically, we can include slack-cable constraints or not.
+% This parameter determines which approach to take.
+% See the dynamics derivation script for more information.
+dyn_type = 2;
+
+disp(strcat('Using dynamics approach #', num2str(dyn_type), ', for xi_dot calculations.'));
+
 %% 3) Set up the simulation
 
 % The initial conditions of the spine will be: not moving,
@@ -63,7 +71,7 @@ for i=1:steps
     % Note that we're not using any of the multiple-step functionality that's 
     % built-in to simulate_2d_spine_dynamics, e.g., only one forward-Euler integration
     % per call to simulate_2_spine_dynamics.
-    xi(:,i+1) = simulate_2d_spine_dynamics(xi(:,i), u, dt, 1);
+    xi(:,i+1) = simulate_2d_spine_dynamics(xi(:,i), u, dt, 1, dyn_type);
     % Plot the vertebrae at this timestep:
     % clear the window
     for j = 1:length(handles)

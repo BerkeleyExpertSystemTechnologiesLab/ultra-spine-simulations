@@ -62,6 +62,11 @@ num_simplify_steps = 100;
 % of the script during its calculations.
 % Those are labelled 'PROGRESS_BAR'.
 
+%PROGRESS_BAR
+disp('*********************************');
+disp('Two-Dimensional Tensegrity Dynamics Symbolic Solver');
+disp(' ');
+
 % Some other parameters to look at:
 % the 'equal_masses' flag in the following section,
 % ...
@@ -1031,9 +1036,14 @@ for i=1:length(d2xi_solved_un)
     d2xi_solved_un(i) = replace_derivatives(getfield(d2xi_solved, char(d2xi(i))), ...
         xi, num_states_per_unit, debugging);
 end
-% d2xi_solved_un(1) = replace_derivatives(d2xi_solved.d2xi1, xi, num_states_per_unit, debugging);
-% d2xi_solved_un(2) = replace_derivatives(d2xi_solved.d2xi2, xi, num_states_per_unit, debugging);
-% d2xi_solved_un(3) = replace_derivatives(d2xi_solved.d2xi3, xi, num_states_per_unit, debugging);
+% Finally, the tensions themselves just need a replace_derivatives step:
+tensions_sub = replace_derivatives(tensions, xi, num_states_per_unit, debugging);
+
+%PROGRESS_BAR
+disp('Preparing acceleration solutions for dynamics approach #2...');
+% 2) This approach uses the accel function as above, but we need to 
+%    include a constraint on the tensions.
+tensions_sub_piecewise = (tensions_sub >= 0).*tensions_sub;
 
 %PROGRESS_BAR
 disp('Preparing acceleration solutions for dynamics approach #3...');
@@ -1085,23 +1095,63 @@ for i=1:length(d2xi_solved_sub)
     % (nothing is assigned to xi.)
     xi_dot_soln(velocity_index) = xi(accel_index);
 end
-% d2xi_solved_sub = sym('d2xi_solved_sub', [num_states/2, 1], 'real');
-% d2xi_solved_sub(1) = subs(d2xi_solved.d2xi1, tensions_un, tensions);
-% d2xi_solved_sub(2) = subs(d2xi_solved.d2xi2, tensions_un, tensions);
-% d2xi_solved_sub(3) = subs(d2xi_solved.d2xi3, tensions_un, tensions);
 
-% Then, replace the 'dxi' terms with the approprate terms in xi
-% Create a symbolic variable to store the solution:
-%xi_dot_soln = sym('xi_dot_soln', [num_states, 1], 'real');
-% The first three terms of the solution are just the last three terms xi
-% (this means: the derivative of position is velocity, etc. Think
-% xi_dot_soln(1) = xi(4);
-% xi_dot_soln(2) = xi(5);
-% xi_dot_soln(3) = xi(6);
-% % The last three are the accelerations, with derivatives replaced.
-% xi_dot_soln(4) = replace_derivatives(d2xi_solved_sub(1), xi, num_states_per_unit, debugging);
-% xi_dot_soln(5) = replace_derivatives(d2xi_solved_sub(2), xi, num_states_per_unit, debugging);
-% xi_dot_soln(6) = replace_derivatives(d2xi_solved_sub(3), xi, num_states_per_unit, debugging);
+%PROGRESS_BAR
+disp('Preparing accelerations solutions for dynamics approach #4...');
+% 4) Create a single xi_dot: replace the tensions inside the accelerations
+%    This is the same as above, but now, an additional substitution step on
+%    the tensions, using the tensions with piecewise behavior.
+d2xi_solved_sub_pw = sym('d2xi_solved_sub_pw', size(accel_vars), 'real');
+% We'll also need to store the solved xi_dot:
+xi_dot_soln_pw = sym('xi_dot_soln_pw',[num_states, 1], 'real');
+for i=1:length(d2xi_solved_sub_pw)
+    % The output of 'solve' is a struct, so the getfield
+    % function can be used to extract its elements.
+    % Note that there are still dxi terms that must be converted back
+    % into xi states, via the replace_derivatives function.
+    % Note that getfield takes a string as the second argument, not a sym.
+    d2xi_solved_sub_pw(i) = getfield(d2xi_solved, char(d2xi(i)));
+    % Differently than above: do the replace_derivatives step now, before 
+    % substitution, since tensions_sub_piecewise already has its derivatives replaced.
+    d2xi_solved_sub_pw(i) = replace_derivatives(d2xi_solved_sub_pw(i), xi, ...
+        num_states_per_unit, debugging);
+    % Then, substitute for the solved tensions, using the piecewise 
+    % symbolic expression from above:
+    d2xi_solved_sub_pw(i) = subs(d2xi_solved_sub_pw(i), tensions_un, tensions_sub_piecewise);
+    % Finally, insert into the solved xi_dot location, and perform
+    % the same derivative replacement as above.
+    % Indexing is:
+    % 1 to 4
+    % 2 to 5
+    % 3 to 6
+    % 4 to 10
+    % 5 to 11
+    % 6 to 12
+    % ...
+    % TO-DO: should this be num_states_per_unit?
+    unit_num = ceil(i / (num_states/2));
+    accel_index = i + unit_num*(num_states/2);
+    % Insert into the solution vector:
+    xi_dot_soln_pw(accel_index) = d2xi_solved_sub_pw(i);
+    % For the xi_dot_soln vector, the appropriate xi state
+    % should also be assigned. For example, the derivative of xi(1)
+    % is xi(4), etc.
+    % Do that here, since we're indexing into the xi_dot_soln vector anyway.
+    % This looks like:
+    % xi_dot_soln(1) = xi(4);
+    % xi_dot_soln(2) = xi(5);
+    % xi_dot_soln(3) = xi(6);
+    % xi_dot_soln(7) = xi(10);
+    % ...
+    % So the indexing in terms of i is:
+    % i=1, velocity_index=1, accel_index=4;
+    % i=4, velocity_index=7, accel_index=10;
+    velocity_index = i + (unit_num-1)*(num_states/2);
+    % Insert into solution vector, recalling that 'xi'
+    % is still the same symbolic variable as at the top of this script
+    % (nothing is assigned to xi.)
+    xi_dot_soln_pw(velocity_index) = xi(accel_index);
+end
 
 %% 15) Write MATLAB functions(s).
 
@@ -1110,7 +1160,6 @@ disp('Writing MATLAB functions to files...');
 % For both the tensions and dlengths_dt, need to replace derivatives
 % with states in xi.
 dlengths_dt_sub = replace_derivatives(dlengths_dt, xi, num_states_per_unit, debugging);
-tensions_sub = replace_derivatives(tensions, xi, num_states_per_unit, debugging);
 
 % Save the geometry struct:
 save(two_d_geometry_path, 'two_d_geometry');
@@ -1119,17 +1168,33 @@ save(two_d_geometry_path, 'two_d_geometry');
 % and finally, xi_dot_soln.
 % Note that lengths and dlengths_dt are just functions of state,
 % but tensions and xi_dot are functions of state and inputs,
-disp('     Writing lengths function...');
+disp('     Writing lengths function (not used, for debugging only)...');
 matlabFunction(lengths,'file','two_d_spine_lengths','Vars',{[xi]});
-disp('     Writing dlengths_dt function...');
+disp('     Writing dlengths_dt function (not used, for debugging only)...');
 matlabFunction(dlengths_dt_sub,'file','two_d_spine_dlengths_dt','Vars',{[xi]});
+
+%PROGRESS_BAR
+disp('     Writing functions for dynamics approach #1:');
 disp('     Writing tensions function...');
 matlabFunction(tensions_sub,'file','two_d_spine_tensions','Vars',{xi,u});
-disp('     Writing xi_dot function... USE THIS ONE FOR DYNAMICS SIMULATIONS.');
-matlabFunction(xi_dot_soln,'file','two_d_spine_xi_dot','Vars',{xi,u});
-% Testing: does the acceleration solution, without substituting tension, work properly?
-disp('     Writing accelerations solution, without tensions substituted... (TESTING)');
+disp('     Writing accelerations solution, without tensions substituted...');
 matlabFunction(d2xi_solved_un,'file','two_d_spine_accel','Vars',{xi,tensions_un});
+
+%PROGRESS_BAR
+disp('     Writing functions for dynamics approach #2:');
+disp('     (Note: please use the same accel function as approach 1).');
+disp('     Writing the tensions function with piecewise behavior...');
+matlabFunction(tensions_sub_piecewise,'file','two_d_spine_tensions_pw','Vars',{xi,u});
+
+%PROGRESS_BAR
+disp('     Writing functions for dynamics approach #3:');
+disp('     Writing xi_dot function...');
+matlabFunction(xi_dot_soln,'file','two_d_spine_xi_dot','Vars',{xi,u});
+
+%PROGRESS_BAR
+disp('     Writing functions for dynamics approach #4:');
+disp('     Writing xi_dot piecewise function...');
+matlabFunction(xi_dot_soln_pw,'file','two_d_spine_xi_dot_pw','Vars',{xi,u});
 
 %% Script has finished.
 
