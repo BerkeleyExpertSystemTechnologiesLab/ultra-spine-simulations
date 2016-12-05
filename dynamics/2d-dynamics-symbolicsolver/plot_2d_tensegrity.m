@@ -80,8 +80,8 @@ for unit = 2:N
     % unit=3, theta=9
     % unit=4, theta=15
     % ...
-    % Example: -(1-2) * 3 + 6 == -3 + 6 == 3.
-    theta_index = (unit-2)*(num_states_per_unit/2) + num_states_per_unit;
+    % Example: -(2-3) * 3 + 6 == -1*3 + 6 == -3 + 6 == 3.
+    theta_index = (unit-3)*(num_states_per_unit/2) + num_states_per_unit;
     theta = xi(theta_index);
     % Also pick out the x,z states for this unit.
     % TO-DO: clean up this code, bad indexing.
