@@ -802,7 +802,7 @@ for i=2:N
                 global_forces(q, i-1) = global_forces(q, i-1) + force_addition;
                 %DEBUGGING
                 if debugging
-                    disp(strcat('Contribution to global force for unit ', num2str(i), ' in direction ', num2str(q), ' was ', char( force_addition )));
+                    disp(strcat('Contribution to global force for unit ', num2str(i), ' in direction ', num2str(q), ' was: ', char( force_addition )));
                 end
             end
         % Now, also check if this cable is, instead, a "to" for this unit:
@@ -847,7 +847,7 @@ for i=2:N
                 global_forces(q, i-1) = global_forces(q, i-1) + force_addition;
                 %DEBUGGING
                 if debugging
-                    disp(strcat('Contribution to global force for unit ', num2str(i), ' in direction ', num2str(q), ' was ', char( force_addition )));
+                    disp(strcat('Contribution to global force for unit ', num2str(i), ' in direction ', num2str(q), ' was: ', char( force_addition )));
                 end
             end
         end
@@ -864,11 +864,12 @@ pools = gcp;
 % alongside a set number of simplify steps.
 % We'll keep a cell array of all the pools:
 % Note that N is the total number of units, including the not-moving unit.
-global_forces_pools = cell(num_states/2, N-1);
+% There are 6 states per unit, and 3 "directions" of (x,z,theta).
+global_forces_pools = cell(num_states_per_unit/2, N-1);
 % Index along the number of the unit, first.
 for i=1:size(global_forces,2)
     % Then, for each of the 3 directions (x,z,theta) per unit:
-    for j=1:num_states/2
+    for j=1:size(global_forces,1)
         % Create a pool to simplify each of the (three) global forces
         % for this unit
         global_forces_pools{j,i} = parfeval(pools, @simplify, 1, global_forces(j,i), 'Steps', num_simplify_steps);
@@ -879,7 +880,7 @@ end
 disp('Fetching simplified outputs from parallel pool...');
 % As above, index first by unit number, then by direction.
 for i=1:size(global_forces,2)
-    for j=1:num_states/2
+    for j=1:size(global_forces,1)
         disp(strcat('     Fetching forces for direction:', num2str(j), ' , for unit number: ', num2str(i)));
         global_forces(j,i) = fetchOutputs(global_forces_pools{j,i});
     end
@@ -922,7 +923,7 @@ disp('SOLVING LAGRANGES EQUATIONS...');
 % Create a symbolic array of all the equations that will be solved.
 % There will be (number of directions)*(number of moving units) equations.
 % For example, with 2 moving units, that's 3*2 = 6 equations.
-Lagr_eqns = sym('Lagr_eqns', [(num_states/2)*(N-1), 1], 'real');
+Lagr_eqns = sym('Lagr_eqns', [(num_states_per_unit/2)*(N-1), 1], 'real');
 % Loop through and assign each equation:
 for i=1:length(Lagr_eqns)
     % Unfortunately, I've used different indexing for the LHS and RHS of
@@ -933,7 +934,7 @@ for i=1:length(Lagr_eqns)
     % not the units as in the LHS.
     % However, the list is ordered according to unit, so we can say:
     % (where "direction" is x,z, or theta, which is 1 to 3):
-    direction = mod(i-1,num_states/2) + 1;
+    direction = mod(i-1,num_states_per_unit/2) + 1;
     % This gives, for example: i=2, direction=2, i=8, direction=2, etc.
     % Similarly, calculate the unit number:
     unit_num = ceil(i / (num_states/2));
