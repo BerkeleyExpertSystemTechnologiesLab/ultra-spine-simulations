@@ -1,11 +1,13 @@
-% get_yalmip_controller_XZT.m.m
+% get_yalmip_controller_XZT.m
+%
 % Copyright 2016 Mallory Daly, Andrew P. Sabelhaus, Ellande Tang, Shirley
 % Zhao, Edward Zhu, Berkeley Emergent Space Tensegrities Lab
+%
 % This function contains the formulation of the 2D spine MPC optimization
 % problem (This is for a 2 vertebra system)
 
 function [controller, constraints, objective, parameters_in, solution_out] = get_yalmip_controller_XZT ...
-    (N, inputs, states, A_t, B_t, c_t, prev_in, reference)
+    (N, states, inputs, states_ref, inputs_ref, A_t, B_t, c_t, prev_in)
 
 % Inputs:
 % inputs, sdpvar of inputs to the system
