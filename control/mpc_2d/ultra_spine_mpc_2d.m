@@ -1,7 +1,9 @@
 % ultra_spine_mpc_2d.m
+%
 % Copyright 2016 Mallory Daly, Andrew P. Sabelhaus, Ellande Tang, Shirley
 % Zhao, Edward Zhu, Berkeley Emergent Space Tensegrities Lab
-% This is the primary script file that runs mpc on a 2d spine
+%
+% This is the primary script file that runs MPC on a 2d spine
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Script outline
@@ -39,3 +41,79 @@ addpath(yalmip_controllers_path)
 
 % The path to the folder where we'll store the .mat data from this simulation also needs to be set:
 paths.path_to_data_folder = '../../data/mpc_2d_data/';
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Define optimization and spine parameters
+
+% Load spine gemetric parameters. This loads a struct called
+% spine_geometric_parameters into the workspace. Contains the fields 'g',
+% 'N', 'l', 'h', and 'm'
+load('spine_geometric_parameters_2d.mat')
+
+% Create a struct of optimization parameters
+opt_params.num_pts = 80;
+opt_params.num_states = 6;
+opt_params.num_inputs = 4;
+opt_params.horizon_length = 3;
+opt_params.opt_time_limit = 8;
+opt_params.spine_params = spine_geometric_parameters;
+opt_params.dt = 0.001;
+
+% Define initial states
+xi_0 = [-0.05; 0.15; pi/4; 0; 0; 0];
+u_0 = zeros(opt_params.num_inputs,1);
+opt_params.xi = xi_0;
+opt_params.u = u_0;
+
+% Define output matrix
+C = eye(opt_params.num_states);
+opt_params.num_outputs = size(C,1);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Get trajectory for top vertebra
+
+% Generate state reference trajectory. Functions for doing this should be 
+% placed in the reference_trajectories folder and called here.
+[traj, ~] = get_ref_traj_zero(opt_params.num_pts,opt_params.horizon_length,opt_params.num_states);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% MPC Setup
+
+% Define matrices for saving all states and inputs
+xi_step = zeros(opt_params.num_states,opt_params.horizon_length,opt_params.num_pts);
+u_step = zeros(opt_params.num_inputs,opt_params.horizon_length,opt_params.num_pts);
+xi_cl = zeros(opt_params.num_states,opt_params.num_pts);
+u_cl = zeros(opt_params.num_inputs,opt_params.num_pts);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% MPC Loop
+
+% Main loop iterating through the length of the trajectory
+for i = 1:opt_params.num_pts
+    % Define decision variables
+    xi = sdpvar(opt_params.num_states,opt_params.horizon_length);
+    u = sdpvar(opt_params.num_inputs,opt_params.horizon_length);
+
+    % Linearize dynamics about current state
+    [A, B, c] = linearize_dynamics_2d(opt_params.xi,opt_params.u,opt_params.dt);
+    
+    % Generate state and input reference trajectory for the current
+    % timestep with length of the horizon window
+    xi_ref = [];
+    u_ref = [];
+    for j = 1:opt_params.horizon_length
+        r = traj(:,i+j-1);
+        z_ref = [eye(opt_params.num_states)-A -B;
+                 C zeros(opt_params.num_outputs,opt_params.num_inputs)]\...
+                 [zeros(opt_params.num_states,1); r];
+        xi_ref = [xi_ref z_ref(1:opt_params.num_states)];
+        u_ref = [u_ref z_ref(opt_params.num_states+1:end)];
+    end
+    
+    % Create controller
+    
+    % Solve
+    
+    % Save results
+end
+    
