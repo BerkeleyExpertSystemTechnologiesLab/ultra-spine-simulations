@@ -16,7 +16,8 @@
 % Outputs:
 %   A, B = Linearized state matricies of the system
 %       x(k+1) = A*x(k) + B*u(k)
-%   c = 
+%   c = 0th order term in the Taylor series expansion due to the
+%   linearization about a trajectory point instead of an equillibrium point
 %
 % This function calls the following functions related to the spine
 % dynamics:
@@ -36,14 +37,14 @@ A = zeros(nx);
 B = zeros(nx,nu);
 
 % Dynamics type flag
-dyn_type = 1;
+dyn_type = 2;
 
 % Linearize state matrix A
 for i = 1:nx
     x_bar_U = x_bar;
     x_bar_L = x_bar;
     x_bar_U(i) = x_bar_U(i) + eps;
-    x_bar_L(i) = x_bar_L(i) + eps;
+    x_bar_L(i) = x_bar_L(i) - eps;
     A(:,i) = (simulate_2d_spine_dynamics(x_bar_U,u_bar,dt,1,dyn_type) - ...
         simulate_2d_spine_dynamics(x_bar_L,u_bar,dt,1,dyn_type))/(2*eps);
 end
@@ -53,7 +54,7 @@ for i = 1:nu
     u_bar_U = u_bar;
     u_bar_L = u_bar;
     u_bar_U(i) = u_bar_U(i) + eps;
-    u_bar_L(i) = u_bar_L(i) + eps;
+    u_bar_L(i) = u_bar_L(i) - eps;
     B(:,i) = (simulate_2d_spine_dynamics(x_bar,u_bar_U,dt,1,dyn_type) - ...
         simulate_2d_spine_dynamics(x_bar,u_bar_L,dt,1,dyn_type))/(2*eps);
 end
