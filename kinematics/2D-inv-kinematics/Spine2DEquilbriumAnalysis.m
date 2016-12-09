@@ -5,14 +5,18 @@
 % feasible, then infinitely many solutions exist; the minimum-effort
 % solution will be selected.
 %
-% Author: Mallory Daly
-% Created: 12/1/16
-% Modified: 12/2/16
+% This script solves a force balance, in which the tetrahedron are used as
+% solid bodies. We assume that the spine is sitting on a surface, so that
+% there are vertical reaction forces at each of the two bottom nodes in
+% contact.
+%
+% Authors: Mallory Daly and Ellande Tang
+% Created: 12/8/16
+% Modified: 12/9/16
 
 clear; close all
 
 %% Spine Parameters
-% Specific to case: 2D spine with two tetrahedra, stacked vertically.
 
 % Number of bars, cables, and nodes
 r = 6; % bars
@@ -60,8 +64,8 @@ C = [1 -1  0  0  0  0  0  0;  %  1
 Cs = C(end-(s-1):end,:);
 
 %% VARIABLES: Translation and rotation of free tetrahedron
-xTrans = 1/2*w; % horizontal translation
-zTrans = 2/3*h; % vertical translation
+xTrans = 3/2*w; % horizontal translation
+zTrans = 1/3*h; % vertical translation
 theta = 0; % rotation (radians)
 
 %% Nodal Positions
@@ -135,6 +139,12 @@ R = AR\bR;
 R3 = R(1);
 R4 = R(2);
 
+% Note R3 and R4 cannot be negative, but this constraint is not imposed
+% here. However, a condition under which R3 or R4 becomes negative creates
+% an infeasible problem for the cable tensions, so the issue solves itself.
+% It's possible that a more generalized problem would need to solve for
+% reaction forces using a solver in order to impose this constraint.
+
 %% Equilibrium Force Equations
 
 % Create vector of distance differences
@@ -150,53 +160,32 @@ A = [ -dx(1) -dx(2) -dx(3) -dx(4);  % horizontal forces, bottom tetra
 % Note that A is not a full rank matrix (not invertible)   
 p = [ 0; 0; M*g-R3-R4; M*g;];
 
-%% Solve Problem
+%% Solve Problem for Minimized Cable Tension
 
 % Minimum cable tension
-minTension = 1; % N
+minTension = 0; % N
 
 % Solve with YALMIP
 yalmip('clear')
 q = sdpvar(s,1);
 obj = q'*q;
 constr = [A*q == p, L_cables*q >= minTension*ones(s,1)];
-options = sdpsettings('solver','quadprog','verbose',2);
-sol = optimize(constr,obj,options)
+options = sdpsettings('solver','quadprog','verbose',0);
+sol = optimize(constr,obj,options);
 % optimize(constr,obj)
-qOpt = value(q) % N/m
 
-% Calculate tensions
-tensionsOpt = L_cables*qOpt % N
+if sol.problem == 0
+    % Display optimal force densities
+    qOpt = value(q) % N/m
 
-%%
+    % Display cable tensions
+    tensionsOpt = L_cables*qOpt % N
+else
+    display(sol.info)
+end
 
-% % Equilibrium equations (Ax = b)
-% A = [1 1 1 -sin(theta) -sin(theta);
-%      0 0 0 -cos(theta) cos(theta);
-%      0 -1 -1 sin(theta) sin(theta);
-%      0 -w w cos(theta)*ls -cos(theta)*ls;
-%      0 w -w (cos(theta)*h/2-sin(theta)*w) (sin(theta)*w-cos(theta)*h/2)];
-% b = [M*g; 0; M*g; 0; 0];
-% 
-% % Minimum cable tension
-% minTension = 1; % N
-% 
-% % Solve with YALMIP
-% yalmip('clear')
-% forceVec = sdpvar(5,1);
-% options = sdpsettings('solver','quadprog','verbose',2);
-% obj = forceVec'*forceVec;
-% constr = [A*forceVec == b, forceVec >= minTension];
-% optimize(constr,obj,options)
-% % optimize(constr,obj)
-% value(forceVec)
 
-% %% Test Schek Method Symbollically
-% 
-% % Mallory's notes: I don't really think it makes sense to solve using As
-% % (just the matrix for the cables). It's like your ignoring the compressive
-% % forces from the rods. I don't know if I'll have time to compare the
-% % solutions, but I plan to solve using the full matrix.
+%% Check Distance Vectors Symbollically
 % 
 % x1 = sym('x1','real');
 % x2 = sym('x2','real');
@@ -218,27 +207,11 @@ tensionsOpt = L_cables*qOpt % N
 % z8 = sym('z8','real');
 % z = [z1 z2 z3 z4 z5 z6 z7 z8]';
 % 
-% % u = C*x;
-% % v = C*z;
-% % A = C'*diag(u);
-% A = [C'*diag(C*x);
-%      C'*diag(C*z)]
+% Cs*x
+% Cs*z
 % 
-% 
-% q1 = sym('q1','real');
-% q2 = sym('q2','real');
-% q3 = sym('q3','real');
-% q4 = sym('q4','real');
-% q5 = sym('q5','real');
-% q6 = sym('q6','real');
 % q7 = sym('q7','real');
 % q8 = sym('q8','real');
 % q9 = sym('q9','real');
 % q10 = sym('q10','real');
-% q = [q1 q2 q3 q4 q5 q6 q7 q8 q9 q10]';
-% 
-% % p = A*q
-% % 
-% % As = A(:,7:10)
-% % qs = [q7 q8 q9 q10]'
-% % ps = As*qs
+% qs = [q7 q8 q9 q10]'

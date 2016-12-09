@@ -1,17 +1,14 @@
 %% 2D Spine Inverse Kinematics
-% SCRIPT NOT CORRECT. USE 'Spine2DEquilbriumAnalysis'.
-%
 % This script attempts to use H.-J. Schek's "The Force Density Method for
 % Form Finding and Computation of General Networks" adapted as done by 
 % J. Friesen's "DuCTT: a Tensegrity Robot for Exploring Duct Systems."
 % However, this method does not adequately account for moments in the
 % system that would change the external force vector, p. The nodal analysis
-% complicates the equilbrium analysis, so this method was not pursued
-% further. A correct approach is found in 'Spine2DEquilbriumAnalysis'.
+% complicates the equilbrium analysis, so this script is NOT recommended.
 %
 % Author: Mallory Daly
 % Created: 12/1/16
-% Modified: 12/9/16
+% Modified: 12/2/16
 
 clear; close all
 
