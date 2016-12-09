@@ -43,11 +43,11 @@ M = m*4; % kg/tetra
 % NOTE: Schek's work finds equilbrium positions given load and position of
 % fixed nodes. We want to find loads given positions of nodes.
 
+% Full connectivity matrix
 % Rows 1-6 are bars
 % Rows 7-10 are cables
 % Columns 1-4 are "free" nodes (they are fixed later)
 % Columns 5-8 are fixed nodes
-
 %    1  2  3  4  5  6  7  8  
 C = [1 -1  0  0  0  0  0  0;  %  1
      1  0 -1  0  0  0  0  0;  %  2
@@ -66,11 +66,11 @@ Cs = C(end-(s-1):end,:);
 %% VARIABLES: Translation and rotation of free tetrahedron
 xTrans = 3/2*w; % horizontal translation
 zTrans = 1/3*h; % vertical translation
-theta = 0; % rotation (radians)
+theta = 0;      % rotation (radians)
 
 %% Nodal Positions
-% Coordinate system such that nodes 6 and 8 are on the x axis and nodes 5
-% and 7 are centered on the z axis.
+% Coordinate system such that nodes 3 and 4 are on the x axis and nodes 1
+% and 2 are centered on the z axis.
 
 % Nodal positions of bottom tetrahedra
 %          1   2   3   4
@@ -122,9 +122,8 @@ l = [ls;                             % 1
      norm([x(3),z(3)]-[x(7),z(7)]);  % 8
      norm([x(2),z(2)]-[x(8),z(8)]);  % 9
      norm([x(2),z(2)]-[x(7),z(7)])]; %10
-% The forces in the cables will depend on F = k*(l-l_0)
 
-% Diagonal length matrix
+% Diagonal length matrices
 L = diag(l);
 L_cables = diag(l(end-(s-1):end));
 
@@ -152,12 +151,12 @@ dx = Cs*x;
 dz = Cs*z;
 
 % Define A*q = p, where q is a vector of the cable force densities and p is
-% a vector of the external forces
+% a vector of the external forces. Note that A is not a full rank matrix
+% (not invertible).
 A = [ -dx(1) -dx(2) -dx(3) -dx(4);  % horizontal forces, bottom tetra
        dx(1)  dx(2)  dx(3)  dx(4);  % horizontal forces, top tetra
       -dz(1) -dz(2) -dz(3) -dz(4);  % vertical forces, bottom tetra
        dz(1)  dz(2)  dz(3)  dz(4)]; % vertical forces, top tetra
-% Note that A is not a full rank matrix (not invertible)   
 p = [ 0; 0; M*g-R3-R4; M*g;];
 
 %% Solve Problem for Minimized Cable Tension
