@@ -42,6 +42,12 @@ close all;
 % This is useful to see the symbolic variables that are created.
 debugging = 1;
 
+% Some paths to the files that will be saved.
+% These are the names of the functions and files that are generated at the
+% end of this script. Change these to whatever you want!
+% They are all relative paths with respect to the current folder.
+two_d_geometry_path = 'two_d_geometry.mat';
+
 % As of 2016-11-13, fulldiff uses some functionality
 % that apparently will be deprecated in a future release of MATLAB.
 % For now, turn off that warning.
@@ -55,6 +61,11 @@ num_simplify_steps = 100;
 % Throughout this script, I output some messages that show the progress
 % of the script during its calculations.
 % Those are labelled 'PROGRESS_BAR'.
+
+%PROGRESS_BAR
+disp('*********************************');
+disp('Two-Dimensional Tensegrity Dynamics Symbolic Solver');
+disp(' ');
 
 % Some other parameters to look at:
 % the 'equal_masses' flag in the following section,
@@ -120,7 +131,33 @@ a = [ 0,        0; ...
 % point masses there are per unit:
 num_pm_unit = size(a,2);
 % ... again noting that a is transposed.
-  
+
+% This script, itself, does not depend on the connections between
+% point masses within a unit. They could be connected in any way,
+% it doesn't matter. HOWEVER, for plotting purposes,
+% it's useful to define which node-node connections should be
+% plotted.
+% Call these "bars" since the tensegrity unit will consist
+% of bars that connect nodes. 
+% Note that this matrix must be symmetric:
+% If point 2 is connected to point 3, then point 3
+% is connected to point 2 by definition.
+% THUS, BY CONVENTION, use the lower triangle
+% Enforce this by putting "NaN"
+% in the places that we won't be using.
+% Note also that there should be no "1"s along the
+% main diagonal: nodes don't connect to themselves.
+% The "NaN" function generates matrices of NaN,
+% and the "triu" generates upper triangular matrices.
+bars = triu(NaN(num_pm_unit, num_pm_unit));
+%bars = zeros(num_pm_unit, num_pm_unit);
+% Insert a "1" where two nodes are connected.
+% For our specific example, each of the outer nodes
+% is connected to the center node, and that's it.
+bars(2,1) = 1;
+bars(3,1) = 1;
+bars(4,1) = 1;
+
 % Similarly, define the mass of each point mass.
 % This could be done either of the following ways, you pick,
 % depending on if the mass in each unit is evenly distributed
@@ -149,7 +186,7 @@ else
     assert( (size(m,1) == num_pm_unit) && (size(m,2) == 1), error_msg);
 end
 
-% Lastly, define the cables that connect adjacent units.
+% Next, define the cables that connect adjacent units.
 % These are modeled as spring-damper systems, F = k \delta x - c dx/dt.
 % In order to determine the lengths of these cables, 
 % let's create a "connectivity matrix" that represents
@@ -179,7 +216,8 @@ connections = cell(num_pm_unit, num_pm_unit);
 % vertebra connects to node 3 of the vertebra above it, 
 % but it's not true that node 3 from a lower vertebra connects to 
 % node 4 of the vertebra above it.
-% For our specific example, the following nodes are connected,
+% For our specific example, the following nodes have cable connections
+% between them,
 % with 2 vertical and 2 saddle cables:
 connections{2,2} = [k_vert, c_vert];
 connections{3,3} = [k_vert, c_vert];
@@ -201,6 +239,35 @@ num_cables = num_cables_per_unit*(N-1);
 % Think about it this way: there is no set of cables reaching "upward"
 % from the final unit.
 
+% Save all of this geometry information in a struct, for plotting later.
+two_d_geometry.N = N;
+two_d_geometry.g = g; % even though this isn't geometry, it's useful to save.
+two_d_geometry.a = a;
+two_d_geometry.num_pm_unit = num_pm_unit;
+two_d_geometry.bars = bars;
+two_d_geometry.connections = connections;
+two_d_geometry.connections_locations = connections_locations;
+two_d_geometry.num_cables_per_unit = num_cables_per_unit;
+two_d_geometry.num_cables = num_cables;
+% For backwards compatibility: if the leg length and height variables
+% are declared, save them too.
+if exist('leg','var')
+    % I had called this "l" in the past.
+    two_d_geometry.l = leg;
+end
+if exist('h','var')
+    two_d_geometry.h = h;
+end
+
+% For the logistic barrier function, declare two constants that control
+% its form and location.
+% See below for more information about what these are and what they do.
+% Take a look at the Wikipedia page about analytic approximations to 
+% the step function:
+% https://en.wikipedia.org/wiki/Heaviside_step_function#Analytic_approximations
+logistic_k = 500;
+logistic_x0 = 0.01;
+
 %% 3) Create the symbolic variables for the solver to use
 
 %PROGRESS_BAR
@@ -218,6 +285,10 @@ disp('Creating symbolic variables...');
 % the number of state variables is
 num_states_per_unit = 6;
 num_states = (N-1)*num_states_per_unit;
+
+% Add this to the geometry struct, too.
+two_d_geometry.num_states_per_unit = num_states_per_unit;
+two_d_geometry.num_states = num_states;
 
 % NOTE that we constrain these symbolic variables
 % to be in the real numbers. Complex-number distance vectors
@@ -306,7 +377,7 @@ tensions_un = sym('tensions_un', size(tensions));
 % So, the third column here are the "from" and "to" indices
 % of a specific cable, thus a 2x3 matrix.
 % An example would be:
-% [ rx_from, rzfrom; rx_to, rz_to; 2, 3]'
+% [ rx_from, rz_from; rx_to, rz_to; 2, 3]'
 % ...for a cable connecting units 2 and 3, with the from node
 % located on unit 2, and the to node on unit 3.
 tension_points = sym('tension_points', [2, 3, num_cables]);
@@ -606,8 +677,12 @@ for i=1:N-1
     % Then, let's iterate over the connections matrix,
     % calculating lengths if we find a 1.
     % Iterate row-wise.
-    for k=1:num_cables_per_unit
-        for p=1:num_cables_per_unit
+    % TO-DO: should these be indexed according to point masses
+    % or according to cables? I believe the connections_locations matrix
+    % is of size (num_pm_unit)x(num_pm_unit).
+    %for k=1:num_cables_per_unit
+    for k=1:num_pm_unit
+        for p=1:num_pm_unit
             % If there is a cable between these indices:
             % (note that we can use the connections_locations 
             %  matrix here, since that's already calculated,
@@ -741,7 +816,7 @@ for i=2:N
                 global_forces(q, i-1) = global_forces(q, i-1) + force_addition;
                 %DEBUGGING
                 if debugging
-                    disp(strcat('Contribution to global force for unit ', num2str(i), ' in direction ', num2str(q), ' was ', char( force_addition )));
+                    disp(strcat('Contribution to global force for unit ', num2str(i), ' in direction ', num2str(q), ' was: ', char( force_addition )));
                 end
             end
         % Now, also check if this cable is, instead, a "to" for this unit:
@@ -786,7 +861,7 @@ for i=2:N
                 global_forces(q, i-1) = global_forces(q, i-1) + force_addition;
                 %DEBUGGING
                 if debugging
-                    disp(strcat('Contribution to global force for unit ', num2str(i), ' in direction ', num2str(q), ' was ', char( force_addition )));
+                    disp(strcat('Contribution to global force for unit ', num2str(i), ' in direction ', num2str(q), ' was: ', char( force_addition )));
                 end
             end
         end
@@ -803,11 +878,12 @@ pools = gcp;
 % alongside a set number of simplify steps.
 % We'll keep a cell array of all the pools:
 % Note that N is the total number of units, including the not-moving unit.
-global_forces_pools = cell(num_states/2, N-1);
+% There are 6 states per unit, and 3 "directions" of (x,z,theta).
+global_forces_pools = cell(num_states_per_unit/2, N-1);
 % Index along the number of the unit, first.
 for i=1:size(global_forces,2)
     % Then, for each of the 3 directions (x,z,theta) per unit:
-    for j=1:num_states/2
+    for j=1:size(global_forces,1)
         % Create a pool to simplify each of the (three) global forces
         % for this unit
         global_forces_pools{j,i} = parfeval(pools, @simplify, 1, global_forces(j,i), 'Steps', num_simplify_steps);
@@ -818,7 +894,7 @@ end
 disp('Fetching simplified outputs from parallel pool...');
 % As above, index first by unit number, then by direction.
 for i=1:size(global_forces,2)
-    for j=1:num_states/2
+    for j=1:size(global_forces,1)
         disp(strcat('     Fetching forces for direction:', num2str(j), ' , for unit number: ', num2str(i)));
         global_forces(j,i) = fetchOutputs(global_forces_pools{j,i});
     end
@@ -861,7 +937,7 @@ disp('SOLVING LAGRANGES EQUATIONS...');
 % Create a symbolic array of all the equations that will be solved.
 % There will be (number of directions)*(number of moving units) equations.
 % For example, with 2 moving units, that's 3*2 = 6 equations.
-Lagr_eqns = sym('Lagr_eqns', [(num_states/2)*(N-1), 1], 'real');
+Lagr_eqns = sym('Lagr_eqns', [(num_states_per_unit/2)*(N-1), 1], 'real');
 % Loop through and assign each equation:
 for i=1:length(Lagr_eqns)
     % Unfortunately, I've used different indexing for the LHS and RHS of
@@ -872,7 +948,7 @@ for i=1:length(Lagr_eqns)
     % not the units as in the LHS.
     % However, the list is ordered according to unit, so we can say:
     % (where "direction" is x,z, or theta, which is 1 to 3):
-    direction = mod(i-1,num_states/2) + 1;
+    direction = mod(i-1,num_states_per_unit/2) + 1;
     % This gives, for example: i=2, direction=2, i=8, direction=2, etc.
     % Similarly, calculate the unit number:
     unit_num = ceil(i / (num_states/2));
@@ -909,6 +985,41 @@ end
 % SOLVE LAGRANGE'S EQUATIONS! This is the culmination of all the code
 % in this script!
 d2xi_solved = solve( Lagr_eqns, accel_vars);
+
+%% 14) Create a version of the solved tensions that includes a barrier-function constraint
+
+% One possible way to solve the "negative tensions" problem
+% would be to constrain all the cable forces to be nonnegative, manually
+% changing any negative tensions to 0 if they are negative.
+% Another approach would be to multiply the tension functions by
+% some approximation to the step function: if tension is less than 0,
+% then this step function makes the tension zero.
+
+% A smooth approximation to the unit-step function is the logistic function:
+% https://en.wikipedia.org/wiki/Logistic_function
+% This is of the form: f(x) = 1 / (1 + exp( -k*(x-x0))),
+% where k is the steepness of the curve,
+% and x0 is the midpoint of the curve (which is effectively
+% an offset, laterally, from x=0.)
+% These constants are declared above as k_logistic, x0_logistic.
+
+% First, do a replace_derivatives step on the tensions, so they don't
+% have to be modified later:
+tensions_sub = replace_derivatives(tensions, xi, num_states_per_unit, debugging);
+
+% A new symbolic variable for the tensions with barrier:
+tensions_sub_barrier = tensions_sub;
+
+% For each tension force, add a barrier function:
+for i=1:length(tensions_sub_barrier)
+    % The new logistic function looks like
+    % f(x) = 1 / (1 + exp( -k*(x-x0)))
+    logistic_func = 1 / (1 + ...
+        exp(-logistic_k*(tensions_sub_barrier(i) - logistic_x0)));
+    % The rectified tension is then the original tension
+    % multiplied by this logistic function.
+    tensions_sub_barrier(i) = logistic_func*tensions_sub_barrier(i);
+end
 
 
 %% 14) Substitute the solved tensions back into the accelerations and simplify
@@ -969,9 +1080,10 @@ for i=1:length(d2xi_solved_un)
     d2xi_solved_un(i) = replace_derivatives(getfield(d2xi_solved, char(d2xi(i))), ...
         xi, num_states_per_unit, debugging);
 end
-% d2xi_solved_un(1) = replace_derivatives(d2xi_solved.d2xi1, xi, num_states_per_unit, debugging);
-% d2xi_solved_un(2) = replace_derivatives(d2xi_solved.d2xi2, xi, num_states_per_unit, debugging);
-% d2xi_solved_un(3) = replace_derivatives(d2xi_solved.d2xi3, xi, num_states_per_unit, debugging);
+
+%PROGRESS_BAR
+disp('Preparing acceleration solutions for dynamics approach #2...');
+disp('     tensions_sub_barrier was created above.');
 
 %PROGRESS_BAR
 disp('Preparing acceleration solutions for dynamics approach #3...');
@@ -1023,23 +1135,63 @@ for i=1:length(d2xi_solved_sub)
     % (nothing is assigned to xi.)
     xi_dot_soln(velocity_index) = xi(accel_index);
 end
-% d2xi_solved_sub = sym('d2xi_solved_sub', [num_states/2, 1], 'real');
-% d2xi_solved_sub(1) = subs(d2xi_solved.d2xi1, tensions_un, tensions);
-% d2xi_solved_sub(2) = subs(d2xi_solved.d2xi2, tensions_un, tensions);
-% d2xi_solved_sub(3) = subs(d2xi_solved.d2xi3, tensions_un, tensions);
 
-% Then, replace the 'dxi' terms with the approprate terms in xi
-% Create a symbolic variable to store the solution:
-%xi_dot_soln = sym('xi_dot_soln', [num_states, 1], 'real');
-% The first three terms of the solution are just the last three terms xi
-% (this means: the derivative of position is velocity, etc. Think
-% xi_dot_soln(1) = xi(4);
-% xi_dot_soln(2) = xi(5);
-% xi_dot_soln(3) = xi(6);
-% % The last three are the accelerations, with derivatives replaced.
-% xi_dot_soln(4) = replace_derivatives(d2xi_solved_sub(1), xi, num_states_per_unit, debugging);
-% xi_dot_soln(5) = replace_derivatives(d2xi_solved_sub(2), xi, num_states_per_unit, debugging);
-% xi_dot_soln(6) = replace_derivatives(d2xi_solved_sub(3), xi, num_states_per_unit, debugging);
+%PROGRESS_BAR
+disp('Preparing accelerations solutions for dynamics approach #4...');
+% 4) Create a single xi_dot: replace the tensions inside the accelerations
+%    This is the same as above, but now, an additional substitution step on
+%    the tensions, using the tensions with the barrier function included.
+d2xi_solved_sub_barrier = sym('d2xi_solved_sub_barrier', size(accel_vars), 'real');
+% We'll also need to store the solved xi_dot:
+xi_dot_soln_barrier = sym('xi_dot_soln_barrier',[num_states, 1], 'real');
+for i=1:length(d2xi_solved_sub_barrier)
+    % The output of 'solve' is a struct, so the getfield
+    % function can be used to extract its elements.
+    % Note that there are still dxi terms that must be converted back
+    % into xi states, via the replace_derivatives function.
+    % Note that getfield takes a string as the second argument, not a sym.
+    d2xi_solved_sub_barrier(i) = getfield(d2xi_solved, char(d2xi(i)));
+    % Differently than above: do the replace_derivatives step now, before 
+    % substitution, since tensions_sub_piecewise already has its derivatives replaced.
+    d2xi_solved_sub_barrier(i) = replace_derivatives(d2xi_solved_sub_barrier(i), xi, ...
+        num_states_per_unit, debugging);
+    % Then, substitute for the solved tensions, using the piecewise 
+    % symbolic expression from above:
+    d2xi_solved_sub_barrier(i) = subs(d2xi_solved_sub_barrier(i), tensions_un, tensions_sub_barrier);
+    % Finally, insert into the solved xi_dot location, and perform
+    % the same derivative replacement as above.
+    % Indexing is:
+    % 1 to 4
+    % 2 to 5
+    % 3 to 6
+    % 4 to 10
+    % 5 to 11
+    % 6 to 12
+    % ...
+    % TO-DO: should this be num_states_per_unit?
+    unit_num = ceil(i / (num_states/2));
+    accel_index = i + unit_num*(num_states/2);
+    % Insert into the solution vector:
+    xi_dot_soln_barrier(accel_index) = d2xi_solved_sub_barrier(i);
+    % For the xi_dot_soln vector, the appropriate xi state
+    % should also be assigned. For example, the derivative of xi(1)
+    % is xi(4), etc.
+    % Do that here, since we're indexing into the xi_dot_soln vector anyway.
+    % This looks like:
+    % xi_dot_soln(1) = xi(4);
+    % xi_dot_soln(2) = xi(5);
+    % xi_dot_soln(3) = xi(6);
+    % xi_dot_soln(7) = xi(10);
+    % ...
+    % So the indexing in terms of i is:
+    % i=1, velocity_index=1, accel_index=4;
+    % i=4, velocity_index=7, accel_index=10;
+    velocity_index = i + (unit_num-1)*(num_states/2);
+    % Insert into solution vector, recalling that 'xi'
+    % is still the same symbolic variable as at the top of this script
+    % (nothing is assigned to xi.)
+    xi_dot_soln_barrier(velocity_index) = xi(accel_index);
+end
 
 %% 15) Write MATLAB functions(s).
 
@@ -1048,23 +1200,41 @@ disp('Writing MATLAB functions to files...');
 % For both the tensions and dlengths_dt, need to replace derivatives
 % with states in xi.
 dlengths_dt_sub = replace_derivatives(dlengths_dt, xi, num_states_per_unit, debugging);
-tensions_sub = replace_derivatives(tensions, xi, num_states_per_unit, debugging);
+
+% Save the geometry struct:
+save(two_d_geometry_path, 'two_d_geometry');
 
 % Need to write our lengths, dlengths_dt, tensions, 
 % and finally, xi_dot_soln.
 % Note that lengths and dlengths_dt are just functions of state,
 % but tensions and xi_dot are functions of state and inputs,
-disp('     Writing lengths function...');
+disp('     Writing lengths function (not used, for debugging only)...');
 matlabFunction(lengths,'file','two_d_spine_lengths','Vars',{[xi]});
-disp('     Writing dlengths_dt function...');
+disp('     Writing dlengths_dt function (not used, for debugging only)...');
 matlabFunction(dlengths_dt_sub,'file','two_d_spine_dlengths_dt','Vars',{[xi]});
+
+%PROGRESS_BAR
+disp('     Writing functions for dynamics approach #1:');
 disp('     Writing tensions function...');
 matlabFunction(tensions_sub,'file','two_d_spine_tensions','Vars',{xi,u});
-disp('     Writing xi_dot function... USE THIS ONE FOR DYNAMICS SIMULATIONS.');
-matlabFunction(xi_dot_soln,'file','two_d_spine_xi_dot','Vars',{xi,u});
-% Testing: does the acceleration solution, without substituting tension, work properly?
-disp('     Writing accelerations solution, without tensions substituted... (TESTING)');
+disp('     Writing accelerations solution, without tensions substituted...');
 matlabFunction(d2xi_solved_un,'file','two_d_spine_accel','Vars',{xi,tensions_un});
+
+%PROGRESS_BAR
+disp('     Writing functions for dynamics approach #2:');
+disp('     (Note: please use the same accel function as approach 1).');
+disp('     Writing the tensions function with barrier included...');
+matlabFunction(tensions_sub_barrier,'file','two_d_spine_tensions_barrier','Vars',{xi,u});
+
+%PROGRESS_BAR
+disp('     Writing functions for dynamics approach #3:');
+disp('     Writing xi_dot function...');
+matlabFunction(xi_dot_soln,'file','two_d_spine_xi_dot','Vars',{xi,u});
+
+%PROGRESS_BAR
+disp('     Writing functions for dynamics approach #4:');
+disp('     Writing xi_dot, with barrier function...');
+matlabFunction(xi_dot_soln_barrier,'file','two_d_spine_xi_dot_barrier','Vars',{xi,u});
 
 %% Script has finished.
 
