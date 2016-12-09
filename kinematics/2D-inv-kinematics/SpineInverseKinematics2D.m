@@ -44,7 +44,7 @@ n = 8; % nodes
 
 %         1  2  3  4    
 C_free = [1 -1  0  0;  %  1
-          0  1 -1  0;  %  2
+          1  0 -1  0;  %  2
           1  0  0 -1;  %  3
           0  0  0  0;  %  4
           0  0  0  0;  %  5
@@ -70,7 +70,7 @@ C = [C_free C_fixed];
 
 %% VARIABLES: Translation and rotation of free tetrahedron
 xTrans = 0*w; % horizontal translation
-zTrans = 2*h; % vertical translation
+zTrans = 1/3*h; % vertical translation
 theta = 0; % rotation (radians)
 
 %% Nodal Positions
@@ -198,14 +198,27 @@ f = L_cables*qOpt
 % % Find q
 % qOpt = A_pinv*p + V*wOpt
 % 
-% Solve with YALMIP
-yalmip('clear')
-w = sdpvar(size(V,2),1);
-options = sdpsettings('solver','quadprog','verbose',2);
-obj = w'*(V'*V)*w + 2*w'*V'*As_pinv*p;
-constr = As_pinv*p + V*w - c >= 0;
-optimize(constr,obj,options)
-% optimize(constr,obj)
-wOpt_Y = value(w)
-qOpt_Y = As_pinv*p + V*wOpt_Y
-f = L_cables*qOpt_Y
+
+% % Solve with YALMIP
+% yalmip('clear')
+% w = sdpvar(size(V,2),1);
+% options = sdpsettings('solver','quadprog','verbose',2);
+% obj = w'*(V'*V)*w + 2*w'*V'*As_pinv*p;
+% constr = As_pinv*p + V*w - c >= 0;
+% optimize(constr,obj,options)
+% % optimize(constr,obj)
+% wOpt_Y = value(w)
+% qOpt_Y = As_pinv*p + V*wOpt_Y
+% f = L_cables*qOpt_Y
+
+% % Solve with YALMIP
+% % This is me trying to rewrite the problem
+% yalmip('clear')
+% % w = sdpvar(size(V,2),1);
+% q = sdpvar(4,1);
+% options = sdpsettings('solver','quadprog','verbose',2);
+% obj = q'*q;
+% constr = [As*q == p, q >= zeros(4,1)];
+% optimize(constr,obj,options)
+% % optimize(constr,obj)
+% value(q)
