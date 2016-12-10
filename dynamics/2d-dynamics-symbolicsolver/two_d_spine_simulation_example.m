@@ -33,7 +33,7 @@ disp(strcat('Using dynamics approach #', num2str(dyn_type), ', for xi_dot calcul
 % The initial conditions of the spine will be: not moving,
 % slightly translated in (x,z), with some rotation.
 % These are just guesses for now.
-xi_0 = [-0.05; 0.15; pi/4; 0; 0; 0];
+xi_0 = [-0.01; 0.1; 0; 0; 0; 0];
 % The inputs to the system will be constant here:
 % let's not change the rest lengths, just have them all be tight for the moment.
 % The first two rest lengths are for the vertical cables, the second two are for the saddle.
@@ -41,7 +41,9 @@ xi_0 = [-0.05; 0.15; pi/4; 0; 0; 0];
 % A longer rest length means a more-slack cable.
 % These are in meters I suppose, but the units are only relevant in comparison to the
 % spring constant and damping constant in the getTensions file.
-u = [0.12; 0.12; 0.12; 0.09];
+u = [0.1; 0.12; 0.05; 0.06];
+%u = [0.05; 0.05];
+%u = [0.07; 0.05; 0.05; 0.05; .04];
 
 % We'll simulate for the following amount of time, in seconds:
 t = 0.5;

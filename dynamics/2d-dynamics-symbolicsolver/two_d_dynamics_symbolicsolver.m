@@ -125,6 +125,19 @@ a = [ 0,        0; ...
       -w/2,     -h/2; ...
       w/2,      -h/2; ...
       0,        h/2]';
+
+% Here's a lop-sided upward-C-shape design:
+% An interval in the x-direction for determining
+% the other distances:
+x_interval = 0.05;
+% Same thing, a z-interval:
+z_interval = 0.05;
+% The node positions are then:
+% a = [ 0,            0; ...
+%       -x_interval,  z_interval; ...
+%       x_interval,   z_interval; ...
+%       2*x_interval, 0; ...
+%       4*x_interval, 2*z_interval]';
   
 % again, note the ' transpose above.
 % Given the a matrix above, we can pick out how many
@@ -157,6 +170,13 @@ bars = triu(NaN(num_pm_unit, num_pm_unit));
 bars(2,1) = 1;
 bars(3,1) = 1;
 bars(4,1) = 1;
+
+% For the C-shape:
+% Bars connect nodes 2,1; 1,3; 3,4; 4,5;
+% bars(2,1) = 1;
+% bars(3,1) = 1;
+% bars(4,3) = 1;
+% bars(5,4) = 1;
 
 % Similarly, define the mass of each point mass.
 % This could be done either of the following ways, you pick,
@@ -206,8 +226,8 @@ end
 k_vert = 2000;
 k_saddle = 2000;
 % NOTE THAT these damping constants should be POSITIVE.
-c_vert = 25;
-c_saddle = 25;
+c_vert = 50;
+c_saddle = 50;
 
 connections = cell(num_pm_unit, num_pm_unit);
 % NOTE that these are assuming that a 'lower' unit is the 'from', 
@@ -223,6 +243,15 @@ connections{2,2} = [k_vert, c_vert];
 connections{3,3} = [k_vert, c_vert];
 connections{4,2} = [k_saddle, c_saddle];
 connections{4,3} = [k_saddle, c_saddle];
+
+% For the c-shape:
+% Connections between 3,3 (vertical)
+% Connections between 2,1; 3,1; 3,4; and 4,5 (saddle)
+% connections{3,3} = [k_vert, c_vert];
+% connections{2,1} = [k_saddle, c_saddle];
+% connections{3,1} = [k_saddle, c_saddle];
+% connections{3,4} = [k_saddle, c_saddle];
+% connections{5,4} = [k_saddle, c_saddle];
 
 % For later below, calculate how many cables we'll expect to have
 % in this system.
@@ -249,6 +278,11 @@ two_d_geometry.connections = connections;
 two_d_geometry.connections_locations = connections_locations;
 two_d_geometry.num_cables_per_unit = num_cables_per_unit;
 two_d_geometry.num_cables = num_cables;
+% Add the spring constants for the cables.
+two_d_geometry.k_vert = k_vert;
+two_d_geometry.k_saddle = k_saddle;
+two_d_geometry.c_vert = c_vert;
+two_d_geometry.c_saddle = c_saddle;
 % For backwards compatibility: if the leg length and height variables
 % are declared, save them too.
 if exist('leg','var')
