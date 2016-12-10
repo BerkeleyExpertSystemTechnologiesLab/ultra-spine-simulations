@@ -149,27 +149,34 @@ p = [ 0; 0; M*g-R2-R3; M*g;];
 
 %% Solve Problem for Minimized Cable Tension
 
-% % Solve with YALMIP
+% Solve with YALMIP
 % yalmip('clear')
 % q = sdpvar(s,1);
 % obj = q'*q;
 % constr = [A*q == p, L_cables*q >= minCableTension*ones(s,1)];
 % options = sdpsettings('solver','quadprog','verbose',0);
 % sol = optimize(constr,obj,options);
+% optimize(constr,obj)
 
 % Solve with QUADPROG
-H = 2*eye(4);
+H = k;
 f = zeros(4,1);
 Aeq = A;
 beq = p;
 Aineq = -L_cables;
 bineq = -minCableTension*ones(s,1);
-[qOpt, ~, exitFlag] = quadprog(H,f,Aineq,bineq,Aeq,beq);
+qOpt = quadprog(H,f,Aineq,bineq,Aeq,beq);
 tensions = L_cables*qOpt; % N
 
-if exitFlag ~= 1
-    error('Infeasible problem.')
-end
+% if sol.problem == 0
+%     % Optimal force densities
+%     qOpt = value(q); % N/m
+% 
+%     % Cable tensions
+%     tensions = L_cables*qOpt; % N
+% else
+%     display(sol.info)
+% end
 
 %% Calculate Rest Lengths
 restLengths = l_cables - tensions/springConstant;
