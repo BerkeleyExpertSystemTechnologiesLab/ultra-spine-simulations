@@ -37,24 +37,40 @@ assert(N > 1, 'Horizon must be at least length 2')
 nx = size(xi,1);
 nu = size(u,1);
 
-u_lim_L = -ones(nu,1);
-u_lim_U = ones(nu,1);
-xi_lim_L = -ones(nx,1);
-xi_lim_U = ones(nx,1);
+u_lim_L = zeros(nu,1);
+u_lim_U = 10*ones(nu,1);
+xi_lim_L = -2*ones(nx,1);
+xi_lim_U = 2*ones(nx,1);
+
+u_norm_lim = 1;
+pos_norm_lim = 1;
+vel_norm_lim = 1;
 
 %% Build constraints
 
 constraints = [];
 for i = 1:N
-%     constraints = [constraints u_lim_L<=u(:,i)<=u_lim_U ...
-%         xi_lim_L<=xi(:,i)<=xi_lim_U ...
-%         xi(:,i+1)==A_t*xi(:,i)+B_t*u(:,i)+c_t ...
-%         xi(2,i)>=spine_geo.h/2];
+    %     constraints = [constraints u_lim_L<=u(:,i)<=u_lim_U ...
+    %         xi_lim_L<=xi(:,i)<=xi_lim_U ...
+    %         xi(:,i+1)==A_t*xi(:,i)+B_t*u(:,i)+c_t ...
+    %         xi(2,i)>=spine_geo.h/2];
     
     constraints = [constraints xi(:,i+1)==A_t*xi(:,i)+B_t*u(:,i)+c_t ...
-        xi(2,i)>=spine_geo.h/2];
+        xi(2,i)>=spine_geo.h/2 ...
+        u_lim_L<=u(:,i)];
 end
+% 
+% for i = 1:N-1
+%     constraints = [constraints norm(u(:,i+1)-u(:,i))<=u_norm_lim ...
+%         norm(xi(1:3,i+1)-xi(1:3,i),inf)<=pos_norm_lim ...
+%         norm(xi(4:6,i+1)-xi(4:6,i),inf)<=vel_norm_lim];
+% end
+
 constraints = [constraints xi(2,N+1)>=spine_geo.h/2];
+
+% constraints = [constraints ...
+%     norm(xi(1:3,N+1)-xi(1:3,N),inf)<=pos_norm_lim ...
+%     norm(xi(4:6,N+1)-xi(4:6,N),inf)<=vel_norm_lim];
 
 %% Build objective
 
@@ -64,16 +80,27 @@ R = eye(nu);
 % P = blkdiag(eye(nx/2),zeros(nx/2));
 P = eye(nx/2);
 
-objective = 0;
-for i = 1:N
-   objective = objective + (xi(1:3,i)-xi_ref(1:3,i))'*Q*(xi(1:3,i)-xi_ref(1:3,i)) ...
-       + (u(:,i)-u_ref(:,i))'*R*(u(:,i)-u_ref(:,i));
+objective = (xi(1:3,1)-xi_ref(1:3,1))'*Q*(xi(1:3,1)-xi_ref(1:3,1)) ...
+        + (u(:,1)-u_ref(:,1))'*R*(u(:,1)-u_ref(:,1));
+for i = 2:N
+        objective = objective + (xi(1:3,i)-xi_ref(1:3,i))'*Q*(xi(1:3,i)-xi_ref(1:3,i)) ...
+        + (u(:,i)-u_ref(:,i))'*R*(u(:,i)-u_ref(:,i));
+%     objective = objective + (xi(1:3,i)-xi_ref(1:3,i))'*Q*(xi(1:3,i)-xi_ref(1:3,i)) ...
+%         + (u(:,i)-u_ref(:,i))'*R*(u(:,i)-u_ref(:,i)) ...
+%         + (1/2)*norm(xi(1:3,i)-xi(1:3,i-1)) ...
+%         + (1/24)*(3^i)*norm(u(:,i)-u(:,i-1),inf);
+%     objective = objective + (xi(:,i)-xi_ref(:,i))'*Q*(xi(:,i)-xi_ref(:,i)) ...
+%         + (u(:,i)-u_ref(:,i))'*R*(u(:,i)-u_ref(:,i));
 end
 objective = objective + (xi(1:3,N+1)-xi_ref(1:3,N+1))'*P*(xi(1:3,N+1)-xi_ref(1:3,N+1));
+% objective = objective + (xi(1:3,N+1)-xi_ref(1:3,N+1))'*P*(xi(1:3,N+1)-xi_ref(1:3,N+1)) ...
+%     + (3^i)*norm(xi(1:3,N+1)-xi(1:3,N));
+% objective = objective + (xi(:,N+1)-xi_ref(:,N+1))'*P*(xi(:,N+1)-xi_ref(:,N+1));
 
 %% Build controller
 
 parameters_in = {A_t B_t c_t xi_ref u_ref xi(:,1)};
+% parameters_in = {A_t B_t c_t xi_ref xi(:,1)};
 solution_out = {xi u};
 options = sdpsettings('verbose',1,'solver','gurobi');
 
