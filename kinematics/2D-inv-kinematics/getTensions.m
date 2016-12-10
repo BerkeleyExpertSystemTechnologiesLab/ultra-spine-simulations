@@ -1,27 +1,16 @@
-%% Find Forces in 2D Spine Using Equilibrium Force Balance
-% The goal of this program is to solve for the force density values of
-% cables in a 2D spine consisting of two stacked tetrahedra. The bottom
-% tetra is fixed, and the top tetra is translated. If the configuration is
-% feasible, then infinitely many solutions exist; the minimum-effort
-% solution will be selected.
-%
-% This script solves a force balance, in which the tetrahedron are used as
-% solid bodies. We assume that the spine is sitting on a surface, so that
-% there are vertical reaction forces at each of the two bottom nodes in
-% contact.
+%% Find Cable Forces and Rest Lengths in 2D Spine
+% This function minimizes the force density values of the cables in a 2D
+% spinr consisting of two stacked tetrahedra. The bottom tetra is fixed,
+% and the location of the top tetra is defined by the input xi. We assume
+% that the spine is sitting on a surface, so that there are vertical
+% reaction forces at each of the two bottom nodes in contact. The function
+% returns the cable tensions and the corresponding rest lengths.
 %
 % Authors: Mallory Daly and Ellande Tang
 % Created: 12/8/16
-% Modified: 12/9/16
+% Modified: 12/10/16
 
-% TO DO:
-% - Make into function with inputs zi, min. cable tension, and spring
-% constant, and outputs cable tensions and rest lengths
-% - Change coordinate system to match Drew's (translate bottom tetra so
-% middle is at (0,0)
-% - Change tetra numbering system to match Drew's
-
-clear; close all
+function [tensions, restLengths] = getTensions(xi, springConstant, spineParameters, minCableTension)
 
 %% Spine Parameters
 
@@ -30,59 +19,54 @@ r = 6; % bars
 s = 4; % cables
 n = 8; % nodes
 
-% Load spine data
-load('spine_geometric_parameters_2D.mat')
-
 % Geometric parameters
-ll = spine_geometric_parameters.l; % m, length of long bars
-h = spine_geometric_parameters.h; % m, height from top to bottom of tetra
+ll = spineParameters.l; % m, length of long bars
+h = spineParameters.h; % m, height from top to bottom of tetra
 ls = h/2; % m, length of short bar
 w = sqrt(ll^2-(h/2)^2); % m, width from center of tetra
 
 % Mass and force parameters
-g = spine_geometric_parameters.g; % m/s^2, acceleration due to gravity
-m = spine_geometric_parameters.m; % kg/node
+g = spineParameters.g; % m/s^2, acceleration due to gravity
+m = spineParameters.m; % kg/node
 M = m*4; % kg/tetra
 
 %% Connectivity Matrix
 % See H.-J. Schek's "The Force Density Method for Form Finding and
 % Computation of General Networks."
-% NOTE: Schek's work finds equilbrium positions given load and position of
-% fixed nodes. We want to find loads given positions of nodes.
 
 % Full connectivity matrix
-% Rows 1-6 are bars
-% Rows 7-10 are cables
-% Columns 1-4 are "free" nodes (they are fixed later)
-% Columns 5-8 are fixed nodes
+% Rows 1-4 are cables
+% Rows 5-10 are bars
+% Columns 1-4 are bottom tetra nodes
+% Columns 5-8 are top tetra nodes
 %    1  2  3  4  5  6  7  8  
-C = [1 -1  0  0  0  0  0  0;  %  1
-     1  0 -1  0  0  0  0  0;  %  2
-     1  0  0 -1  0  0  0  0;  %  3
-     0  0  0  0  1 -1  0  0;  %  4
-     0  0  0  0  1  0 -1  0;  %  5
-     0  0  0  0  1  0  0 -1;  %  6
-     0  0  0  1  0  0  0 -1;  %  7
-     0  0  1  0  0  0 -1  0;  %  8
-     0  1  0  0  0  0  0 -1;  %  9
-     0  1  0  0  0  0 -1  0]; % 10
+C = [0  1  0  0  0 -1  0  0;  %  1
+     0  0  1  0  0  0 -1  0;  %  2
+     0  0  0  1  0 -1  0  0;  %  3
+     0  0  0  1  0  0 -1  0;  %  4
+     1 -1  0  0  0  0  0  0;  %  5
+     1  0 -1  0  0  0  0  0;  %  6
+     1  0  0 -1  0  0  0  0;  %  7
+     0  0  0  0  1 -1  0  0;  %  8
+     0  0  0  0  1  0 -1  0;  %  9
+     0  0  0  0  1  0  0 -1]; % 10
 
 % Connection matrix of cables
-Cs = C(end-(s-1):end,:);
-
-%% VARIABLES: Translation and rotation of free tetrahedron
-xTrans = 1/2*w; % horizontal translation
-zTrans = 3/4*h; % vertical translation
-theta = deg2rad(5);      % rotation (radians)
+Cs = C(1:s,:);
 
 %% Nodal Positions
 % Coordinate system such that nodes 3 and 4 are on the x axis and nodes 1
 % and 2 are centered on the z axis.
 
 % Nodal positions of bottom tetrahedra
-%          1   2   3   4
-x_bot = [  0   0   w  -w]';
-z_bot = [  0 h/2 -h/2 -h/2]';
+%           1    2    3    4
+x_bot = [   0   -w    w    0]';
+z_bot = [   0 -h/2 -h/2  h/2]';
+
+% Nodal positions and rotation of top tetra
+x_top = xi(1);
+z_top = xi(2);
+theta = xi(3);
 
 % Rotation matrix for given angle of theta
 rot = [cos(theta), -sin(theta);
@@ -91,7 +75,7 @@ rot = [cos(theta), -sin(theta);
 % Need to multiply each node by the rotation matrix and add the (x,z)
 % offset from the xi state vector. Copy out (x,z) offset to a 2x4 matrix to
 % make this easier.
-xz_offset = repmat([xTrans; zTrans], 1, 4);
+xz_offset = repmat([x_top; z_top], 1, 4);
 
 % Translate and rotate position of fixed nodes to get coordinates of free
 % nodes
@@ -119,34 +103,34 @@ plot(x_top,z_top,'r.','MarkerSize',10)
 
 % Rows 1-6 are bars
 % Rows 7-10 are cables
-l = [ls;                             % 1
-     ll;                             % 2
-     ll;                             % 3
-     ls;                             % 4
-     ll;                             % 5
-     ll;                             % 6
-     norm([x(4),z(4)]-[x(8),z(8)]);  % 7
-     norm([x(3),z(3)]-[x(7),z(7)]);  % 8
-     norm([x(2),z(2)]-[x(8),z(8)]);  % 9
-     norm([x(2),z(2)]-[x(7),z(7)])]; %10
+l = [norm([x(2),z(2)]-[x(6),z(6)]); % 1
+     norm([x(3),z(3)]-[x(7),z(7)]); % 2
+     norm([x(4),z(4)]-[x(6),z(6)]); % 3
+     norm([x(4),z(4)]-[x(7),z(7)]); % 4
+     ll;                            % 5
+     ll;                            % 6
+     ls;                            % 7
+     ll;                            % 8
+     ll;                            % 9
+     ls];                           %10
 
-% Diagonal length matrices
-L = diag(l);
-L_cables = diag(l(end-(s-1):end));
+% Cable diagonal length matrix
+l_cables = l(1:s);
+L_cables = diag(l_cables);
 
 %% Solve for Reaction Forces
 % Assume spine is sitting on a surface. Then there are vertical reaction
-% forces at nodes 3 and 4.
+% forces at nodes 2 and 3.
 
-% Solve AR*[R3; R4] = bR, where AR will always be invertible
-AR = [1 1; 0 (x(3)-x(4))];
-bR = [2*M*g; M*g*(x(1)-x(4))+M*g*(x(5)-x(4))];
+% Solve AR*[R2; R3] = bR, where AR will always be invertible
+AR = [1 1; 0 (x(3)-x(2))];
+bR = [2*M*g; M*g*(x(1)-x(2))+M*g*(x(5)-x(2))];
 R = AR\bR;
-R3 = R(1);
-R4 = R(2);
+R2 = R(1);
+R3 = R(2);
 
-% Note R3 and R4 cannot be negative, but this constraint is not imposed
-% here. However, a condition under which R3 or R4 becomes negative creates
+% Note R2 and R3 cannot be negative, but this constraint is not imposed
+% here. However, a condition under which R2 or R3 becomes negative creates
 % an infeasible problem for the cable tensions, so the issue solves itself.
 % It's possible that a more generalized problem would need to solve for
 % reaction forces using a solver in order to impose this constraint.
@@ -164,32 +148,35 @@ A = [ -dx(1) -dx(2) -dx(3) -dx(4);  % horizontal forces, bottom tetra
        dx(1)  dx(2)  dx(3)  dx(4);  % horizontal forces, top tetra
       -dz(1) -dz(2) -dz(3) -dz(4);  % vertical forces, bottom tetra
        dz(1)  dz(2)  dz(3)  dz(4)]; % vertical forces, top tetra
-p = [ 0; 0; M*g-R3-R4; M*g;];
+p = [ 0; 0; M*g-R2-R3; M*g;];
 
 %% Solve Problem for Minimized Cable Tension
-
-% Minimum cable tension
-minTension = 0; % N
 
 % Solve with YALMIP
 yalmip('clear')
 q = sdpvar(s,1);
 obj = q'*q;
-constr = [A*q == p, L_cables*q >= minTension*ones(s,1)];
+constr = [A*q == p, L_cables*q >= minCableTension*ones(s,1)];
 options = sdpsettings('solver','quadprog','verbose',0);
 sol = optimize(constr,obj,options);
 % optimize(constr,obj)
 
 if sol.problem == 0
-    % Display optimal force densities
-    qOpt = value(q) % N/m
+    % Optimal force densities
+    qOpt = value(q); % N/m
 
-    % Display cable tensions
-    tensionsOpt = L_cables*qOpt % N
+    % Cable tensions
+    tensions = L_cables*qOpt; % N
 else
     display(sol.info)
 end
 
+%% Calculate Rest Lengths
+restLengths = l_cables - tensions/springConstant;
+
+if any(restLengths <= 0)
+    display('WARNING: One or more rest lengths are negative. Position is not feasible with current spring constant.')
+end
 
 %% Check Distance Vectors Symbollically
 % 
