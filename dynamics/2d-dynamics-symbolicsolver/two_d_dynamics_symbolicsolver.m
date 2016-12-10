@@ -283,6 +283,9 @@ two_d_geometry.k_vert = k_vert;
 two_d_geometry.k_saddle = k_saddle;
 two_d_geometry.c_vert = c_vert;
 two_d_geometry.c_saddle = c_saddle;
+% Include the mass of the system.
+two_d_geometry.m = m;
+two_d_geometry.total_m = sum(m);
 % For backwards compatibility: if the leg length and height variables
 % are declared, save them too.
 if exist('leg','var')
