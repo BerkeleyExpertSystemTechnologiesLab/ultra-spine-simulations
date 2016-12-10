@@ -42,9 +42,9 @@ u_lim_U = 0.2*ones(nu,1);
 xi_lim_L = -2*ones(nx,1);
 xi_lim_U = 2*ones(nx,1);
 
-u_norm_lim = 0.01;
-pos_norm_lim = 0.03;
-vel_norm_lim = 0.04;
+u_norm_lim = 1;
+pos_norm_lim = 1;
+vel_norm_lim = 1;
 
 %% Build constraints
 
@@ -58,51 +58,53 @@ for i = 1:N
     constraints = [constraints xi(:,i+1)==A_t*xi(:,i)+B_t*u(:,i)+c_t ...
         xi(2,i)>=spine_geo.h/2 ...
         u_lim_L<=u(:,i)<=u_lim_U];
+    
+%     constraints = [constraints xi(:,i+1)==A_t*xi(:,i)+B_t*u(:,i)+c_t ...
+%             u_lim_L<=u(:,i)];
 end
 constraints = [constraints xi(2,N+1)>=spine_geo.h/2];
 
 % for i = 1:N-1
 %     constraints = [constraints norm(u(:,i+1)-u(:,i))<=u_norm_lim ...
-%         norm(xi(1:3,i+1)-xi(1:3,i))<=pos_norm_lim ...
-%         norm(xi(4:6,i+1)-xi(4:6,i))<=vel_norm_lim];
+%         norm(xi(1:3,i+1)-xi(1:3,i),inf)<=pos_norm_lim ...
+%         norm(xi(4:6,i+1)-xi(4:6,i),inf)<=vel_norm_lim];
 % end
+
 % constraints = [constraints ...
-%     norm(xi(1:3,N+1)-xi(1:3,N))<=pos_norm_lim ...
-%     norm(xi(4:6,N+1)-xi(4:6,N))<=vel_norm_lim];
+%     norm(xi(1:3,N+1)-xi(1:3,N),inf)<=pos_norm_lim ...
+%     norm(xi(4:6,N+1)-xi(4:6,N),inf)<=vel_norm_lim];
 
 %% Build objective
 
 % Q = blkdiag(eye(nx/2),zeros(nx/2));
 Q = eye(nx/2);
-R = 200*eye(nu);
+R = 10*eye(nu);
 % P = blkdiag(eye(nx/2),zeros(nx/2));
 P = eye(nx/2);
 
 % objective = (xi(1:3,1)-xi_ref(1:3,1))'*Q*(xi(1:3,1)-xi_ref(1:3,1)) ...
 %         + (u(:,1)-u_ref(:,1))'*R*(u(:,1)-u_ref(:,1));
 objective = (xi(1:3,1)-xi_ref(1:3,1))'*Q*(xi(1:3,1)-xi_ref(1:3,1)) ...
-        + u(:,1)'*R*u(:,1);
+        + (u(:,1)-u_ref(:,1))'*R*(u(:,1)-u_ref(:,1));
 for i = 2:N
+%         objective = objective + (xi(1:3,i)-xi_ref(1:3,i))'*Q*(xi(1:3,i)-xi_ref(1:3,i)) ...
+%         + (u(:,i)-u_ref(:,i))'*R*(u(:,i)-u_ref(:,i));
     objective = objective + (xi(1:3,i)-xi_ref(1:3,i))'*Q*(xi(1:3,i)-xi_ref(1:3,i)) ...
-        + (u(:,i)-u_ref(:,i))'*R*(u(:,i)-u_ref(:,i));
-%     objective = objective + (xi(1:3,i)-xi_ref(1:3,i))'*Q*(xi(1:3,i)-xi_ref(1:3,i)) ...
-% %         + u(:,i)'*R*u(:,i);
-%     objective = objective + (xi(1:3,i)-xi_ref(1:3,i))'*Q*(xi(1:3,i)-xi_ref(1:3,i)) ...
-%         + (u(:,i)-u_ref(:,i))'*R*(u(:,i)-u_ref(:,i)) ...
-%         + (1/2)*norm(xi(1:3,i)-xi(1:3,i-1)) ...
-%         + (1/24)*(3^i)*norm(u(:,i)-u(:,i-1),inf);
-%     objective = objective + (xi(1:3,i)-xi_ref(1:3,i))'*Q*(xi(1:3,i)-xi_ref(1:3,i)) ...
-%         + u(:,i)'*R*u(:,i) ...
-%         + (1/2)*norm(xi(1:3,i)-xi(1:3,i-1)) ...
-%         + (1/24)*(3^i)*norm(u(:,i)-u(:,i-1));
+        + (u(:,i)-u_ref(:,i))'*R*(u(:,i)-u_ref(:,i)) ...
+        + (1/2)*norm(xi(1:3,i)-xi(1:3,i-1)) ...
+        + (1/24)*(3^i)*norm(u(:,i)-u(:,i-1),inf);
+%     objective = objective + (xi(:,i)-xi_ref(:,i))'*Q*(xi(:,i)-xi_ref(:,i)) ...
+%         + (u(:,i)-u_ref(:,i))'*R*(u(:,i)-u_ref(:,i));
 end
-objective = objective + (xi(1:3,N+1)-xi_ref(1:3,N+1))'*P*(xi(1:3,N+1)-xi_ref(1:3,N+1));
-% objective = objective + (xi(1:3,N+1)-xi_ref(1:3,N+1))'*P*(xi(1:3,N+1)-xi_ref(1:3,N+1)) ...
-%     + (3^i)*norm(xi(1:3,N+1)-xi(1:3,N));
+% objective = objective + (xi(1:3,N+1)-xi_ref(1:3,N+1))'*P*(xi(1:3,N+1)-xi_ref(1:3,N+1));
+objective = objective + (xi(1:3,N+1)-xi_ref(1:3,N+1))'*P*(xi(1:3,N+1)-xi_ref(1:3,N+1)) ...
+    + (3^i)*norm(xi(1:3,N+1)-xi(1:3,N));
+% objective = objective + (xi(:,N+1)-xi_ref(:,N+1))'*P*(xi(:,N+1)-xi_ref(:,N+1));
 
 %% Build controller
 
 parameters_in = {A_t B_t c_t xi_ref u_ref xi(:,1)};
+% parameters_in = {A_t B_t c_t xi_ref xi(:,1)};
 solution_out = {xi u};
 options = sdpsettings('verbose',1,'gurobi.TimeLimit',opt_time_lim,'solver','gurobi');
 
