@@ -1,11 +1,12 @@
 % get_ref_traj_invkin_XZG.m
-% Revised from Drew's code 2015 for 3-dimensional to 2-dimensional version
+% Revised from Drew's code 2015 for 3-dimensional to 2-dimensional version,
+% Added derivatives too
 % This function returns a trajectory for all three vertebra of a 4-vertebra spine that
 % bends around the Y+ axis, according to the inverse kinematics script, in either direction.
 % It includes full position state information for all three rigid bodies. 
 % No velocities though, those are zero-padded.
 
-function [traj, num_points] = get_ref_traj_invkin_XZG(tetra_vertical_spacing, num_points, direction)
+function [traj, num_points] = get_ref_traj_invkin_XZG(tetra_vertical_spacing, num_points, direction,dt)
 % Inputs:
 %   tetra_vertical_spacing = the distance between successive vertebrae. On 2016-04-18, was 0.1 meters.
 %   num_points = the number of timesteps/waypoints in this trajectory. On 2016-04-18, was 30 or 300.
@@ -78,6 +79,8 @@ end
 % Call these trajectories _ref.
 x_ref = zeros(num_points, num_vertebrae);
 z_ref = zeros(num_points, num_vertebrae);
+dx_ref = zeros(num_points, num_vertebrae);
+dz_ref = zeros(num_points, num_vertebrae);
 % x_ref = zeros(num_points/2, num_vertebrae);
 % z_ref = zeros(num_points/2, num_vertebrae);
 
@@ -86,6 +89,15 @@ for i=1:num_vertebrae
     x_ref(:,i) = c1 .* beta(:,i) .* sin(beta(:,i)) + (tetra_vertical_spacing * i) .* sin(beta(:,i));
     z_ref(:,i) = c1 .* beta(:,i) .* cos(beta(:,i)) + (tetra_vertical_spacing * i) .* cos(beta(:,i));
 end
+
+for i=1:num_points-1
+    % Use the equations defined above, for this varying radius curve.
+    dx_ref(i,:) = (x_ref(i+1,:)-x_ref(i,:))/dt;
+    dz_ref(i,:) = (z_ref(i+1,:)-z_ref(i,:))/dt;
+end
+% For the last columns of each trajectory:
+dx_ref(num_points,:) = dx_ref(num_points-1,:);
+dz_ref(num_points,:) = dz_ref(num_points-1,:);
 
 % Also, define the rotation of each tetra around its own axis. 
 % This is variable gamma, state 5 out of 12 for each vertebra.
@@ -101,11 +113,19 @@ end
 c2 = [1.06, 1.39, 1.54, 2.1, 2.5];
 
 g_ref = zeros(num_points, num_vertebrae);
+dg_ref = zeros(num_points, num_vertebrae);
 % g_ref = zeros(num_points/2, num_vertebrae);
 for i=1:num_vertebrae
     % We already have our betas, just convert to gammas.
     g_ref(:,i) = c2(i) .* beta(:,i);
 end
+
+for i=1:num_points-1
+    % Use the equations defined above, for this varying radius curve.
+    dg_ref(i,:) = (g_ref(i+1,:)-g_ref(i,:))/dt;
+end
+% For the last columns of each trajectory:
+dg_ref(num_points,:) = dg_ref(num_points-1,:);
 
 % Finally, place all of these points into a big array of all points in the trajectory.
 % We need this to be a concatenation of row vectors: traj is 36 rows by num_points columns.
@@ -125,11 +145,14 @@ for i=1:num_vertebrae
     % g is at 5, 17, 29
     traj( 6*(i-1) + 3, :) = g_ref(:,i)';
 %     traj( 12*(i-1) + 5, 1:(num_points/2)) = g_ref(:,i)';
+    traj( 6*(i-1) + 4, :) = dx_ref(:,i)';
+    traj( 6*(i-1) + 5, :) = dz_ref(:,i)';
+    traj( 6*(i-1) + 6, :) = dg_ref(:,i)';
 end
 
 % Then, copy the last state through to the end of the trajectory.
- last_state = traj(:,num_points/2);
- traj(:, (num_points/2)+1 : end) = repmat(last_state, 1, num_points/2);
+ %last_state = traj(:,num_points/2);
+% traj(:, (num_points/2)+1 : end) = repmat(last_state, 1, num_points/2);
 
 % end function.
     
