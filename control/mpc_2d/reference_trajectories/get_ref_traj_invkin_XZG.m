@@ -86,7 +86,7 @@ dz_ref = zeros(num_points, num_vertebrae);
 
 for i=1:num_vertebrae
     % Use the equations defined above, for this varying radius curve.
-    x_ref(:,i) = c1 .* beta(:,i) .* sin(beta(:,i)) + (tetra_vertical_spacing * i) .* sin(beta(:,i));
+    x_ref(:,i) = -0.014+c1 .* beta(:,i) .* sin(beta(:,i)) + (tetra_vertical_spacing * i) .* sin(beta(:,i));
     z_ref(:,i) = c1 .* beta(:,i) .* cos(beta(:,i)) + (tetra_vertical_spacing * i) .* cos(beta(:,i));
 end
 
@@ -110,14 +110,16 @@ dz_ref(num_points,:) = dz_ref(num_points-1,:);
 % TO-DO: find some reasonable relationship between these numbers. They look a bit like a power law?
 
 % Note, no need to adjust these by clockwise or counterclockwise, since beta is changed directly above.
-c2 = [1.06, 1.39, 1.54, 2.1, 2.5];
+% c2 = [1.06, 1.39, 1.54, 2.1, 2.5];
+c2 = [1.06, 1.39, 1.54];
 
 g_ref = zeros(num_points, num_vertebrae);
 dg_ref = zeros(num_points, num_vertebrae);
 % g_ref = zeros(num_points/2, num_vertebrae);
 for i=1:num_vertebrae
     % We already have our betas, just convert to gammas.
-    g_ref(:,i) = c2(i) .* beta(:,i);
+    % g_ref(:,i) = c2(i) .* beta(:,i);
+    g_ref(:,i) = 0.67*c2(i) .* beta(:,i);
 end
 
 for i=1:num_points-1

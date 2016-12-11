@@ -23,21 +23,18 @@
 % dynamics:
 %   simulate_2d_spine_dynamics
 
-function [A, B, c] = linearize_dynamics_2d(x_bar, u_bar, dt)
+function [A, B, c] = linearize_dynamics_2d(x_bar, u_bar, dt, dyn_type)
 
 % Number of states and inputs
 nx = length(x_bar);
 nu = length(u_bar);
 
 % Small constant for taking the numerical derivative
-eps = 1e-3;
+eps = 1e-5;
 
 % Initialize linearized state space matricies
 A = zeros(nx);
 B = zeros(nx,nu);
-
-% Dynamics type flag
-dyn_type = 2;
 
 % Linearize state matrix A
 for i = 1:nx

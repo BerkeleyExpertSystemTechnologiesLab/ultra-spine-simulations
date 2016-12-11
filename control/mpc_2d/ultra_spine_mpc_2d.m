@@ -54,7 +54,7 @@ paths.path_to_data_folder = '../../data/mpc_2d_data/';
 load('two_d_geometry.mat')
 
 % Create a struct of optimization parameters
-opt_params.num_pts = 200;
+opt_params.num_pts = 1000;
 opt_params.num_states = 6;
 opt_params.num_inputs = 4;
 opt_params.horizon_length = 4;
@@ -88,6 +88,7 @@ prev_u = opt_params.u;
 u_traj = zeros(opt_params.num_inputs,opt_params.num_pts+opt_params.horizon_length);
 for i = 1:opt_params.num_pts+opt_params.horizon_length
     [~, u_traj(:,i)] = getTensions(xi_traj(:,i),opt_params.spine_params,0);
+%     disp(xi_traj(:,i))
 end
 opt_params.xi = xi_traj(:,1);
 
@@ -117,6 +118,9 @@ xi_step = zeros(opt_params.num_states,opt_params.horizon_length+1,opt_params.num
 u_step = zeros(opt_params.num_inputs,opt_params.horizon_length,opt_params.num_pts);
 xi_cl = zeros(opt_params.num_states,opt_params.num_pts+1);
 u_cl = zeros(opt_params.num_inputs,opt_params.num_pts);
+A_step = zeros(opt_params.num_states,opt_params.num_states,opt_params.num_pts);
+B_step = zeros(opt_params.num_states,opt_params.num_inputs,opt_params.num_pts);
+c_step = zeros(opt_params.num_states,opt_params.num_pts);
 
 xi_cl(:,1) = opt_params.xi;
 dyn_type = 2;
@@ -129,8 +133,17 @@ for i = 1:opt_params.num_pts
     
     fprintf('Iteration: %g\n',i)
     
+    assign(xi_ref,xi_traj(:,i:i+opt_params.horizon_length));
+    assign(u_ref,u_traj(:,i:i+opt_params.horizon_length));
+    
     % Linearize dynamics about current state and input
-    [A_k, B_k, c_k] = linearize_dynamics_2d(opt_params.xi,opt_params.u,opt_params.dt);
+%     [A_k, B_k, c_k] = linearize_dynamics_2d(opt_params.xi,opt_params.u,opt_params.dt,dyn_type);
+
+    % Linearize dynamics about state and input references
+    [A_k, B_k, c_k] = linearize_dynamics_2d(opt_params.xi,u_traj(:,i),opt_params.dt,dyn_type);
+    A_step(:,:,i) = A_k;
+    B_step(:,:,i) = B_k;
+    c_step(:,i) = c_k;
     
     % Generate state and input reference trajectory for the current
     % timestep with length of the horizon window
@@ -159,9 +172,6 @@ for i = 1:opt_params.num_pts
 %         xi_ref(:,j) = xi_s;
 %         u_ref(:,j) = u_s;
 %     end
-    
-    assign(xi_ref,xi_traj(:,i:i+opt_params.horizon_length));
-    assign(u_ref,u_traj(:,i:i+opt_params.horizon_length));
     
     % Solve and save results
     outputs = controller{{A_k B_k c_k xi_ref u_ref opt_params.xi}};
@@ -193,6 +203,7 @@ plot(xi_traj(1,:),xi_traj(2,:),'or','lineWidth',2)
 drawnow;
 
 for i=1:opt_params.num_pts
+    fprintf('Plot iteration: %g\n',i)
     % Plot the vertebrae at this timestep:
     % clear the window
     for j = 1:length(handles)
@@ -208,6 +219,7 @@ figure;
 subplot(6,1,1)
 plot(1:opt_params.num_pts+1,xi_cl(1,:))
 ylabel('x')
+title('State Trajectories')
 subplot(6,1,2)
 plot(1:opt_params.num_pts+1,xi_cl(2,:))
 ylabel('z')
@@ -223,3 +235,33 @@ ylabel('v_z')
 subplot(6,1,6)
 plot(1:opt_params.num_pts+1,xi_cl(6,:))
 ylabel('omega')
+
+figure;
+subplot(4,1,1)
+plot(1:opt_params.num_pts,u_cl(1,:))
+ylabel('u1')
+title('Input Trajectories')
+subplot(4,1,2)
+plot(1:opt_params.num_pts,u_cl(2,:))
+ylabel('u2')
+subplot(4,1,3)
+plot(1:opt_params.num_pts,u_cl(3,:))
+ylabel('u3')
+subplot(4,1,4)
+plot(1:opt_params.num_pts,u_cl(4,:))
+ylabel('u4')
+
+figure;
+subplot(4,1,1)
+plot(1:opt_params.num_pts+opt_params.horizon_length,u_traj(1,:))
+ylabel('u1')
+title('Reference Inputs')
+subplot(4,1,2)
+plot(1:opt_params.num_pts+opt_params.horizon_length,u_traj(2,:))
+ylabel('u2')
+subplot(4,1,3)
+plot(1:opt_params.num_pts+opt_params.horizon_length,u_traj(3,:))
+ylabel('u3')
+subplot(4,1,4)
+plot(1:opt_params.num_pts+opt_params.horizon_length,u_traj(4,:))
+ylabel('u4')
