@@ -29,6 +29,9 @@ w = sqrt(ll^2-(h/2)^2); % m, width from center of tetra
 g = spineParameters.g; % m/s^2, acceleration due to gravity
 M = spineParameters.total_m; % kg/tetra
 springConstant = spineParameters.k_vert; % structure has vertical and horizontal k, but they're the same, so ignore for now
+% m = spineParameters.m; % kg/node
+M = spineParameters.total_m; % kg/tetra
+springConstant = spineParameters.k_vert;
 
 %% Connectivity Matrix
 % See H.-J. Schek's "The Force Density Method for Form Finding and
