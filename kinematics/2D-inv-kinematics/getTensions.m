@@ -10,7 +10,7 @@
 % Created: 12/8/16
 % Modified: 12/10/16
 
-function [tensions, restLengths] = getTensions(xi, spineParameters, minCableTension)
+function [tensions, restLengths, A, p] = getTensions(xi, spineParameters, minCableTension)
 
 %% Spine Parameters
 
@@ -27,9 +27,8 @@ w = sqrt(ll^2-(h/2)^2); % m, width from center of tetra
 
 % Mass and force parameters
 g = spineParameters.g; % m/s^2, acceleration due to gravity
-m = spineParameters.m; % kg/node
-M = m*4; % kg/tetra
-springConstant = spineParameters.k;
+M = spineParameters.total_m; % kg/tetra
+springConstant = spineParameters.k_vert; % structure has vertical and horizontal k, but they're the same, so ignore for now
 
 %% Connectivity Matrix
 % See H.-J. Schek's "The Force Density Method for Form Finding and
@@ -53,7 +52,7 @@ C = [0  1  0  0  0 -1  0  0;  %  1
      0  0  0  0  1  0  0 -1]; % 10
 
 % Connection matrix of cables
-Cs = C(1:s,:);
+% Cs = C(1:s,:);
 
 %% Nodal Positions
 % Coordinate system such that nodes 3 and 4 are on the x axis and nodes 1
@@ -91,25 +90,25 @@ x = [x_bot; x_top];
 z = [z_bot; z_top];
 
 % Plot nodal positions
-% figure
-% plot(x_bot,z_bot,'k.','MarkerSize',10)
-% hold on
-% plot(x_top,z_top,'r.','MarkerSize',10)
+figure
+plot(x_bot,z_bot,'k.','MarkerSize',10)
+hold on
+plot(x_top,z_top,'r.','MarkerSize',10)
 
 %% Lengths of Bars and Cables
 
 % Rows 1-6 are bars
 % Rows 7-10 are cables
-l = [norm([x(2),z(2)]-[x(6),z(6)]); % 1
-     norm([x(3),z(3)]-[x(7),z(7)]); % 2
-     norm([x(4),z(4)]-[x(6),z(6)]); % 3
-     norm([x(4),z(4)]-[x(7),z(7)]); % 4
-     ll;                            % 5
-     ll;                            % 6
-     ls;                            % 7
-     ll;                            % 8
-     ll;                            % 9
-     ls];                           %10
+l = [norm([x(2),z(2)]-[x(6),z(6)]); %  1
+     norm([x(3),z(3)]-[x(7),z(7)]); %  2
+     norm([x(4),z(4)]-[x(6),z(6)]); %  3
+     norm([x(4),z(4)]-[x(7),z(7)]); %  4
+     ll;                            %  5
+     ll;                            %  6
+     ls;                            %  7
+     ll;                            %  8
+     ll;                            %  9
+     ls];                           % 10
 
 % Cable diagonal length matrix
 l_cables = l(1:s);
@@ -135,8 +134,8 @@ R3 = R(2);
 %% Equilibrium Force Equations
 
 % Create vector of distance differences
-dx = Cs*x;
-dz = Cs*z;
+dx = C*x;
+dz = C*z;
 
 % Define A*q = p, where q is a vector of the cable force densities and p is
 % a vector of the external forces. Note that A is not a full rank matrix
@@ -145,7 +144,13 @@ A = [ -dx(1) -dx(2) -dx(3) -dx(4);  % horizontal forces, bottom tetra
        dx(1)  dx(2)  dx(3)  dx(4);  % horizontal forces, top tetra
       -dz(1) -dz(2) -dz(3) -dz(4);  % vertical forces, bottom tetra
        dz(1)  dz(2)  dz(3)  dz(4)]; % vertical forces, top tetra
-p = [ 0; 0; M*g-R2-R3; M*g;];
+
+qfun = @(a,b,c) (x(b)-x(a))*(z(c)-z(b)) - (z(b)-z(a))*(x(c)-x(b));
+A = [A;
+     qfun(5,6,2) qfun(5,7,3) qfun(5,6,4) qfun(5,7,4);
+     qfun(1,2,6) qfun(1,3,7) qfun(1,4,6) qfun(1,4,7)];
+ 
+p = [ 0; 0; M*g-R2-R3; M*g; 0; (R2-R3)*w];
 
 %% Solve Problem for Minimized Cable Tension
 
@@ -164,22 +169,26 @@ Aeq = A;
 beq = p;
 Aineq = -L_cables;
 bineq = -minCableTension*ones(s,1);
+% opts = optimoptions(@quadprog,'Display','notify-detailed');
 [qOpt, ~, exitFlag] = quadprog(H,f,Aineq,bineq,Aeq,beq);
-tensions = L_cables*qOpt; % N
 
-if exitFlag ~= 1
-    error('Infeasible problem.')
+if exitFlag == 1
+    tensions = L_cables*qOpt; % N
+    restLengths = l_cables - tensions/springConstant;
+    if any(restLengths <= 0)
+        display('WARNING: One or more rest lengths are negative. Position is not feasible with current spring constant.')
+    end
+else
+    display(['Quadprog exit flag: ' num2str(exitFlag)])
+    tensions = Inf*ones(s,1);
+    restLengths = -Inf*ones(s,1);
 end
 
-%% Calculate Rest Lengths
-restLengths = l_cables - tensions/springConstant;
-
-if any(restLengths <= 0)
-    display('WARNING: One or more rest lengths are negative. Position is not feasible with current spring constant.')
-end
+topMoment = [qfun(5,6,2) qfun(5,7,3) qfun(5,6,4) qfun(5,7,4)]*qOpt
+botMoment = [qfun(1,2,6) qfun(1,3,7) qfun(1,4,6) qfun(1,4,7)]*qOpt
 
 %% Check Distance Vectors Symbollically
-% 
+
 % x1 = sym('x1','real');
 % x2 = sym('x2','real');
 % x3 = sym('x3','real');
@@ -200,11 +209,11 @@ end
 % z8 = sym('z8','real');
 % z = [z1 z2 z3 z4 z5 z6 z7 z8]';
 % 
-% Cs*x
-% Cs*z
+% C*x
+% C*z
 % 
-% q7 = sym('q7','real');
-% q8 = sym('q8','real');
-% q9 = sym('q9','real');
-% q10 = sym('q10','real');
-% qs = [q7 q8 q9 q10]'
+% q1 = sym('q1','real');
+% q2 = sym('q2','real');
+% q3 = sym('q3','real');
+% q4 = sym('q4','real');
+% qs = [q1 q2 q3 q4]'

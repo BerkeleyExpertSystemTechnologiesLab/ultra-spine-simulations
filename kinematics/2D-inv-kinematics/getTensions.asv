@@ -27,9 +27,8 @@ w = sqrt(ll^2-(h/2)^2); % m, width from center of tetra
 
 % Mass and force parameters
 g = spineParameters.g; % m/s^2, acceleration due to gravity
-m = spineParameters.m; % kg/node
-M = m*4; % kg/tetra
-springConstant = spineParameters.k;
+M = spineParameters.total_m; % kg/tetra
+springConstant = spineParameters.k_vert; % structure has vertical and horizontal k, but they're the same, so ignore for now
 
 %% Connectivity Matrix
 % See H.-J. Schek's "The Force Density Method for Form Finding and
@@ -53,7 +52,7 @@ C = [0  1  0  0  0 -1  0  0;  %  1
      0  0  0  0  1  0  0 -1]; % 10
 
 % Connection matrix of cables
-Cs = C(1:s,:);
+% Cs = C(1:s,:);
 
 %% Nodal Positions
 % Coordinate system such that nodes 3 and 4 are on the x axis and nodes 1
@@ -135,8 +134,8 @@ R3 = R(2);
 %% Equilibrium Force Equations
 
 % Create vector of distance differences
-dx = Cs*x;
-dz = Cs*z;
+dx = C*x;
+dz = C*z;
 
 % Define A*q = p, where q is a vector of the cable force densities and p is
 % a vector of the external forces. Note that A is not a full rank matrix
@@ -144,74 +143,70 @@ dz = Cs*z;
 A = [ -dx(1) -dx(2) -dx(3) -dx(4);  % horizontal forces, bottom tetra
        dx(1)  dx(2)  dx(3)  dx(4);  % horizontal forces, top tetra
       -dz(1) -dz(2) -dz(3) -dz(4);  % vertical forces, bottom tetra
-       dz(1)  dz(2)  dz(3)  dz(4)]; % vertical forces, top tetra
+       dz(1)  dz(2)  dz(3)  dz(4); % vertical forces, top tetra
+      (-dx(8)*dz(1)-(-dz(8)*dx(1))) 
 p = [ 0; 0; M*g-R2-R3; M*g;];
 
 %% Solve Problem for Minimized Cable Tension
 
-% Solve with YALMIP
+% % Solve with YALMIP
 % yalmip('clear')
 % q = sdpvar(s,1);
 % obj = q'*q;
 % constr = [A*q == p, L_cables*q >= minCableTension*ones(s,1)];
 % options = sdpsettings('solver','quadprog','verbose',0);
 % sol = optimize(constr,obj,options);
-% optimize(constr,obj)
 
 % Solve with QUADPROG
-H = k;
+H = 2*eye(4);
 f = zeros(4,1);
 Aeq = A;
 beq = p;
 Aineq = -L_cables;
 bineq = -minCableTension*ones(s,1);
-qOpt = quadprog(H,f,Aineq,bineq,Aeq,beq);
-tensions = L_cables*qOpt; % N
+% opts = optimoptions(@quadprog,'Display','notify-detailed');
+[qOpt, ~, exitFlag] = quadprog(H,f,Aineq,bineq,Aeq,beq);
 
-% if sol.problem == 0
-%     % Optimal force densities
-%     qOpt = value(q); % N/m
-% 
-%     % Cable tensions
-%     tensions = L_cables*qOpt; % N
-% else
-%     display(sol.info)
-% end
-
-%% Calculate Rest Lengths
-restLengths = l_cables - tensions/springConstant;
-
-if any(restLengths <= 0)
-    display('WARNING: One or more rest lengths are negative. Position is not feasible with current spring constant.')
+if exitFlag == 1
+    tensions = L_cables*qOpt; % N
+    restLengths = l_cables - tensions/springConstant;
+    if any(restLengths <= 0)
+        display('WARNING: One or more rest lengths are negative. Position is not feasible with current spring constant.')
+    end
+else
+    display(['Quadprog exit flag: ' num2str(exitFlag)])
+    tensions = Inf*ones(s,1);
+    restLengths = -Inf*ones(s,1);
 end
 
+
 %% Check Distance Vectors Symbollically
-% 
-% x1 = sym('x1','real');
-% x2 = sym('x2','real');
-% x3 = sym('x3','real');
-% x4 = sym('x4','real');
-% x5 = sym('x5','real');
-% x6 = sym('x6','real');
-% x7 = sym('x7','real');
-% x8 = sym('x8','real');
-% x = [x1 x2 x3 x4 x5 x6 x7 x8]';
-% 
-% z1 = sym('z1','real');
-% z2 = sym('z2','real');
-% z3 = sym('z3','real');
-% z4 = sym('z4','real');
-% z5 = sym('z5','real');
-% z6 = sym('z6','real');
-% z7 = sym('z7','real');
-% z8 = sym('z8','real');
-% z = [z1 z2 z3 z4 z5 z6 z7 z8]';
-% 
-% Cs*x
-% Cs*z
-% 
-% q7 = sym('q7','real');
-% q8 = sym('q8','real');
-% q9 = sym('q9','real');
-% q10 = sym('q10','real');
-% qs = [q7 q8 q9 q10]'
+
+x1 = sym('x1','real');
+x2 = sym('x2','real');
+x3 = sym('x3','real');
+x4 = sym('x4','real');
+x5 = sym('x5','real');
+x6 = sym('x6','real');
+x7 = sym('x7','real');
+x8 = sym('x8','real');
+x = [x1 x2 x3 x4 x5 x6 x7 x8]';
+
+z1 = sym('z1','real');
+z2 = sym('z2','real');
+z3 = sym('z3','real');
+z4 = sym('z4','real');
+z5 = sym('z5','real');
+z6 = sym('z6','real');
+z7 = sym('z7','real');
+z8 = sym('z8','real');
+z = [z1 z2 z3 z4 z5 z6 z7 z8]';
+
+C*x
+C*z
+
+q1 = sym('q1','real');
+q2 = sym('q2','real');
+q3 = sym('q3','real');
+q4 = sym('q4','real');
+qs = [q1 q2 q3 q4]'
