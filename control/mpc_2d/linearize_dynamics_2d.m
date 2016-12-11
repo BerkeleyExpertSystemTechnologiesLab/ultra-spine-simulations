@@ -33,8 +33,9 @@ nu = length(u_bar);
 assert( ~(any(isnan(x_bar))), 'Error! NaN was passed in to linearize_dynamics as x_bar.');
 assert( ~(any(isnan(u_bar))), 'Error! NaN was passed in to linearize_dynamics as u_bar.');
 
-% Small constant for taking the numerical derivative
+% Small constant for taking the numerical derivative (finite difference approx.)
 eps = 1e-5;
+%eps = 1e-7;
 
 % Initialize linearized state space matricies
 A = zeros(nx);
@@ -46,7 +47,7 @@ for i = 1:nx
     x_bar_L = x_bar;
     x_bar_U(i) = x_bar_U(i) + eps;
     x_bar_L(i) = x_bar_L(i) - eps;
-    A(:,i) = (simulate_2d_spine_dynamics(x_bar_U,u_bar,dt,1,dyn_type) - ...
+    A(:,i) = (simulate_2d_spine_dynamics(x_bar_U,u_bar,dt,10,dyn_type) - ...
         simulate_2d_spine_dynamics(x_bar_L,u_bar,dt,1,dyn_type))/(2*eps);
 end
 
@@ -56,8 +57,8 @@ for i = 1:nu
     u_bar_L = u_bar;
     u_bar_U(i) = u_bar_U(i) + eps;
     u_bar_L(i) = u_bar_L(i) - eps;
-    B(:,i) = (simulate_2d_spine_dynamics(x_bar,u_bar_U,dt,1,dyn_type) - ...
+    B(:,i) = (simulate_2d_spine_dynamics(x_bar,u_bar_U,dt,10,dyn_type) - ...
         simulate_2d_spine_dynamics(x_bar,u_bar_L,dt,1,dyn_type))/(2*eps);
 end
 
-c = simulate_2d_spine_dynamics(x_bar,u_bar,dt,1,dyn_type)-(A*x_bar+B*u_bar);
+c = simulate_2d_spine_dynamics(x_bar,u_bar,dt,10,dyn_type)-(A*x_bar+B*u_bar);

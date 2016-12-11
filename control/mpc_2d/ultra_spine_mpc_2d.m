@@ -54,13 +54,18 @@ paths.path_to_data_folder = '../../data/mpc_2d_data/';
 load('two_d_geometry.mat')
 
 % Create a struct of optimization parameters
-opt_params.num_pts = 1000;
+opt_params.num_pts = 4000;
 opt_params.num_states = 6;
 opt_params.num_inputs = 4;
 opt_params.horizon_length = 4;
 opt_params.opt_time_lim = 1.5;
 opt_params.spine_params = two_d_geometry;
-opt_params.dt = 0.001;
+% Note: it seems that the discretization of dt=0.001 sec
+% leads to instability. Choose 1e-5 or lower, ideally 1e-6.
+%opt_params.dt = 0.001;
+%opt_params.dt = 1e-7;
+%opt_params.dt = 1e-6;
+opt_params.dt = 1e-5;
 
 % Define initial states
 % xi_0 = [-0.05; 0.15; pi/4; 0; 0; 0];
@@ -75,8 +80,6 @@ opt_params.u = zeros(opt_params.num_inputs,1);
 C = eye(opt_params.num_states);
 opt_params.num_outputs = size(C,1);
 
-prev_u = opt_params.u;
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Get trajectory for top vertebra
 
@@ -86,11 +89,17 @@ prev_u = opt_params.u;
 % [xi_traj, u_traj, ~] = get_ref_traj_eq(opt_params.num_pts,opt_params.horizon_length);
 [xi_traj, ~] = get_ref_traj_invkin_XZG(0.1,opt_params.num_pts+opt_params.horizon_length,1,opt_params.dt);
 u_traj = zeros(opt_params.num_inputs,opt_params.num_pts+opt_params.horizon_length);
+% Adding a minimum tension:
+min_tension = 30; %newtons
 for i = 1:opt_params.num_pts+opt_params.horizon_length
-    [~, u_traj(:,i)] = getTensions(xi_traj(:,i),opt_params.spine_params,0);
+    disp(strcat('Calculating inverse kinematics for trajectory point #', num2str(i), '...'));
+    [~, u_traj(:,i)] = getTensions(xi_traj(:,i),opt_params.spine_params,min_tension);
 %     disp(xi_traj(:,i))
 end
 opt_params.xi = xi_traj(:,1);
+opt_params.u = u_traj(:,1);
+
+prev_u = opt_params.u;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Create controller
@@ -123,7 +132,10 @@ B_step = zeros(opt_params.num_states,opt_params.num_inputs,opt_params.num_pts);
 c_step = zeros(opt_params.num_states,opt_params.num_pts);
 
 xi_cl(:,1) = opt_params.xi;
+% With recification (nonnegative cable tensions):
 dyn_type = 2;
+% Without recification (cables can push):
+%dyn_type = 3;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% MPC Loop
@@ -131,16 +143,19 @@ dyn_type = 2;
 % Main loop iterating through the length of the trajectory
 for i = 1:opt_params.num_pts
     
-    fprintf('Iteration: %g\n',i)
+    fprintf('MPC Iteration: %g\n',i)
     
     assign(xi_ref,xi_traj(:,i:i+opt_params.horizon_length));
     assign(u_ref,u_traj(:,i:i+opt_params.horizon_length));
+    % These seem to need to be doubles, not sdpvars.
+    xi_ref_current = xi_traj(:,i:i+opt_params.horizon_length);
+    u_ref_current = u_traj(:,i:i+opt_params.horizon_length);
     
     % Linearize dynamics about current state and input
-%     [A_k, B_k, c_k] = linearize_dynamics_2d(opt_params.xi,opt_params.u,opt_params.dt,dyn_type);
+    [A_k, B_k, c_k] = linearize_dynamics_2d(opt_params.xi,opt_params.u,opt_params.dt,dyn_type);
 
     % Linearize dynamics about state and input references
-    [A_k, B_k, c_k] = linearize_dynamics_2d(opt_params.xi,u_traj(:,i),opt_params.dt,dyn_type);
+%     [A_k, B_k, c_k] = linearize_dynamics_2d(opt_params.xi,u_traj(:,i),opt_params.dt,dyn_type);
     A_step(:,:,i) = A_k;
     B_step(:,:,i) = B_k;
     c_step(:,i) = c_k;
@@ -174,7 +189,9 @@ for i = 1:opt_params.num_pts
 %     end
     
     % Solve and save results
-    outputs = controller{{A_k B_k c_k xi_ref u_ref opt_params.xi}};
+    %outputs = controller{{A_k B_k c_k xi_ref u_ref opt_params.xi}};
+    % Using the references as doubles and not sdpvars:
+    outputs = controller{{A_k B_k c_k xi_ref_current u_ref_current opt_params.xi}};
 %     outputs = controller{{A_k B_k c_k xi_ref opt_params.xi}};
     
     u_step(:,:,i) = outputs{2}(:,1:opt_params.horizon_length);
@@ -183,7 +200,8 @@ for i = 1:opt_params.num_pts
     opt_params.u = control;
     prev_u = control;
     
-    xi_kp1 = simulate_2d_spine_dynamics(opt_params.xi,opt_params.u,opt_params.dt,1,dyn_type);
+    %xi_kp1 = simulate_2d_spine_dynamics(opt_params.xi,opt_params.u,opt_params.dt,1,dyn_type);
+    xi_kp1 = simulate_2d_spine_dynamics(opt_params.xi,opt_params.u,opt_params.dt,10,dyn_type);
     xi_cl(:,i+1) = xi_kp1;
     opt_params.xi = xi_kp1;
     
@@ -215,6 +233,7 @@ for i=1:opt_params.num_pts
     drawnow;
 end
 
+% Plot the closed-loop trajectories
 figure;
 subplot(6,1,1)
 plot(1:opt_params.num_pts+1,xi_cl(1,:))
@@ -236,6 +255,7 @@ subplot(6,1,6)
 plot(1:opt_params.num_pts+1,xi_cl(6,:))
 ylabel('omega')
 
+% Plot the closed-loop inputs
 figure;
 subplot(4,1,1)
 plot(1:opt_params.num_pts,u_cl(1,:))
@@ -251,6 +271,7 @@ subplot(4,1,4)
 plot(1:opt_params.num_pts,u_cl(4,:))
 ylabel('u4')
 
+% Plot the original reference inputs
 figure;
 subplot(4,1,1)
 plot(1:opt_params.num_pts+opt_params.horizon_length,u_traj(1,:))
@@ -265,3 +286,30 @@ ylabel('u3')
 subplot(4,1,4)
 plot(1:opt_params.num_pts+opt_params.horizon_length,u_traj(4,:))
 ylabel('u4')
+
+% Plot the errors in state between the closed-loop and reference
+% Errors are:
+xi_errors = abs(xi_cl - xi_traj(:, 1:size(xi_cl,2)));
+figure;
+hold on;
+subplot(3,1,1);
+plot(1:opt_params.num_pts+1, xi_errors(1,:));
+ylabel('x');
+title('Tracking Errors, abs(State - Ref)');
+subplot(3,1,2);
+plot(1:opt_params.num_pts+1, xi_errors(2,:));
+ylabel('z');
+subplot(3,1,3);
+plot(1:opt_params.num_pts+1, xi_errors(3,:));
+ylabel('theta');
+% subplot(6,1,4);
+% plot(1:opt_params.num_pts+1, xi_errors(4,:));
+% ylabel('v_x');
+% subplot(6,1,5);
+% plot(1:opt_params.num_pts+1, xi_errors(5,:));
+% ylabel('v_z');
+% subplot(6,1,6);
+% plot(1:opt_params.num_pts+1, xi_errors(6,:));
+% ylabel('omega');
+
+% end script.
