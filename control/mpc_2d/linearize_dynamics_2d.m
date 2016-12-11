@@ -29,6 +29,10 @@ function [A, B, c] = linearize_dynamics_2d(x_bar, u_bar, dt, dyn_type)
 nx = length(x_bar);
 nu = length(u_bar);
 
+% Quick check: if any not-a-numbers are passed in, quit.
+assert( ~(any(isnan(x_bar))), 'Error! NaN was passed in to linearize_dynamics as x_bar.');
+assert( ~(any(isnan(u_bar))), 'Error! NaN was passed in to linearize_dynamics as u_bar.');
+
 % Small constant for taking the numerical derivative
 eps = 1e-5;
 
