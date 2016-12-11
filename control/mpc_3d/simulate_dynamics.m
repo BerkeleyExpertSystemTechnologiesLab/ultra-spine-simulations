@@ -26,8 +26,10 @@ function systemStates = simulate_dynamics(systemStates, restLengths, inputs, dt,
 % systemStates{t+1} = systemStates{t} + (dt/6)*(K1 + 2*K2 + 2*K3 + K4)
 
 % Define the magnitude of the noise, for both the position and velocity:
-noise_mag_pos = 0.0005; % Was 0.001
-noise_mag_vel = 0.0002; % Was 0.0005
+% noise_mag_pos = 0.0005; % Was 0.001
+% noise_mag_vel = 0.0002; % Was 0.0005
+noise_mag_pos = 0; % Was 0.001
+noise_mag_vel = 0; % Was 0.0005
 
 tempState{1} = 0; % First link is fixed (Placeholder for state info)
 Te{1} = 0;

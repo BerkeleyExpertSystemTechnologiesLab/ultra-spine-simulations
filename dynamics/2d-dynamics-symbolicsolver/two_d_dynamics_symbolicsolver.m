@@ -1273,6 +1273,18 @@ disp('     Writing functions for dynamics approach #4:');
 disp('     Writing xi_dot, with barrier function...');
 matlabFunction(xi_dot_soln_barrier,'file','two_d_spine_xi_dot_barrier','Vars',{xi,u});
 
+% In order to keep these symbolic variables for later,
+% let's write them to a .mat file.%PROGRESS_BAR
+disp('     Saving a .mat file with all the symbolic variables...');
+% rename the variables so they make more sense.
+two_d_spine_tensions = tensions_sub;
+two_d_spine_accel = d2xi_solved_un;
+two_d_spine_tensions_barrier = tensions_sub_barrier;
+two_d_spine_xi_dot = xi_dot_soln;
+two_d_spine_xi_dot_barrier = xi_dot_soln_barrier;
+save('two_d_dynamics_symbolic_vars.mat', 'two_d_spine_tensions', 'two_d_spine_accel', ...
+    'two_d_spine_tensions_barrier', 'two_d_spine_xi_dot', 'two_d_spine_xi_dot_barrier');
+
 %% Script has finished.
 
 %DEBUGGING
