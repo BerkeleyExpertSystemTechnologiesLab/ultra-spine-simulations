@@ -10,7 +10,7 @@
 % Created: 12/8/16
 % Modified: 12/10/16
 
-function [tensions, restLengths, A, p] = getTensions(xi, spineParameters, minCableTension)
+function [tensions, restLengths] = getTensions(xi, spineParameters, minCableTension)
 
 %% Spine Parameters
 
@@ -93,10 +93,10 @@ x = [x_bot; x_top];
 z = [z_bot; z_top];
 
 % Plot nodal positions
-figure
-plot(x_bot,z_bot,'k.','MarkerSize',10)
-hold on
-plot(x_top,z_top,'r.','MarkerSize',10)
+% figure
+% plot(x_bot,z_bot,'k.','MarkerSize',10)
+% hold on
+% plot(x_top,z_top,'r.','MarkerSize',10)
 
 %% Lengths of Bars and Cables
 
@@ -148,6 +148,8 @@ A = [ -dx(1) -dx(2) -dx(3) -dx(4);  % horizontal forces, bottom tetra
       -dz(1) -dz(2) -dz(3) -dz(4);  % vertical forces, bottom tetra
        dz(1)  dz(2)  dz(3)  dz(4)]; % vertical forces, top tetra
 
+% Moments about each tetra (actually only need moment about one because we
+% already took the system moment, but it's not hurting anything to have it.
 qfun = @(a,b,c) (x(b)-x(a))*(z(c)-z(b)) - (z(b)-z(a))*(x(c)-x(b));
 A = [A;
      qfun(5,6,2) qfun(5,7,3) qfun(5,6,4) qfun(5,7,4);
