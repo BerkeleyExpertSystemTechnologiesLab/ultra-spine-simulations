@@ -189,9 +189,6 @@ else
     restLengths = -Inf*ones(s,1);
 end
 
-topMoment = [qfun(5,6,2) qfun(5,7,3) qfun(5,6,4) qfun(5,7,4)]*qOpt
-botMoment = [qfun(1,2,6) qfun(1,3,7) qfun(1,4,6) qfun(1,4,7)]*qOpt
-
 %% Check Distance Vectors Symbollically
 
 % x1 = sym('x1','real');
