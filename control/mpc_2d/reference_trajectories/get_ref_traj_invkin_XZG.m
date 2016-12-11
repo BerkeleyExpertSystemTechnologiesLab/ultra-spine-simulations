@@ -48,7 +48,9 @@ c1 = 1e-4;
 beta_0 = 0;
 %beta_f = direction * pi/8; 
 % On 2016-09-18: made beta larger for illustrating the trajectory in a figure for the ACC 2017 paper.
-beta_f = direction * pi/4;
+%beta_f = direction * pi/4;
+%beta_f = direction * pi/16;
+beta_f = direction * pi/256;
 
 % Number of points to have in this trajectory. 
 % Note that it's been estimated that timesteps should only put the top tetras about 0.0014 units distance
@@ -86,7 +88,10 @@ dz_ref = zeros(num_points, num_vertebrae);
 
 for i=1:num_vertebrae
     % Use the equations defined above, for this varying radius curve.
-    x_ref(:,i) = -0.014+c1 .* beta(:,i) .* sin(beta(:,i)) + (tetra_vertical_spacing * i) .* sin(beta(:,i));
+    %x_ref(:,i) = -0.014+c1 .* beta(:,i) .* sin(beta(:,i)) + (tetra_vertical_spacing * i) .* sin(beta(:,i));
+    % Need to have a very slight offset so that Mallory's inverse kinematics code
+    % does not give -inf (which occurs when the system is symmetric.)
+    x_ref(:,i) = 1e-3 + c1 .* beta(:,i) .* sin(beta(:,i)) + (tetra_vertical_spacing * i) .* sin(beta(:,i));
     z_ref(:,i) = c1 .* beta(:,i) .* cos(beta(:,i)) + (tetra_vertical_spacing * i) .* cos(beta(:,i));
 end
 
