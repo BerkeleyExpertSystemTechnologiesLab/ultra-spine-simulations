@@ -130,6 +130,12 @@ u_cl = zeros(opt_params.num_inputs,opt_params.num_pts);
 A_step = zeros(opt_params.num_states,opt_params.num_states,opt_params.num_pts);
 B_step = zeros(opt_params.num_states,opt_params.num_inputs,opt_params.num_pts);
 c_step = zeros(opt_params.num_states,opt_params.num_pts);
+% As an extra check, let's record the stability of the A matrix,
+% as well as a controllability check on A, B.
+% This will help determine if, for example, the system is becoming
+% unstable due to a large discretization error.
+A_step_stability = zeros(1,opt_params.num_pts);
+AB_step_ctrb = zeros(1,opt_params.num_pts);
 
 xi_cl(:,1) = opt_params.xi;
 % With recification (nonnegative cable tensions):
@@ -159,6 +165,15 @@ for i = 1:opt_params.num_pts
     A_step(:,:,i) = A_k;
     B_step(:,:,i) = B_k;
     c_step(:,i) = c_k;
+    
+    % For later reference, check the stability and controllability of
+    % this linearization.
+    % Unstable (0) if any of the eigenvalues of A_k lie inside the unit disc.
+    A_step_stability(i) = ~any( abs(eig(A_k)) >= 1);
+    % The controllability matrix for this timestep is
+    Co = ctrb(A_k,B_k);
+    % Uncontrollable (0) if this matrix has less than rank n.
+    AB_step_ctrb(i) = (length(A_k) - rank(Co) <= 0);
     
     % Generate state and input reference trajectory for the current
     % timestep with length of the horizon window
