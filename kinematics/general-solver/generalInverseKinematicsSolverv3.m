@@ -1,6 +1,7 @@
 
 %% Spine Parameters
 clear
+close all
 
 % Geometric parameters
 ll = .15; % m, length of long bars
@@ -18,7 +19,7 @@ m = .136; % kg/tetra
 
 %     1  2     3     4    5    6      7       8       9       10
 x = [ 0  w     -w    0    0    0+.01  w+.01  -w+.01   0+.01   0+.01]';
-y = [ 0  0     0     w    -w   0      0       0       w       w]';
+y = [ 0  0     0     w    -w   0      0       0       w       -w]';
 % y = [ 0  0     0     w    -w   .01      .01      .01      .01+w      .01-w]';
 z = [ 0  -h/2  -h/2  h/2  h/2  .1     .1-h/2  .1-h/2  .1+h/2  .1+h/2]';
 
@@ -249,4 +250,5 @@ for a = 1:size(C,1)
    set(ln(a),'color',[0 0 0]);
    end
 end
-set(gca,'DataAspectRatio',[1 1 1])
+set(gca,'DataAspectRatio',[1 1 1],'view',[45 45])
+rotate3d on
