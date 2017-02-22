@@ -1058,6 +1058,21 @@ for i=1:length(tensions_sub_barrier)
     tensions_sub_barrier(i) = logistic_func*tensions_sub_barrier(i);
 end
 
+% A pretty-looking version, I took a screenshot of this code
+% as an example of the pseudo-code used to do the barrier.
+% For each tension force, add a barrier function:
+%for i=1:length(tensions)
+%    % The new logistic function looks like
+%    % f(x) = 1 / (1 + exp( -k*(x-x0)))
+%    
+%    logistic_func = 1 / (1 + ...
+%        exp(-logistic_k*(tensions(i) - x0)));
+%    
+%    % The rectified tension is then the original tension
+%    % multiplied by this logistic function.
+%    tensions(i) = logistic_func * tensions(i);
+%end
+
 
 %% 14) Substitute the solved tensions back into the accelerations and simplify
 
