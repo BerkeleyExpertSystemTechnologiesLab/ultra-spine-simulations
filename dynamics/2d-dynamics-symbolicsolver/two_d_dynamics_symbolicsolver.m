@@ -1304,4 +1304,3 @@ save('two_d_dynamics_symbolic_vars.mat', 'two_d_spine_tensions', 'two_d_spine_ac
 
 %DEBUGGING
 disp('Complete!');
-
