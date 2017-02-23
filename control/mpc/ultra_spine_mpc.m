@@ -293,14 +293,19 @@ for mpc_iteration = 1:num_mpc_runs
     
     %% Reference Trajectory: Load in one of the trajectories
 
-    disp('Loading reference trajectory: invkin_XZG');
+    %disp('Loading reference trajectory: invkin_XZG');
+    disp('Loading reference trajectory: invkin_constR_XZG');
     
     % The arguments to this function are: 1) vertical spacing between two vertebrae, number of points
     %   to have in the trajectory (given a fixed bending angle), and the direction of rotation.
-    [traj, ~] = get_ref_traj_invkin_XZG( optimization_parameters_by_iteration{mpc_iteration}.tetra_vertical_spacing, ...
+    %[traj, ~] = get_ref_traj_invkin_XZG( optimization_parameters_by_iteration{mpc_iteration}.tetra_vertical_spacing, ...
+    %                                     optimization_parameters_by_iteration{mpc_iteration}.num_points_ref_traj_tracking, ...
+    %                                     optimization_parameters_by_iteration{mpc_iteration}.direction);
+                                     
+    [traj, ~] = get_ref_traj_invkin_constR_XZG( optimization_parameters_by_iteration{mpc_iteration}.tetra_vertical_spacing, ...
                                          optimization_parameters_by_iteration{mpc_iteration}.num_points_ref_traj_tracking, ...
                                          optimization_parameters_by_iteration{mpc_iteration}.direction);
-
+                                     
     % Automatically check if the trajectory that was loaded is for the full spine (3 vertebrae) or just the top one.
     % NOTE: this is used to make the script more flexible. By checking for the length of traj,
     % the above command to load in a trajectory can be modified without needing to change

@@ -53,12 +53,13 @@ num_states = size(reference{1});
 % The R matrices pass in here are 24 x 24.
 
 %% Build up the constraints
-input_lim = .07*ones(24, 1); % Limit on length of cable allowed
+% For original ACC results: had -0.07 <= inputs <= 0.07
+input_lim = .20*ones(24, 1); % Limit on length of cable allowed
 
 constraints = [norm(inputs{1} - prev_in, inf) <= 0.02]; % Deviation from previous applied input to current input
 for k = 1:(N-2)
-    constraints = [constraints, states{k+1} == [A_t{:}]*states{k} + [B_t{:}]*inputs{k} + c_t, ...
-        -input_lim <= inputs{k} <= input_lim, ...
+    constraints = [constraints, states{k+1} == [A_t{:}]*states{k} + [B_t{:}]*inputs{k} + c_t, ... % state constraints
+        0 <= inputs{k} <= input_lim, ... % constrain the cable lengths to be greater than 0, less 
         norm(inputs{k}(1:8) - inputs{1}(1:8), inf) <= 0.01, ... % Minimize deviation from first input (minimize linearization error)
         norm(inputs{k}(9:16) - inputs{1}(9:16), inf) <= 0.01, ...
         norm(inputs{k}(17:24) - inputs{1}(17:24), inf) <= 0.01];
