@@ -131,10 +131,11 @@ if plots_flag
     ylabel('e_X (cm)');
     % Only create a title for the first plot, that will serve for all the others too.
     %title('Tracking Errors in X Y Z  \theta \gamma \psi');
-    title('   Postitions (No Disturbance)');
+    title('   Postitions (No Disturbances)');
     % Scale the plot. A good scale here is...
-    %ylim([-1.0 1.5]);
-    ylim([-2.0 3.5]);
+    ylim([-1.0 1.5]);
+    %ylim([-2.0 3.5]);
+    %ylim([-2.0 3.5]);
     
     % Move the plot very slightly to the left
     P = get(subplot_handle,'Position')
@@ -163,8 +164,8 @@ if plots_flag
     %title('Tracking Error in Y');
     % Scale the plot. A good scale here is...
     % used to be -0.2 to 0.1
-    %ylim([-1 1]);
-    ylim([-2 3.5]);
+    ylim([-1.0 1.5]);
+    %ylim([-2 3.5]);
     %ylim([-2 2]);    
     % Move the plot very slightly to the left
     % For these lower figures, move them upwards a bit more.
@@ -190,8 +191,8 @@ if plots_flag
     %title('Tracking Error in Z');
     % Scale the plot. A good scale here is...
     % Used to be -0.2 to 0.2
-    %ylim([-1 1]);
-    ylim([-2 3.5]);
+    ylim([-1.0 1.5]);
+    %ylim([-2 3.5]);
     %ylim([-2 2]);
     % make a x-label here, for the position states.
     xlabel('Time (msec)');    
@@ -219,10 +220,10 @@ if plots_flag
     %title('Tracking Error in \theta');
     % Scale the plot. A good scale here is...
     % Used to be: [-1 1]
-    ylim([-10 15]);
-    %ylim([-2 2]);
+    %ylim([-10 15]);
+    ylim([-1 3]);
     % Make a title here, for the angle states
-    title('   Angles (No Disturbance)');    
+    title('   Angles (No Disturbances)');    
     % Move the plot very slightly to the left
     P = get(subplot_handle,'Position')
     set(subplot_handle,'Position',[P(1)-0.06 P(2)+0.05 P(3)+0.01 P(4)-0.04])
@@ -245,7 +246,8 @@ if plots_flag
     ylabel('e_\gamma (deg)');
     %title('Tracking Error in \gamma');
     % Scale the plot. A good scale here is...
-    ylim([-10 15]);    
+    %ylim([-10 15]);    
+    ylim([-1 3]);
     % Move the plot very slightly to the left
     P = get(subplot_handle,'Position')
     set(subplot_handle,'Position',[[P(1)-0.06 P(2)+0.07 P(3)+0.01 P(4)-0.04]])
@@ -265,7 +267,8 @@ if plots_flag
     %plot(t, zero_line, 'b-', 'LineWidth','1');
     xlabel('Time (msec)');
     %ylabel('\psi (deg)');
-    ylabel('e_\psi (deg)');    
+    ylabel('e_\psi (deg)');   
+    ylim([-1 3]);
     % Move the plot very slightly to the left
     P = get(subplot_handle,'Position')
     set(subplot_handle,'Position',[[P(1)-0.06 P(2)+0.10 P(3)+0.01 P(4)-0.04]])
@@ -290,7 +293,7 @@ if plots_flag
     %title('Tracking Error in \psi');
     % Scale the plot. A good scale here is...
     % Used to be: [-2 2]
-    ylim([-10 15]);
+    %ylim([-10 15]);
     %ylim([-2 2]);
     hold off;
     

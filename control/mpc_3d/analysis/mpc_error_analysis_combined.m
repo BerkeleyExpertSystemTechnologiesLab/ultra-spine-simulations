@@ -51,7 +51,7 @@ if plots_flag
     set(trajectories_top_handle,'Position',[100,100,500,300]);
     % Set the axis limits
     xlim([-12.5 0.1])
-    ylim([27.6 30.1]);
+    ylim([27.6 30.3]);
     % Plot the reference: X vs. Z. The top vertebra is at states 25 to 36.
     % Scale the lengths here to get cm.
     plot( ref_traj(25,:)*100, ref_traj(27, :)*100, 'b','LineWidth',2);
@@ -110,7 +110,8 @@ if plots_flag
     
     % Create the figure handle: make it large
     % Also, use the OpenGL renderer so that symbols are formatted correctly.
-    all_positions_handle = figure('Renderer', 'opengl');
+    %all_positions_handle = figure('Renderer', 'opengl');
+    all_positions_handle = figure;
     hold on;
     set(gca,'FontSize',fontsize);
     % This figure will have 6 smaller plots, so make it twice the size of my usual window dimensions.
@@ -149,7 +150,7 @@ if plots_flag
     plot( result_traj2(1,:)*100, result_traj1(3,:)*100, 'm.-');
     
     % Make a legend. Since all vertebrae are the same color, we only need two labels.
-    legend('Reference Trajs.', 'Result, No Dist.', 'Result, With Dist.', 'Location', 'Southwest');
+    legend('Reference Traj.', 'Result, No Disturbances', 'Result, With Disturbances', 'Location', 'Southwest');
     
     %% Plot the total sum-squared error for positions and angles
     
@@ -172,12 +173,13 @@ if plots_flag
     title('Total error (abs. val.) for (x,y,z) states')
     % Scale this plot to emphasize how small these errors are.
     %ylim([0 0.00125]);
-    ylim([0 4]);
+    ylim([0 1.5]);
     % Make the font larger for these subplots that get squished.
     %set(gca,'FontSize',13);
     % Make the second plot:
     % Make a legend
-    legend('No Dist.', 'With Dist.', 'Location', 'Northwest');
+    %legend('No Dist.', 'With Dist.', 'Location', 'Northwest');
+    legend('No Dist.', 'With Dist.', 'Location', 'Northeast')
     hold off;
     subplot(2, 1, 2);
     hold on;
@@ -192,7 +194,8 @@ if plots_flag
     %set(gca,'FontSize',13);
     % Scale:
     %ylim([0 0.05]);
-    ylim([0 15]);
+    ylim([0 4.5]);
+    %legend('No Dist.', 'With Dist.', 'Location', 'Northeast')
     hold off;
     
     % Let's try to combine anyway. Normalize by dividing by the mean value in each vector.

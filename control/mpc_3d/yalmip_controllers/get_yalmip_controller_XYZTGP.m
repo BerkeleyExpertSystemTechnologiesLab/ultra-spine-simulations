@@ -55,21 +55,21 @@ num_states = size(reference{1});
 %% Build up the constraints
 % For original ACC results: had -0.07 <= inputs <= 0.07
 input_lim = .20*ones(24, 1); % Limit on length of cable allowed
+% initialize the constraints vector
+constraints = [norm(inputs{1} - prev_in, inf) <= 0.01]; % Deviation from previous applied input to the first input in this window
 
-constraints = [norm(inputs{1} - prev_in, inf) <= 0.02]; % Deviation from previous applied input to current input
-for k = 1:(N-2)
+% For all the remaining states...
+for k = 1:(N-2) % was (N-2)
     constraints = [constraints, states{k+1} == [A_t{:}]*states{k} + [B_t{:}]*inputs{k} + c_t, ... % state constraints
-        0 <= inputs{k} <= input_lim, ... % constrain the cable lengths to be greater than 0, less 
-        norm(inputs{k}(1:8) - inputs{1}(1:8), inf) <= 0.01, ... % Minimize deviation from first input (minimize linearization error)
-        norm(inputs{k}(9:16) - inputs{1}(9:16), inf) <= 0.01, ...
-        norm(inputs{k}(17:24) - inputs{1}(17:24), inf) <= 0.01];
+        0 <= inputs{k} <= input_lim, ... % constrain the cable lengths to be greater than 0, less than some max amount
+        norm(inputs{k} - inputs{1}, inf) <= 0.01]; % Minimize deviation from first input in this window to all others (minimize linearization error)
+        % To-Do: clean up these loops. The above code creates a constraint of norm(inputs{1} - inputs{1}) < whatever, which is always true.
 end
 
-constraints = [constraints, norm(inputs{N-1}(1:8) - inputs{1}(1:8), 2) <= 0.1, ...% Final input is given a wider tolerance
-    norm(inputs{N-1}(9:16) - inputs{1}(9:16), 2) <= 0.1, ...
-    norm(inputs{N-1}(17:24) - inputs{1}(17:24), 2) <= 0.1];
-
-constraints = [constraints, states{N} == [A_t{:}]*states{N-1} + [B_t{:}]*inputs{N-1} + c_t, -input_lim <= inputs{N-1} <= input_lim];
+% For the final step in this horizon:
+constraints = [constraints, states{N} == [A_t{:}]*states{N-1} + [B_t{:}]*inputs{N-1} + c_t, 0 <= inputs{N-1} <= input_lim];
+% Final input smoothing term is given a wider tolerance than other input smoothing terms:
+constraints = [constraints, norm(inputs{N-1} - inputs{1}, inf) <= 0.1]; 
 
 for j = 1:(N-1)
     constraints = [constraints, norm(states{j}(1:6) - states{j+1}(1:6), inf) <= 0.02, ... % Minimize deviation from first state (minimize linearization error)
@@ -136,12 +136,6 @@ for s=1:num_states
             % On 2016-08-30, reverted. The smoothness of future horizon points is now weighted more heavily.
             objective = objective + w_smooth^k * norm(states{k}(s) - states{k-1}(s), 2);
         end
-        
-        % Put an extra weight on the final horizon point.
-        % TO-DO: parameterize this last term as a passed-in constant.
-        % On 2016-08-30, removed this extra weight. This was a failed attempt at trying to force the controller to converge
-        % instead of oscillating with noise from the system linearization.
-        %objective = objective + 30 * w_track * 2^N * norm(states{N}(s) - states{N}(s), 2);
     end
 end
 
@@ -149,104 +143,10 @@ end
 for k=2:(N-1)
     % penalize the largest of the inputs at this horizon point
     % TO-DO: maybe a 2-norm would work better here?
-    objective = objective + r_smooth_mult * r_smooth_pow^k * norm(inputs{k} - inputs{k-1}, inf);
+    %objective = objective + r_smooth_mult * r_smooth_pow^k * norm(inputs{k} - inputs{k-1}, inf);
+    objective = objective + r_smooth_mult * norm(inputs{k} - inputs{k-1}, inf);
     %objective = objective + r_smooth_mult * r_smooth_pow^k * norm(inputs{k} - inputs{k-1}, 2);
 end
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Old backup versions of objective-build-up: these are unused, but kept just in case.
-% Vector Multiplication Version:
-% On 2016-04-25, this does not seem to work.
-% % First, track the current state.
-% % NOTE that we do not do tracking on inputs here: instead, only do smoothness tracking on inputs.
-% % This is (x - r)' Q (x-r), so a sqrt is needed to make it a 2-norm.
-% objective = sqrt( (states{1} - reference{1})' * (Q_track.^1).^2 * (states{1} - reference{1}) ); % The 1 is included here as a reminder for k=1.
-% 
-% % Then, track the states for the rest of the horizon.
-% % Weight successive states by 1/2 * weight ^2.
-% % Also weight the difference between successive states and successive inputs ("smoothness")
-% for k=2:(N-1)
-%     % State tracking
-%     objective = objective + sqrt((states{k} - reference{k})' * ((1/2) * Q_track.^k).^2 * (states{k} - reference{k}));
-%     % State smoothness
-%     objective = objective + sqrt((states{k} - states{k-1})' * (Q_smooth.^k).^2 * (states{k} - states{k-1}));
-%     % Control input smoothness. This is an infinity norm here, so only scalar weights are needed
-%     objective = objective + (r_smooth_mult)*(r_smooth_pow^k) * norm(inputs{k} - inputs{k-1}, inf);
-% end
-% 
-% % Add the objective for the last state in this horizon. There are no inputs for index k == N.
-% objective = objective + sqrt((states{N} - reference{N})' * ((1/2) * Q_track.^N).^2 * (states{N} - reference{N}));
-% objective = objective + sqrt((states{N} - states{N-1})' * (Q_smooth.^N).^2 * (states{N} - states{N-1}));
-% % result: system didn't even move.
-
-% % Debugging 2016-04-25: copy in the older controller_XYZ code, modified to fit the 32-state reference:
-% % For this current state:
-% objective = 25*norm(states{1}(25:27) - reference{1}(25:27), 2);
-% % For the remaining states in this horizon:
-% for k = 2:(N-1)
-%     objective = objective + (1/2)*(25^k)*norm(states{k}(25:27) - reference{k}(25:27), 2) + (1/24)*(3^k)*norm(inputs{k} - inputs{k-1}, inf) ...
-%         + (3^k)*(norm(states{k}(25:27) - states{k-1}(25:27))); % Also minimize change in state/input for smooth motion
-% end
-% % Add the objective for the last state in this horizon. There are no inputs for index k ==  N.
-% objective = objective + (1/2)*(25^N)*norm(states{N}(25:27) - reference{N}(25:27), 2) + (3^N)*norm(states{N}(25:27) - states{N-1}(25:27));
-% % result: this one worked, for circular trajectory at least. Seems to stabilize in the XYZ directions, but everything else is unstable, as expected.
-% 
-% % Debugging 2016-06-04: copy in the older controller_XYZ code, modified to fit the 32-state reference, tracking angles too:
-% % For this current state:
-% objective = 25*norm(states{1}(25:30) - reference{1}(25:30), 2);
-% % For the remaining states in this horizon:
-% for k = 2:(N-1)
-%     objective = objective + (1/2)*(25^k)*norm(states{k}(25:30) - reference{k}(25:30), 2) + (1/24)*(3^k)*norm(inputs{k} - inputs{k-1}, inf) ...
-%         + (3^k)*(norm(states{k}(25:30) - states{k-1}(25:30))); % Also minimize change in state/input for smooth motion
-% end
-% % Add the objective for the last state in this horizon. There are no inputs for index k ==  N.
-% objective = objective + (1/2)*(25^N)*norm(states{N}(25:30) - reference{N}(25:30), 2) + (3^N)*norm(states{N}(25:30) - states{N-1}(25:30));
-% % result: this one worked, for circular trajectory at least. Still not necessarily stable.
-
-% % Debugging 2016-06-04: copy in the older controller_XYZ code, modified to fit the 32-state reference, tracking angles too, all 3 vertebrae:
-% % For this current state:
-% objective = 25*norm(states{1}(1:6) - reference{1}(1:6), 2);
-% objective = objective + 25*norm(states{1}(13:18) - reference{1}(13:18), 2);
-% objective = objective + 25*norm(states{1}(25:30) - reference{1}(25:30), 2);
-% % For the remaining states in this horizon:
-% for k = 2:(N-1)
-%     objective = objective + (1/2)*(25^k)*norm(states{k}(1:6) - reference{k}(1:6), 2) + ...
-%         (1/2)*(25^k)*norm(states{k}(13:18) - reference{k}(13:18), 2) + ...
-%         (1/2)*(25^k)*norm(states{k}(25:30) - reference{k}(25:30), 2) + ...
-%         (1/24)*(3^k)*norm(inputs{k} - inputs{k-1}, inf) + ...
-%         (3^k)*(norm(states{k}(1:6) - states{k-1}(1:6))) + ...
-%         (3^k)*(norm(states{k}(13:18) - states{k-1}(13:18))) + ...
-%         (3^k)*(norm(states{k}(25:30) - states{k-1}(25:30))); % Also minimize change in state/input for smooth motion
-% end
-% % Add the objective for the last state in this horizon. There are no inputs for index k ==  N.
-% objective = objective + ...
-%       (1/2)*(25^N)*norm(states{N}(1:6) - reference{N}(1:6), 2) + (3^N)*norm(states{N}(1:6) - states{N-1}(1:6)) + ...
-%       (1/2)*(25^N)*norm(states{N}(13:18) - reference{N}(13:18), 2) + (3^N)*norm(states{N}(13:18) - states{N-1}(13:18)) + ...
-%       (1/2)*(25^N)*norm(states{N}(25:30) - reference{N}(25:30), 2) + (3^N)*norm(states{N}(25:30) - states{N-1}(25:30));
-% % result: ...
-
-
-% % Debugging 2016-04-25: copy in the older controller_XYZ code, change it to matrix multiplications.
-% % This controller is working on the first *three* states here, xyz, which are reference{}(1:3) and states{}(25:27).
-% % The weighting matrix Q for debugging should be 36x36, and have '25' on its diagonal for states 25:27.
-% % BUT since we need to take the square root to get a 2-norm, Q needs to be squared before use.
-% % LEAVE THE INPUTS AS-IS FOR NOW.
-% Q_debugging = zeros(36);
-% Q_debugging(25:27, 25:27) = 25 * eye(3);
-% objective = sqrt( (states{1} - reference{1})' * (Q_debugging.^1).^2 * (states{1} - reference{1}) ); % Include the raised-to-1 here just for a reminder
-% % For the remaining states in this horizon:
-% for k = 2:(N-1)
-%     objective = objective + ...
-%         (1/2) * sqrt( (states{k} - reference{k})' * (Q_debugging.^k).^2 * (states{k} - reference{k}) ) + ...
-%         (1/24)*(3^k)*norm(inputs{k} - inputs{k-1}, inf) + ...
-%         (3^k)*(norm(states{k}(25:27) - states{k-1}(25:27))); % Also minimize change in state/input for smooth motion
-% end
-% % Add the objective for the last state in this horizon. There are no inputs for index k ==  N.
-% objective = objective + ...
-%     (1/2) * sqrt( (states{N} - reference{N})' * (Q_debugging.^N).^2 * (states{N} - reference{N}) ) + ...
-%     (3^N)*norm(states{N}(25:27) - states{N-1}(25:27));
-% % result: tracking was very odd, didn't work.
 
 %% Attach final parts of the objective, return.
 % For the controller, need to include input parameters variables and solutions output variables

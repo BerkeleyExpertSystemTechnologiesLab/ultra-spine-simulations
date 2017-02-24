@@ -165,7 +165,7 @@ optimization_parameters.opt_time_limit = 8; % seconds
 %   NOTE that this full_system flag is calculated automatically below after loading in the reference traj.
 %   It is then inserted into the flags struct, before passing in to ultra_spine_mpc_single_simulation.
 
-flags.noise = 0;
+flags.noise = 1;
 flags.save_video = 1;
 flags.save_data = 1;
 flags.stringEnable = 1;
