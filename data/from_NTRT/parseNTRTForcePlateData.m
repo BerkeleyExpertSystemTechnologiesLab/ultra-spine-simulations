@@ -77,10 +77,12 @@ if( make_plots )
     % Ignore the beginning of the simulation, 
     % since it has to settle down first.
     % Start the plots at:
-    tstart = 5;
+    %tstart = 5;
+    tstart = 0.1;
     % End the plots at:
     % Used to be
-    tend = 22;
+    %tend = 22;
+    tend = 3;
     % The dt for these simulations is roughly:
     dt = 0.01;
     % Number of timesteps to get to tstart seconds:
@@ -112,13 +114,13 @@ if( make_plots )
     xlabel('Time (sec)');
     legend('RearLeft', 'RearRight', 'FrontLeft', 'FrontRight' );
     % Set the limits:
-    ylim([-0.6 0.8]);
+    %ylim([-0.6 0.8]);
     % Draw vertical lines for the places where snapshots are taken
     % and analyzed in the ICRA 2017 paper
     % Credit to Brandon Kuczenski for the vline function
-    vline(5, 'k--', 't_1',18);
-    vline(12, 'k--', 't_2',18);
-    vline(17, 'k--', 't_3',18);
+    %vline(5, 'k--', 't_1',18);
+    %vline(12, 'k--', 't_2',18);
+    %vline(17, 'k--', 't_3',18);
     hold off;
     
     % Y. We're actually calling this "Z", since that's what the UC Davis force plate data used. These are the vertical forces.
@@ -128,9 +130,11 @@ if( make_plots )
     % since it has to settle down first.
     % Start the plots at:
     tstart = 5;
+    %tstart = 2;
     % End the plots at:
     % Used to be
-    tend = 22;
+    tend = 24;
+    %tend = 11;
     % The dt for these simulations is roughly:
     dt = 0.01;
     % Number of timesteps to get to tstart seconds:
@@ -139,8 +143,8 @@ if( make_plots )
     % start making the graph
     hold on;
     set(gca, 'FontSize', fontsize);
-    set(yhandle,'Position',[100,100,500,350]);
-    set(yhandle,'PaperPosition',[1,1,5.8,3.5]);
+    set(yhandle,'Position',[100,100,575,350]);
+    set(yhandle,'PaperPosition',[1,1,5.9,3.5]);
     for i=1:4
         % create the modified time vector.
         t_temp = fpdata{i}.data(timestep_start:timestep_end,1);
@@ -154,25 +158,37 @@ if( make_plots )
         fpdata{i}.t_foranalysis = t_temp;
         fpdata{i}.y_foranalysis = y_temp;
     end
-    title('NTRTsim ForcePlate Vertical Forces (Fz)');
+    title('NTRTsim Vertical Forces (Fz), Left Bending');
     ylabel('Force Fz (N)');
     xlabel('Time (sec)');
     % Set the limits
-    %xlim([0 10]);
+    %xlim([0 9.5]);
+    xlim([0 20]);
+    %ylim([-30, 170]); % for calib_factor = 1.
+    %ylim([-2, 10]);
+    ylim([1.2 4.8]);
+    % Add a reference line at zero.
+    %refline_handle = refline(0,0);
+    %set(refline_handle, 'LineStyle', ':', 'Color', 'b', 'LineWidth', 1);
     %ylim([-3 17]);
-    ylim([2 6]);
+    %ylim([2 6]);
     % Draw vertical lines for the places where snapshots are taken
     % and analyzed in the ICRA 2017 paper
     % Credit to Brandon Kuczenski for the vline function
+    %vline(4, 'k--', 't_1',18);
+    %vline(6, 'k--', 't_2',18);
+    %vline(8.7, 'k--', 't_3',18);
     vline(5, 'k--', 't_1',18);
     vline(12, 'k--', 't_2',18);
-    vline(17, 'k--', 't_3',18);
-    legend('RearLeft', 'RearRight', 'FrontLeft', 'FrontRight', 'Location', 'Northwest' );
+    vline(19, 'k--', 't_3',18);
+    %legend('RearLeft', 'RearRight', 'FrontLeft', 'FrontRight', 'Location', 'Northwest' );
+    %legend('RearLeft', 'RearRight', 'FrontLeft', 'FrontRight', 'Location', 'Best' );
+    legend('RL', 'RR', 'FL', 'FR', 'Location', 'Best' );
     hold off;
     % Run statistics on the Y-data for the rear left leg.
     % RearLeft is plate 1.
     bin1start = 1;
-    bin1end = 5/dt;
+    bin1end = 2/dt;
     bin2start = 12/0.01;
     % Calculate the total force the robot is exerting in simulation:
     disp('Total force inside bin1, all legs:');
@@ -208,17 +224,17 @@ if( make_plots )
     %p_sym_evaluated = vpa(p_sym)
     
     % Z
-    zhandle = figure('Renderer', 'opengl');
-    hold on;
-    for i=1:4
-        % plot t vs. z for each plate
-        plot( fpdata{i}.data(:,1), fpdata{i}.data(:,4) )
-    end
-    title('Force plate Fz forces vs. time');
-    ylabel('Force Fz (N)');
-    xlabel('Time (sec)');
-    legend('RearLeft', 'RearRight', 'FrontLeft', 'FrontRight' );
-    hold off;
+    %zhandle = figure('Renderer', 'opengl');
+    %hold on;
+    %for i=1:4
+    %    % plot t vs. z for each plate
+    %    plot( fpdata{i}.data(:,1), fpdata{i}.data(:,4) )
+    %end
+    %title('Force plate Fz forces vs. time');
+    %ylabel('Force Fz (N)');
+    %xlabel('Time (sec)');
+    %legend('RearLeft', 'RearRight', 'FrontLeft', 'FrontRight' );
+    %hold off;
     
     % Plot the total Fy, for perspective on how much the robot weighs.
 %     figure;
