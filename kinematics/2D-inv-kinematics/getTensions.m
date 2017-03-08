@@ -152,10 +152,12 @@ A = [ -dx(1) -dx(2) -dx(3) -dx(4);  % horizontal forces, bottom tetra
 % already took the system moment, but it's not hurting anything to have it.
 qfun = @(a,b,c) (x(b)-x(a))*(z(c)-z(b)) - (z(b)-z(a))*(x(c)-x(b));
 A = [A;
-     qfun(5,6,2) qfun(5,7,3) qfun(5,6,4) qfun(5,7,4);
-     qfun(1,2,6) qfun(1,3,7) qfun(1,4,6) qfun(1,4,7)];
+     qfun(5,6,2) qfun(5,7,3) qfun(5,6,4) qfun(5,7,4)];
+%      qfun(1,2,6) qfun(1,3,7) qfun(1,4,6) qfun(1,4,7)];
  
-p = [ 0; 0; M*g-R2-R3; M*g; 0; (R2-R3)*w];
+% p = [ 0; 0; M*g-R2-R3; M*g; 0; (R2-R3)*w];
+p = [ 0; 0; M*g-R2-R3; M*g; 0];
+
 
 %% Solve Problem for Minimized Cable Tension
 
