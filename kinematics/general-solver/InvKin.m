@@ -1,4 +1,4 @@
-function [ q, A, p ] = InvKin( C , x, y, z, forcesZ, momentsX, momentsY, momentsZ, coms, fixed, minCableTension  )
+function [ q, A, p] = InvKin( C , x, y, z, forcesZ, momentsX, momentsY, momentsZ, coms, fixed, minCableTension  )
 % Inverse Kinematics Solver V1.0
 %   By Ellande Tang, credit to Mallory Daly
 % Last edited: March 7th, 2017
@@ -74,7 +74,7 @@ bR = [-sum(forcesZ);...
 R = AR\bR;
 % bR = [sum of forces; sum of momentsX; sum of momentsY];
 
-% Adds forces to forces on structure matrices
+% Adds forces to "forces on structure" matrices
 for a = 1:length(fixed)
     targetBody = fixedBody(a);
     Rforces(targetBody) = Rforces(targetBody)+R(a);
@@ -131,22 +131,20 @@ p = [p1;p2;p3;p4;p5;p6];
 
 %% Solve Problem for Minimized Cable Tension
 
-% % Solve with YALMIP
-% yalmip('clear')
-% q = sdpvar(s,1);
-% obj = q'*q;
-% constr = [A*q == p, L_cables*q >= minCableTension*ones(s,1)];
-% options = sdpsettings('solver','quadprog','verbose',0);
-% sol = optimize(constr,obj,options);
-
 % Solve with QUADPROG
 % min (1/2 x'Hx + f'x)
 % Aineq*x < bineq
 % Aeq*x = beq
 H = 2*eye(s);
 f = zeros(s,1);
-Aeq = A;
-beq = p;
+
+% Solve only selected body
+body4Check = 7;
+Aeq = A(body4Check:bodies:body4Check+5*bodies,:);
+beq = p(body4Check:bodies:body4Check+5*bodies,:);
+% 
+% Aeq = A;
+% beq = p;
 Aineq = -L_cables;
 bineq = -minCableTension*ones(s,1);
 % opts = optimoptions(@quadprog,'Display','notify-detailed');
