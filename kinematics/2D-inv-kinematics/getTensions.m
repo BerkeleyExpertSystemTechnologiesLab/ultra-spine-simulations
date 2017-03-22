@@ -77,8 +77,11 @@ z_top = xi(2);
 theta = xi(3);
 
 % Rotation matrix for given angle of theta
-rot = [cos(theta), -sin(theta);
-       sin(theta),  cos(theta)];
+% For our coordinate system, with Z upwards, X to the right, then a rotation 
+% about +Y (into the page) of +theta turns the vertebra clockwise. This is
+% because we're looking at the vertebra "from behind."
+rot = [ cos(theta), sin(theta);
+       -sin(theta), cos(theta)];
    
 % Need to multiply each node by the rotation matrix and add the (x,z)
 % offset from the xi state vector. Copy out (x,z) offset to a 2x4 matrix to
