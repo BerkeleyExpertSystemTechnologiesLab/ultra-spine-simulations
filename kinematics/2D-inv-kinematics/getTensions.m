@@ -65,6 +65,11 @@ C = [0  1  0  0  0 -1  0  0;  %  1
 %           1    2    3    4
 x_bot = [   0   -w    w    0]';
 z_bot = [   0 -h/2 -h/2  h/2]';
+% Nodes are:
+%   1) center node
+%   2) bottom left
+%   3) bottom right
+%   4) top
 
 % Nodal positions and rotation of top tetra
 x_top = xi(1);
