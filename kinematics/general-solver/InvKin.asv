@@ -7,7 +7,7 @@ function [ q, A, p] = InvKin( C , x, y, z, forcesZ, momentsX, momentsY, momentsZ
 % External Z moments not currently supported
 % External X,Y forces not currently supported
 % Can accomodate 2D cases, for fixed nodes, use only 2 elements. Assumes an
-% X,Z coordinate system with Z being vertical
+% X,Z co
 
 %% Quick multi-output splitter function
 % ex: [x, y, z] = dealer([1 2 3]);

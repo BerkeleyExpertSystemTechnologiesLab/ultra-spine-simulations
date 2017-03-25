@@ -16,8 +16,9 @@ m = .136; % kg/tetra
 
 % xi = [0,.1,0]; % Forget what this does.
 
-%     1  2     3     4    5    6      7       8       9       10
-x = [ 0  w     -w    0    0    0+.01  w+.01  -w+.01   0+.01   0+.01]';
+%     1  2     3     4     5    6      7       8       9       10
+x = [ 0  w    -w     0     0    0      w      -w       0        0]';
+% x = [ 0  w     -w    0    0    0+.01  w+.01  -w+.01   0+.01   0+.01]';
 y = [ 0  0     0     w    -w   0      0       0       w       -w]';
 % y = [ 0  0     0     w    -w   .01      .01      .01      .01+w      .01-w]';
 z = [ 0  -h/2  -h/2  h/2  h/2  .1     .1-h/2  .1-h/2  .1+h/2  .1+h/2]';
@@ -59,3 +60,12 @@ C = [0  1  0  0  0  0 -1  0  0  0;  %  1
 
 
 [ q, A, p ] = InvKin( C , x, y, z, forcesZ, momentsX, momentsY, momentsZ, coms, fixed, minCableTension  );
+
+
+%% Sample force output check
+
+load('forceOutputv5.mat')
+
+bodies = length(coms);
+
+BodyForceReader(q,A,p)
