@@ -84,13 +84,13 @@ for i = 1:num_steps
     %    on the system: specifically, did any of the cables "push"?
     %    All the cable tensions must be positive.
     tensions = two_d_spine_tensions(xi, inputs);
-    for j=1:length(tensions)
-        % If this tension was negative, print out a statement.
-        if( tensions(j) < 0 )
-            disp(strcat('ERROR: TENSION IS NEGATIVE. Cable number #', num2str(j), ...
-                ', had tension :', num2str(tensions(j))));
-        end
-    end
+%     for j=1:length(tensions)
+%         % If this tension was negative, print out a statement.
+%         if( tensions(j) < 0 )
+%             disp(strcat('ERROR: TENSION IS NEGATIVE. Cable number #', num2str(j), ...
+%                 ', had tension :', num2str(tensions(j))));
+%         end
+%     end
 end
 
 % done! xi_kp1 is returned.

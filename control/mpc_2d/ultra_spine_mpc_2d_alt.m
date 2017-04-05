@@ -54,13 +54,13 @@ paths.path_to_data_folder = '../../data/mpc_2d_data/';
 load('two_d_geometry.mat')
 
 % Create a struct of optimization parameters
-opt_params.num_pts = 100;
+opt_params.num_pts = 40;
 opt_params.num_states = 6;
 opt_params.num_inputs = 4;
 opt_params.horizon_length = 4;
 opt_params.opt_time_lim = 1.5;
 opt_params.spine_params = two_d_geometry;
-opt_params.dt = 1e-7;
+opt_params.dt = 1e-3;
 
 % Define initial states
 % xi_0 = [-0.05; 0.15; pi/4; 0; 0; 0];
@@ -163,6 +163,12 @@ for i = 1:opt_params.num_pts
     xi_cl(:,i+1) = xi_kp1;
     opt_params.xi = xi_kp1;
     
+        AM_step(:,:) = A_step(:,:,i);
+    AM_eig(:,i) = eig(AM_step);
+    
+    [u,s,v] = svd(A_k);
+    s_step(:,:,i) = s;
+    
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -194,53 +200,65 @@ end
 
 figure;
 subplot(6,1,1)
-plot(1:opt_params.num_pts+1,xi_cl(1,:))
+plot(1:opt_params.num_pts+1,xi_cl(1,:),'.')
 hold on
 plot(1:opt_params.num_pts+1,xi_traj(1,1:opt_params.num_pts+1))
 ylabel('x')
 title('State Trajectories')
 subplot(6,1,2)
-plot(1:opt_params.num_pts+1,xi_cl(2,:))
+plot(1:opt_params.num_pts+1,xi_cl(2,:),'.')
 hold on
 plot(1:opt_params.num_pts+1,xi_traj(2,1:opt_params.num_pts+1))
 ylabel('z')
 subplot(6,1,3)
-plot(1:opt_params.num_pts+1,xi_cl(3,:))
+plot(1:opt_params.num_pts+1,xi_cl(3,:),'.')
 hold on
 plot(1:opt_params.num_pts+1,xi_traj(3,1:opt_params.num_pts+1))
 ylabel('theta')
 subplot(6,1,4)
-plot(1:opt_params.num_pts+1,xi_cl(4,:))
+plot(1:opt_params.num_pts+1,xi_cl(4,:),'.')
+hold on
+plot(1:opt_params.num_pts+1,xi_traj(4,1:opt_params.num_pts+1))
 ylabel('v_x')
 subplot(6,1,5)
-plot(1:opt_params.num_pts+1,xi_cl(5,:))
+plot(1:opt_params.num_pts+1,xi_cl(5,:),'.')
+hold on
+plot(1:opt_params.num_pts+1,xi_traj(5,1:opt_params.num_pts+1))
 ylabel('v_z')
 subplot(6,1,6)
-plot(1:opt_params.num_pts+1,xi_cl(6,:))
+plot(1:opt_params.num_pts+1,xi_cl(6,:),'.')
+hold on
+plot(1:opt_params.num_pts+1,xi_traj(6,1:opt_params.num_pts+1))
 ylabel('omega')
 
 figure;
 subplot(4,1,1)
-plot(1:opt_params.num_pts,u_cl(1,:))
+plot(1:opt_params.num_pts,u_cl(1,:),'.')
 hold on
 plot(1:opt_params.num_pts,u_traj(1,1:opt_params.num_pts))
 ylabel('u_1')
 title('Input Trajectories')
 subplot(4,1,2)
-plot(1:opt_params.num_pts,u_cl(2,:))
+plot(1:opt_params.num_pts,u_cl(2,:),'.')
 hold on
 plot(1:opt_params.num_pts,u_traj(2,1:opt_params.num_pts))
 ylabel('u_2')
 subplot(4,1,3)
-plot(1:opt_params.num_pts,u_cl(3,:))
+plot(1:opt_params.num_pts,u_cl(3,:),'.')
 hold on
 plot(1:opt_params.num_pts,u_traj(3,1:opt_params.num_pts))
 ylabel('u_3')
 subplot(4,1,4)
-plot(1:opt_params.num_pts,u_cl(4,:))
+plot(1:opt_params.num_pts,u_cl(4,:),'.')
 hold on
 plot(1:opt_params.num_pts,u_traj(4,1:opt_params.num_pts))
 ylabel('u_4')
+
+x_1 = xi_cl(1,:)-xi_traj(1,1:length(xi_cl(1,:)));
+x_2 = xi_cl(2,:)-xi_traj(2,5:end);
+x_sq = x_1.*x_1+x_2.*x_2;
+figure;
+plot(x_sq)
 
 % figure;
 % subplot(3,1,1)

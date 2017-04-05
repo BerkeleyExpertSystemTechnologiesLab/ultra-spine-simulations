@@ -46,12 +46,12 @@ c1 = 1e-4;
 % pi/8 is approximately the max angle for vertebra 4 (3rd moving vertebra)
 % at timestep 20 (max) from inv-kin on 2016-04-23.
 beta_0 = 0;
-%beta_f = direction * pi/8; 
+beta_f = -direction * pi/8; 
 % On 2016-09-18: made beta larger for illustrating the trajectory in a figure for the ACC 2017 paper.
-%beta_f = direction * pi/4;
+% beta_f = direction * pi/4;
 %beta_f = direction * pi/16;
 %beta_f = direction * pi/32;
-beta_f = direction * pi/256;
+% beta_f = direction * pi/256;
 
 % Number of points to have in this trajectory. 
 % Note that it's been estimated that timesteps should only put the top tetras about 0.0014 units distance
@@ -92,8 +92,10 @@ for i=1:num_vertebrae
     %x_ref(:,i) = -0.014+c1 .* beta(:,i) .* sin(beta(:,i)) + (tetra_vertical_spacing * i) .* sin(beta(:,i));
     % Need to have a very slight offset so that Mallory's inverse kinematics code
     % does not give -inf (which occurs when the system is symmetric.)
-    x_ref(:,i) = 1e-3 + c1 .* beta(:,i) .* sin(beta(:,i)) + (tetra_vertical_spacing * i) .* sin(beta(:,i));
+    % x_ref(:,i) = 1e-3 + c1 .* beta(:,i) .* sin(beta(:,i)) + (tetra_vertical_spacing * i) .* sin(beta(:,i));
+    x_ref(:,i) = c1 .* beta(:,i) .* sin(beta(:,i)) + (tetra_vertical_spacing * i) .* sin(beta(:,i));
     z_ref(:,i) = c1 .* beta(:,i) .* cos(beta(:,i)) + (tetra_vertical_spacing * i) .* cos(beta(:,i));
+
 end
 
 for i=1:num_points-1
@@ -117,15 +119,14 @@ dz_ref(num_points,:) = dz_ref(num_points-1,:);
 
 % Note, no need to adjust these by clockwise or counterclockwise, since beta is changed directly above.
 % c2 = [1.06, 1.39, 1.54, 2.1, 2.5];
-c2 = [1.06, 1.39, 1.54];
+c2 = -1.06;
 
 g_ref = zeros(num_points, num_vertebrae);
 dg_ref = zeros(num_points, num_vertebrae);
 % g_ref = zeros(num_points/2, num_vertebrae);
 for i=1:num_vertebrae
     % We already have our betas, just convert to gammas.
-    % g_ref(:,i) = c2(i) .* beta(:,i);
-    g_ref(:,i) = 0.67*c2(i) .* beta(:,i);
+    g_ref(:,i) = c2(i) .* beta(:,i);
 end
 
 for i=1:num_points-1
