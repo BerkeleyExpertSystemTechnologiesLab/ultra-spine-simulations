@@ -198,13 +198,14 @@ for i=1:opt_params.num_pts
     drawnow;
 end
 
-% Plot the state trajectory results of MPC
+% Plot the state trajectory results of open loop control
 figure;
 subplot(6,1,1)
 plot(1:opt_params.num_pts+1,xi_cl(1,:),'.')
 hold on
 plot(1:opt_params.num_pts+1,xi_traj(1,1:opt_params.num_pts+1))
 ylabel('x')
+legend('trajectory','reference','Location','Best')
 title('State Trajectories')
 subplot(6,1,2)
 plot(1:opt_params.num_pts+1,xi_cl(2,:),'.')
@@ -232,13 +233,14 @@ hold on
 plot(1:opt_params.num_pts+1,xi_traj(6,1:opt_params.num_pts+1))
 ylabel('omega')
 
-% Plot the input trajectory results of MPC
+% Plot the input trajectory results of open loop control
 figure;
 subplot(4,1,1)
 plot(1:opt_params.num_pts,u_cl(1,:),'.')
 hold on
 plot(1:opt_params.num_pts,u_traj(1,1:opt_params.num_pts))
 ylabel('u_1')
+legend('trajectory','reference','best')
 title('Input Trajectories')
 subplot(4,1,2)
 plot(1:opt_params.num_pts,u_cl(2,:),'.')
@@ -256,16 +258,26 @@ hold on
 plot(1:opt_params.num_pts,u_traj(4,1:opt_params.num_pts))
 ylabel('u_4')
 
-
 % Analyse the errors of the MPC results
-xo_1 = abs(xi_cl(1,:));
-xo_2 = abs(xi_cl(1,:));
-xo_3 = abs(xi_cl(1,:));
 
+x_1 = abs(xi_cl(1,1)*ones(1,size(xi_cl,2))-xi_cl(1,:));
+x_2 = abs(xi_cl(2,1)*ones(1,size(xi_cl,2))-xi_cl(2,:));
+x_3 = abs(xi_cl(3,1)*ones(1,size(xi_cl,2))-xi_cl(3,:));
+
+% Using absolue state value as x: cannot reflect absolute value change of
+% z_state, as it starts from 0.1 in case of 0 initial sweeping angle
+% x_1 = abs(xi_cl(1,:));
+% x_2 = abs(xi_cl(2,:));
+% x_3 = abs(xi_cl(3,:));
+% x_1 = abs(xi_cl(1,:));
+% x_2 = abs(xi_cl(2,:));
+% x_3 = abs(xi_cl(3,:));
+
+% Calculate absolute errors of states
 % x_1 = xi_cl(1,:)-xi_traj(1,1:length(xi_cl(1,:)));
-x_1 = xi_cl(1,:)-xi_traj(1,5:end);
-x_2 = xi_cl(2,:)-xi_traj(2,5:end);
-x_3 = xi_cl(3,:)-xi_traj(3,5:end);
+e_1 = xi_cl(1,:)-xi_traj(1,1:end-4);
+e_2 = xi_cl(2,:)-xi_traj(2,1:end-4);
+e_3 = xi_cl(3,:)-xi_traj(3,1:end-4);
 
 % x_sq_1 = zeros(1,length(x_1));
 % x_sq_2 = zeros(1,length(x_1));
@@ -276,54 +288,80 @@ x_3 = xi_cl(3,:)-xi_traj(3,5:end);
 %     x_sq_3(i) = x_3(i)^2;
 % end
 
-x_sq_1 = x_1.*x_1;
-x_sq_2 = x_2.*x_2;
-x_sq_3 = x_3.*x_3;
+% Calculate square errors of states
+e_sq_1 = e_1.*e_1;
+e_sq_2 = e_2.*e_2;
+e_sq_3 = e_3.*e_3;
 
-% x_sq = x_1.*x_1+x_2.*x_2;
+% e_sq = e_1.*e_1+e_2.*e_2;
 
- x_abs_1 = abs(x_1);
- x_abs_2 = abs(x_2);
- x_abs_3 = abs(x_3);
+% Calculate absolute errors of states
+e_abs_1 = abs(e_1);
+e_abs_2 = abs(e_2);
+e_abs_3 = abs(e_3);
+ 
+% Calculate relative errors of states
+e_rl_1 = e_abs_1./x_1;
+e_rl_2 = e_abs_2./x_2;
+e_rl_3 = e_abs_3./x_3;
 
 % Plot the relevat errors of each state, namely the absolute errors over
 % absolue velues
 figure;
 subplot(3,1,1)
-plot(x_abs_1./xo_1);
-ylabel('relative_e(x)');
+plot(e_rl_1);
+ylabel('RE(x)');
+title('Relative Errors of State')
 subplot(3,1,2)
-plot(x_abs_2./xo_2);
-ylabel('relative_e(z)');
+plot(e_rl_2);
+ylim([0,0.1]);
+ylabel('RE(z)');
 subplot(3,1,3)
-plot(x_abs_3./xo_3);
-ylabel('relative_e(theta)')
+plot(e_rl_3);
+ylabel('RE(theta)')
 
-% Plot the square errors of each state 
-figure;
-subplot(3,1,1)
-plot(x_sq_1);
-ylabel('sq_e(x)');
-subplot(3,1,2)
-plot(x_sq_2);
-ylabel('sq_e(z)');
-subplot(3,1,3)
-plot(x_sq_3);
-ylabel('sq_e(theta)')
-
-% Plot the absolut error of 3 states, if necessary
+% % Plot the square errors of each state 
 % figure;
 % subplot(3,1,1)
-% plot(x_abs_1);
-% ylabel('abs_e(x)');
+% plot(e_sq_1);
+% ylabel('SE(x)');
+% title('Square Errors of States')
 % subplot(3,1,2)
-% plot(x_abs_2);
-% ylabel('abs_e(z)');
+% plot(e_sq_2);
+% ylabel('SE(z)');
 % subplot(3,1,3)
-% plot(x_abs_3);
-% ylabel('abs_e(theta)')
+% plot(e_sq_3);
+% ylabel('SE(theta)')
 
-% Plot the first entry for eigenvalues of A matrix at each step, if necessary
+% Plot the absolut error of 3 states, if necessary
+figure;
+subplot(3,1,1)
+plot(e_abs_1);
+ylabel('AE(x)');
+title('Absolute Errors of States')
+subplot(3,1,2)
+plot(e_abs_2);
+ylabel('AE(z)');
+subplot(3,1,3)
+plot(e_abs_3);
+ylabel('AE(theta)')
+
+% % Plot the eigenvalues of A matrix at each step, if necessary
+% figure; 
+% % Plot the first entry specificly as well
+% subplot(7,1,1)
 % plot(AM_eig)
-% plot(AM_eig(1,:))
+% legend('lambda 1', 'lambda 2', 'lambda 3', 'lambda 4', 'lambda 5', 'lambda 6')
+% title('Eigen Values of Matrix A')
+% subplot(7,1,2)
 % plot(abs(AM_eig(1,:)))
+% subplot(7,1,3)
+% plot(abs(AM_eig(2,:)))
+% subplot(7,1,4)
+% plot(abs(AM_eig(3,:)))
+% subplot(7,1,5)
+% plot(abs(AM_eig(4,:)))
+% subplot(7,1,6)
+% plot(abs(AM_eig(5,:)))
+% subplot(7,1,7)
+% plot(abs(AM_eig(6,:)))
