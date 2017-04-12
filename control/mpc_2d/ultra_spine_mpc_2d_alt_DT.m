@@ -260,15 +260,15 @@ ylabel('u_4')
 
 %% Plot the tracking errors of the MPC results
 
+% Plot the absolute errors, square errors and relative errors of each state
+% along the trajectory tracking
+
+% Define state-values as the relative-value of states from the start points
 x_1 = abs(xi_cl(1,1)*ones(1,size(xi_cl,2))-xi_cl(1,:));
 x_2 = abs(xi_cl(2,1)*ones(1,size(xi_cl,2))-xi_cl(2,:));
 x_3 = abs(xi_cl(3,1)*ones(1,size(xi_cl,2))-xi_cl(3,:));
-
-% Using absolue state value as x: cannot reflect absolute value change of
-% z_state, as it starts from 0.1 in case of 0 initial sweeping angle
-% x_1 = abs(xi_cl(1,:));
-% x_2 = abs(xi_cl(2,:));
-% x_3 = abs(xi_cl(3,:));
+ 
+% Another way is to define state-value as the absolute value of each state
 % x_1 = abs(xi_cl(1,:));
 % x_2 = abs(xi_cl(2,:));
 % x_3 = abs(xi_cl(3,:));
@@ -301,6 +301,8 @@ e_abs_2 = abs(e_2);
 e_abs_3 = abs(e_3);
  
 % Calculate relative errors of states
+% Using absolue state value: cannot reflect absolute value change of
+% z_state, as it starts from 0.1 in case of 0 initial sweeping angle
 e_rl_1 = e_abs_1./x_1;
 e_rl_2 = e_abs_2./x_2;
 e_rl_3 = e_abs_3./x_3;
@@ -348,7 +350,7 @@ ylabel('AE(theta)')
 
 % % Plot the eigenvalues of A matrix at each step, if necessary
 % figure; 
-% % Plot the first entry specificly as well
+% % Plot each entries specificly as well, if necessary
 % subplot(7,1,1)
 % plot(AM_eig)
 % legend('lambda 1', 'lambda 2', 'lambda 3', 'lambda 4', 'lambda 5', 'lambda 6')
