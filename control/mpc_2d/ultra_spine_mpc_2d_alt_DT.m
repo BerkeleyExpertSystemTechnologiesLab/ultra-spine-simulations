@@ -258,7 +258,7 @@ hold on
 plot(1:opt_params.num_pts,u_traj(4,1:opt_params.num_pts))
 ylabel('u_4')
 
-% Analyse the errors of the MPC results
+%% Plot the tracking errors of the MPC results
 
 x_1 = abs(xi_cl(1,1)*ones(1,size(xi_cl,2))-xi_cl(1,:));
 x_2 = abs(xi_cl(2,1)*ones(1,size(xi_cl,2))-xi_cl(2,:));
