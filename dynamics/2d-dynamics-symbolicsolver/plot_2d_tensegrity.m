@@ -29,7 +29,9 @@ num_states_per_unit = geometry.num_states_per_unit;
 num_states = length(xi);
 % A check: the number of states via the xi vector should equal the number of states
 % saved into the geometry struct.
-assert( num_states == geometry.num_states, ...
+% In case that we have 2 moving vertebrae, num_states == 2*geometry.num_states
+% assert( num_states == geometry.num_states, ...
+assert( num_states == 2*geometry.num_states, ...
     'Error! The number of states is inconsistent between the geometry vector and state vector. Cannot plot tensegrity.');
  
 % The handles array can be a cell array:

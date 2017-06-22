@@ -75,16 +75,22 @@ constraints = [constraints xi(2,N+1)>=spine_geo.h/2];
 %% Build objective
 
 % Q = blkdiag(eye(nx/2),zeros(nx/2));
-Q = eye(nx/2);
+% Q = eye(nx/2);
+Q = eye(nx);
 R = 2*eye(nu);
 % P = blkdiag(eye(nx/2),zeros(nx/2));
-P = eye(nx/2);
+% P = eye(nx/2);
+P = eye(nx);
 
 % Build state and input reference tracking objective
-objective = (xi(1:3,1)-xi_ref(1:3,1))'*Q*(xi(1:3,1)-xi_ref(1:3,1)) ...
+% objective = (xi(1:3,1)-xi_ref(1:3,1))'*Q*(xi(1:3,1)-xi_ref(1:3,1)) ...
+%         + (u(:,1)-u_ref(:,1))'*R*(u(:,1)-u_ref(:,1));
+objective = (xi(:,1)-xi_ref(:,1))'*Q*(xi(:,1)-xi_ref(:,1)) ...
         + (u(:,1)-u_ref(:,1))'*R*(u(:,1)-u_ref(:,1));
 for i = 2:N
-    objective = objective + (xi(1:3,i)-xi_ref(1:3,i))'*Q*(xi(1:3,i)-xi_ref(1:3,i)) ...
+%     objective = objective + (xi(1:3,i)-xi_ref(1:3,i))'*Q*(xi(1:3,i)-xi_ref(1:3,i)) ...
+%         + (u(:,i)-u_ref(:,i))'*R*(u(:,i)-u_ref(:,i));
+    objective = objective + (xi(:,i)-xi_ref(:,i))'*Q*(xi(:,i)-xi_ref(:,i)) ...
         + (u(:,i)-u_ref(:,i))'*R*(u(:,i)-u_ref(:,i));
 %     objective = objective + (xi(1:3,i)-xi_ref(1:3,i))'*Q*(xi(1:3,i)-xi_ref(1:3,i)) ...
 %         + (u(:,i)-u_ref(:,i))'*R*(u(:,i)-u_ref(:,i)) ...
@@ -95,7 +101,8 @@ for i = 2:N
 %         + (1/2)*norm(xi(1:3,i)-xi(1:3,i-1)) ...
 %         + (1/24)*(3^i)*norm(u(:,i)-u(:,i-1));
 end
-objective = objective + (xi(1:3,N+1)-xi_ref(1:3,N+1))'*P*(xi(1:3,N+1)-xi_ref(1:3,N+1));
+% objective = objective + (xi(1:3,N+1)-xi_ref(1:3,N+1))'*P*(xi(1:3,N+1)-xi_ref(1:3,N+1));
+objective = objective + (xi(:,N+1)-xi_ref(:,N+1))'*P*(xi(:,N+1)-xi_ref(:,N+1));
 % objective = objective + (xi(1:3,N+1)-xi_ref(1:3,N+1))'*P*(xi(1:3,N+1)-xi_ref(1:3,N+1)) ...
 %     + (3^i)*norm(xi(1:3,N+1)-xi(1:3,N));
 

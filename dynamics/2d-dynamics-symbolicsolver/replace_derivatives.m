@@ -1,5 +1,5 @@
 function [ result ] = replace_derivatives( input, xi, n, debugging )
-%replace_derivatives.m
+% replace_derivatives.m
 %   Copyright 2016 Andrew P. Sabelhaus
 %   Berkeley Emergent Space Tensegrities Lab, UC Berkeley
 

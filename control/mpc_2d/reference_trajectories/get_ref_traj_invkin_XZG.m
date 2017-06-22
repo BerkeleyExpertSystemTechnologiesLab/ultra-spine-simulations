@@ -1,9 +1,10 @@
-% get_ref_traj_invkin_XZG.m, Dec. 2016
+% get_ref_traj_invkin_XZG.m
 % Revised from Drew's code 2015 for 3-dimensional to 2-dimensional version,
+% Added derivatives too
 % This function returns a trajectory for all three vertebra of a 4-vertebra spine that
 % bends around the Y+ axis, according to the inverse kinematics script, in either direction.
-% It includes full position state information for one or more rigid bodies.
-% Added derivatives of positios too, but may not be effective reference for velocities
+% It includes full position state information for all three rigid bodies. 
+% No velocities though, those are zero-padded.
 
 function [traj, num_points] = get_ref_traj_invkin_XZG(tetra_vertical_spacing, num_points, direction,dt)
 % Inputs:
@@ -17,7 +18,7 @@ function [traj, num_points] = get_ref_traj_invkin_XZG(tetra_vertical_spacing, nu
 
 % Hardcode the number of moving vertebrae here
 % TO-DO: make this a parameter.
-num_vertebrae = 1; 
+num_vertebrae = 2; 
 
 % Check to be sure "direction" is only 1 or -1, no scaling allowed.
 assert( (direction == 1) | (direction == -1), 'Direction can only be 1 (clockwise) or -1 (counterclockwise)');
@@ -44,8 +45,15 @@ c1 = 1e-4;
 % Note that we include the "direction" flag here.
 % pi/8 is approximately the max angle for vertebra 4 (3rd moving vertebra)
 % at timestep 20 (max) from inv-kin on 2016-04-23.
-beta_0 = 0;
+% beta_0 = -direction * pi/4;
+% beta_f = -direction * pi/8; 
+
+% beta_0 = 0;
+% beta_f = -pi/8; 
+
+beta_0 = -direction * pi/8;
 beta_f = -direction * pi/16; 
+
 % On 2016-09-18: made beta larger for illustrating the trajectory in a figure for the ACC 2017 paper.
 % beta_f = direction * pi/4;
 %beta_f = direction * pi/16;
@@ -71,7 +79,8 @@ beta = zeros(num_points, num_vertebrae);
 for i=1:num_vertebrae
     % For the i-th moving vertebra: create points from beta_0 to beta_f adjusted by the multiplier:
     % (remember that we're using this multipler here to "make the higher-up vertebrae move further")
-    beta_f_current = beta_f * 1/( 1 + (1/2) * (num_vertebrae-i));
+    beta_f_current = beta_f * 1/( 1 + (1/2) * (3-i));
+   % beta_f_current = beta_f;
     beta(:,i) = linspace( beta_0, beta_f_current, num_points)';
 %     beta(:,i) = linspace( beta_0, beta_f_current, num_points/2)';
 end
@@ -91,10 +100,9 @@ for i=1:num_vertebrae
     %x_ref(:,i) = -0.014+c1 .* beta(:,i) .* sin(beta(:,i)) + (tetra_vertical_spacing * i) .* sin(beta(:,i));
     % Need to have a very slight offset so that Mallory's inverse kinematics code
     % does not give -inf (which occurs when the system is symmetric.)
-    % x_ref(:,i) = 1e-3 + c1 .* beta(:,i) .* sin(beta(:,i)) + (tetra_vertical_spacing * i) .* sin(beta(:,i));
+%     x_ref(:,i) = 1e-3 + c1 .* beta(:,i) .* sin(beta(:,i)) + (tetra_vertical_spacing * i) .* sin(beta(:,i));
     x_ref(:,i) = c1 .* beta(:,i) .* sin(beta(:,i)) + (tetra_vertical_spacing * i) .* sin(beta(:,i));
     z_ref(:,i) = c1 .* beta(:,i) .* cos(beta(:,i)) + (tetra_vertical_spacing * i) .* cos(beta(:,i));
-
 end
 
 for i=1:num_points-1
@@ -117,14 +125,15 @@ dz_ref(num_points,:) = dz_ref(num_points-1,:);
 % TO-DO: find some reasonable relationship between these numbers. They look a bit like a power law?
 
 % Note, no need to adjust these by clockwise or counterclockwise, since beta is changed directly above.
-% c2 = [1.06, 1.39, 1.54];
-c2 = -1.06;
+c2 = [-1.06, -1.39];
+% c2 = -1.06;
 
 g_ref = zeros(num_points, num_vertebrae);
 dg_ref = zeros(num_points, num_vertebrae);
 % g_ref = zeros(num_points/2, num_vertebrae);
 for i=1:num_vertebrae
     % We already have our betas, just convert to gammas.
+    % g_ref(:,i) = c2(i) .* beta(:,i);
     g_ref(:,i) = c2(i) .* beta(:,i);
 end
 

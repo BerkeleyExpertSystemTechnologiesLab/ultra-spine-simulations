@@ -24,7 +24,7 @@ function [ xi_kp1 ] = simulate_2d_spine_dynamics( xi, inputs, dt, num_steps, dyn
 % this discretizes them reasonably well enough.
 
 % Start: check the dimensions on the inputs.
-assert( all(size(xi) == [6 1]), 'xi is not the proper size: must be 6x1 column vector.');
+% assert( all(size(xi) == [6 1]), 'xi is not the proper size: must be 6x1 column vector.');
 %assert( all(size(inputs) == [4 1]), 'inputs is not the proper size: must be 4x1 column vector.');
 assert( num_steps > 0, 'num_steps must be positive.');
 

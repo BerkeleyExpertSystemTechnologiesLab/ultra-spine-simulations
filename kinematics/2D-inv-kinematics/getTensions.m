@@ -15,6 +15,11 @@ function [tensions, restLengths] = getTensions(xi, spineParameters, minCableTens
 %% Spine Parameters
 
 % Number of bars, cables, and nodes
+% r = 6; % bars
+% s = 4; % cables
+% n = 8; % nodes
+
+% With 2 moving vertebrea:
 r = 6; % bars
 s = 4; % cables
 n = 8; % nodes
@@ -65,11 +70,6 @@ C = [0  1  0  0  0 -1  0  0;  %  1
 %           1    2    3    4
 x_bot = [   0   -w    w    0]';
 z_bot = [   0 -h/2 -h/2  h/2]';
-% Nodes are:
-%   1) center node
-%   2) bottom left
-%   3) bottom right
-%   4) top
 
 % Nodal positions and rotation of top tetra
 x_top = xi(1);
@@ -77,11 +77,8 @@ z_top = xi(2);
 theta = xi(3);
 
 % Rotation matrix for given angle of theta
-% For our coordinate system, with Z upwards, X to the right, then a rotation 
-% about +Y (into the page) of +theta turns the vertebra clockwise. This is
-% because we're looking at the vertebra "from behind."
-rot = [ cos(theta), sin(theta);
-       -sin(theta), cos(theta)];
+rot = [cos(theta), -sin(theta);
+       sin(theta),  cos(theta)];
    
 % Need to multiply each node by the rotation matrix and add the (x,z)
 % offset from the xi state vector. Copy out (x,z) offset to a 2x4 matrix to
@@ -156,29 +153,14 @@ A = [ -dx(1) -dx(2) -dx(3) -dx(4);  % horizontal forces, bottom tetra
       -dz(1) -dz(2) -dz(3) -dz(4);  % vertical forces, bottom tetra
        dz(1)  dz(2)  dz(3)  dz(4)]; % vertical forces, top tetra
 
-% Moments about each tetra.
-% Takes node numbers, which are indexed into the x and z matrices, and calculates the force by using those positions.
-% Inputs are:
-%   a = node number, for center of mass node
-%   b = node number, for the end of the moment arm (where the cable is applying a force)
-%   c = node number, the "other end" of the cable. This is required to calculate a force in Newtons, since 
-%           the q vector is force DENSITY, in N/m. 
+% Moments about each tetra (actually only need moment about one because we
+% already took the system moment, but it's not hurting anything to have it.
 qfun = @(a,b,c) (x(b)-x(a))*(z(c)-z(b)) - (z(b)-z(a))*(x(c)-x(b));
-% The bottom row appended to A represents the contribution of each of the 4 cables, contributing to the moment around 
-% the Y-axis of the top vertebra.
-% Here, note that the "center of mass" node is 5 for the top vertebra, 1 for the center of mass of the bottom node.
 A = [A;
-     qfun(5,6,2) qfun(5,7,3) qfun(5,6,4) qfun(5,7,4)];
-%      qfun(1,2,6) qfun(1,3,7) qfun(1,4,6) qfun(1,4,7)];
+     qfun(5,6,2) qfun(5,7,3) qfun(5,6,4) qfun(5,7,4);
+     qfun(1,2,6) qfun(1,3,7) qfun(1,4,6) qfun(1,4,7)];
  
-% p = [ 0; 0; M*g-R2-R3; M*g; 0; (R2-R3)*w];
-
-% The p vector is the right-hand side of the force balance.
-% The zeros come from \sum F = 0 in the X direction, for vertebra 1 and vertebra 2.
-% 3rd, 4th rows are \sum F = 0 in the Z direction, for vertebra 1 and vertebra 2.
-% 5th row is moment balance, = 0.
-p = [ 0; 0; M*g-R2-R3; M*g; 0];
-
+p = [ 0; 0; M*g-R2-R3; M*g; 0; (R2-R3)*w];
 
 %% Solve Problem for Minimized Cable Tension
 
@@ -191,14 +173,10 @@ p = [ 0; 0; M*g-R2-R3; M*g; 0];
 % sol = optimize(constr,obj,options);
 
 % Solve with QUADPROG
-% The objective function, described by 0.5 * x' * H * x + f' * x
-% This minimizes the total force density in the cables, quadratically.
 H = 2*eye(4);
 f = zeros(4,1);
-% The force and moment balances are constraints for the optimization
 Aeq = A;
 beq = p;
-% Inequalities ensure a minimum cable tension
 Aineq = -L_cables;
 bineq = -minCableTension*ones(s,1);
 % opts = optimoptions(@quadprog,'Display','notify-detailed');
