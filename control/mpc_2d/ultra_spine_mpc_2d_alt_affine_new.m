@@ -55,14 +55,13 @@ paths.path_to_data_folder = '../../data/mpc_2d_data/';
 load('two_d_geometry.mat')
 
 % Create a struct of optimization parameters
-opt_params.num_pts = 399;
+opt_params.num_pts = 9;
 opt_params.num_states = 6;
 opt_params.num_inputs = 4;
 opt_params.horizon_length = 4;
 opt_params.opt_time_lim = 1.5;
 opt_params.spine_params = two_d_geometry;
 opt_params.dt = 1e-3;
-opt_params.N = 2;
 % opt_params.dt = 0.1/opt_params.num_pts;
 
 % Define initial states
@@ -119,9 +118,9 @@ opt_params.xi = xi_traj(:,1);
 % Define matrices for saving all states and inputs
 xi_step = zeros(opt_params.num_states,opt_params.horizon_length+1,opt_params.num_pts);
 u_step = zeros(opt_params.num_inputs,opt_params.horizon_length,opt_params.num_pts);
-xi_cl = zeros(opt_params.N*opt_params.num_states,opt_params.num_pts+1);
+xi_cl = zeros(opt_params.num_states,opt_params.num_pts+1);
 u_cl = zeros(opt_params.num_inputs,opt_params.num_pts);
-A_step = zeros(opt_params.N*opt_params.num_states,2*opt_params.num_states,opt_params.num_pts);
+A_step = zeros(opt_params.num_states,opt_params.num_states,opt_params.num_pts);
 B_step = zeros(opt_params.num_states,opt_params.num_inputs,opt_params.num_pts);
 c_step = zeros(opt_params.num_states,opt_params.num_pts);
 
@@ -138,7 +137,7 @@ for i = 1:opt_params.num_pts
 
     xi_ref = xi_traj(:,i:i+opt_params.horizon_length+1);
     u_ref = u_traj(:,i:i+opt_params.horizon_length);
-    xi = sdpvar(opt_params.N*opt_params.num_states,opt_params.horizon_length+1);
+    xi = sdpvar(opt_params.num_states,opt_params.horizon_length+1);
     u = sdpvar(opt_params.num_inputs,opt_params.horizon_length);
     
     % Linearize dynamics about current state and input
@@ -203,74 +202,44 @@ for i=1:opt_params.num_pts
     drawnow;
 end
 
-% Plot the state trajectory results for the 1st moving veterbrae:
+% Plot the state trajectory results of open loop control
 figure;
-subplot(6,1,1)
+subplot(3,1,1)
 plot(1:opt_params.num_pts+1,xi_cl(1,:),'-x','LineWidth',1.5)
 hold on
 plot(1:opt_params.num_pts+1,xi_traj(1,1:opt_params.num_pts+1),'LineWidth',1.5)
 ylabel('x /m')
 legend('traj with u_{ref}','reference','Location','Best')
-title('State Trajectories for 1st Vertebra')
+title('State Trajectories')
 grid
-subplot(6,1,2)
+subplot(3,1,2)
 plot(1:opt_params.num_pts+1,xi_cl(2,:),'-x','LineWidth',1.5)
 hold on
 plot(1:opt_params.num_pts+1,xi_traj(2,1:opt_params.num_pts+1),'LineWidth',1.5)
 ylabel('z /m')
 grid
-subplot(6,1,3)
+subplot(3,1,3)
 plot(1:opt_params.num_pts+1,xi_cl(3,:),'-x','LineWidth',1.5)
 hold on
 plot(1:opt_params.num_pts+1,xi_traj(3,1:opt_params.num_pts+1),'LineWidth',1.5)
 ylabel('\theta /arc')
 grid
 
-% Plot the state trajectory results for the 2nd moving veterbrae:
-subplot(6,1,4)
-plot(1:opt_params.num_pts+1,xi_cl(7,:),'-x','LineWidth',1.5)
-hold on
-plot(1:opt_params.num_pts+1,xi_traj(7,1:opt_params.num_pts+1),'LineWidth',1.5)
-ylabel('x /m')
-legend('traj with u_{ref}','reference','Location','Best')
-title('State Trajectories for 2nd Vertebra')
-grid
-subplot(6,1,5)
-plot(1:opt_params.num_pts+1,xi_cl(8,:),'-x','LineWidth',1.5)
-hold on
-plot(1:opt_params.num_pts+1,xi_traj(8,1:opt_params.num_pts+1),'LineWidth',1.5)
-ylabel('z /m')
-grid
-subplot(6,1,6)
-plot(1:opt_params.num_pts+1,xi_cl(9,:),'-x','LineWidth',1.5)
-hold on
-plot(1:opt_params.num_pts+1,xi_traj(9,1:opt_params.num_pts+1),'LineWidth',1.5)
-ylabel('\theta /arc')
-grid
-
-% % Plot the state trajectory results of open loop control
-% figure;
-% subplot(3,1,1)
-% plot(1:opt_params.num_pts+1,xi_cl(1,:),'-x','LineWidth',1.5)
+% subplot(6,1,4)
+% plot(1:opt_params.num_pts+1,xi_cl(4,:),'.')
 % hold on
-% plot(1:opt_params.num_pts+1,xi_traj(1,1:opt_params.num_pts+1),'LineWidth',1.5)
-% ylabel('x /m')
-% legend('traj with u_{ref}','reference','Location','Best')
-% title('State Trajectories')
-% grid
-% subplot(3,1,2)
-% plot(1:opt_params.num_pts+1,xi_cl(2,:),'-x','LineWidth',1.5)
+% plot(1:opt_params.num_pts+1,xi_traj(4,1:opt_params.num_pts+1))
+% ylabel('v_x')
+% subplot(6,1,5)
+% plot(1:opt_params.num_pts+1,xi_cl(5,:),'.')
 % hold on
-% plot(1:opt_params.num_pts+1,xi_traj(2,1:opt_params.num_pts+1),'LineWidth',1.5)
-% ylabel('z /m')
-% grid
-% subplot(3,1,3)
-% plot(1:opt_params.num_pts+1,xi_cl(3,:),'-x','LineWidth',1.5)
+% plot(1:opt_params.num_pts+1,xi_traj(5,1:opt_params.num_pts+1))
+% ylabel('v_z')
+% subplot(6,1,6)
+% plot(1:opt_params.num_pts+1,xi_cl(6,:),'.')
 % hold on
-% plot(1:opt_params.num_pts+1,xi_traj(3,1:opt_params.num_pts+1),'LineWidth',1.5)
-% ylabel('\theta /arc')
-% grid
-
+% plot(1:opt_params.num_pts+1,xi_traj(6,1:opt_params.num_pts+1))
+% ylabel('omega')
 
 % Plot the input trajectory results of open loop control
 figure;
@@ -311,10 +280,6 @@ x_1 = abs(xi_traj(1,1)*ones(1,size(xi_cl,2))-xi_traj(1,1:end-4));
 x_2 = abs(xi_traj(2,1)*ones(1,size(xi_cl,2))-xi_traj(2,1:end-4));
 x_3 = abs(xi_traj(3,1)*ones(1,size(xi_cl,2))-xi_traj(3,1:end-4));
 
-x_7 = abs(xi_traj(7,1)*ones(1,size(xi_cl,2))-xi_traj(7,1:end-4));
-x_8 = abs(xi_traj(8,1)*ones(1,size(xi_cl,2))-xi_traj(8,1:end-4));
-x_9 = abs(xi_traj(9,1)*ones(1,size(xi_cl,2))-xi_traj(9,1:end-4));
-
 % Using absolue state value as x: cannot reflect absolute value change of
 % z_state, as it starts from 0.1 in case of 0 initial sweeping angle
 % x_1 = abs(xi_cl(1,:));
@@ -330,10 +295,6 @@ e_1 = xi_cl(1,:)-xi_traj(1,1:end-4);
 e_2 = xi_cl(2,:)-xi_traj(2,1:end-4);
 e_3 = xi_cl(3,:)-xi_traj(3,1:end-4);
 
-e_7 = xi_cl(7,:)-xi_traj(7,1:end-4);
-e_8 = xi_cl(8,:)-xi_traj(8,1:end-4);
-e_9 = xi_cl(9,:)-xi_traj(9,1:end-4);
-
 % x_sq_1 = zeros(1,length(x_1));
 % x_sq_2 = zeros(1,length(x_1));
 % x_sq_3 = zeros(1,length(x_1));
@@ -348,52 +309,29 @@ e_sq_1 = e_1.*e_1;
 e_sq_2 = e_2.*e_2;
 e_sq_3 = e_3.*e_3;
 
-e_sq_7 = e_7.*e_7;
-e_sq_8 = e_8.*e_8;
-e_sq_9 = e_9.*e_9;
-
 % e_sq = e_1.*e_1+e_2.*e_2;
 
 % Calculate absolute errors of states
 e_abs_1 = abs(e_1);
 e_abs_2 = abs(e_2);
 e_abs_3 = abs(e_3);
-
-e_abs_7 = abs(e_7);
-e_abs_8 = abs(e_8);
-e_abs_9 = abs(e_9);
  
 % Calculate relative errors of states
 e_rl_1 = e_abs_1./x_1;
 e_rl_2 = e_abs_2./x_2;
 e_rl_3 = e_abs_3./x_3;
 
-e_rl_7 = e_abs_7./x_7;
-e_rl_8 = e_abs_8./x_8;
-e_rl_9 = e_abs_9./x_9;
-
 % Plot the relevat errors of each state, namely the absolute errors over absolue velues
 figure;
-subplot(6,1,1)
+subplot(3,1,1)
 plot(100*e_rl_1);
 ylabel('RE(x)/ %');
-title('Relative Tracking Errors of States for 1st Vertebra')
-subplot(6,1,2)
+title('Relative Tracking Errors of States')
+subplot(3,1,2)
 plot(100*e_rl_2);
 ylabel('RE(z)/ %');
-subplot(6,1,3)
+subplot(3,1,3)
 plot(100*e_rl_3);
-ylabel('RE(theta)/ %')
-
-subplot(6,1,4)
-plot(100*e_rl_7);
-ylabel('RE(x)/ %');
-title('Relative Tracking Errors of States for 2nd Vertebra')
-subplot(6,1,5)
-plot(100*e_rl_8);
-ylabel('RE(z)/ %');
-subplot(6,1,6)
-plot(100*e_rl_9);
 ylabel('RE(theta)/ %')
 
 % % Plot the square errors of each state 
@@ -411,24 +349,13 @@ ylabel('RE(theta)/ %')
 
 % Plot the absolut error of 3 states, if necessary
 figure;
-subplot(6,1,1)
+subplot(3,1,1)
 plot(e_abs_1);
 ylabel('AE(x)');
-title('Absolute Errors of States for 1st Vertebra')
-subplot(6,1,2)
+title('Absolute Errors of States')
+subplot(3,1,2)
 plot(e_abs_2);
 ylabel('AE(z)');
-subplot(6,1,3)
+subplot(3,1,3)
 plot(e_abs_3);
-ylabel('AE(theta)')
-
-subplot(6,1,4)
-plot(e_abs_7);
-ylabel('AE(x)');
-title('Absolute Errors of States for 2nd Vertebra')
-subplot(6,1,5)
-plot(e_abs_8);
-ylabel('AE(z)');
-subplot(6,1,6)
-plot(e_abs_9);
 ylabel('AE(theta)')
