@@ -31,9 +31,9 @@ num_states = length(xi);
 % saved into the geometry struct.
 % In case that we have 2 moving vertebrae, num_states == 2*geometry.num_states
 % assert( num_states == geometry.num_states, ...
-assert( num_states == 2*geometry.num_states, ...
-    'Error! The number of states is inconsistent between the geometry vector and state vector. Cannot plot tensegrity.');
- 
+% assert( num_states == 2*geometry.num_states, ...
+%     'Error! The number of states is inconsistent between the geometry vector and state vector. Cannot plot tensegrity.');
+%  
 % The handles array can be a cell array:
 handles = {};
 

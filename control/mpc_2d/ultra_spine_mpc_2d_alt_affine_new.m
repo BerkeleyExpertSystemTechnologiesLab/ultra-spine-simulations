@@ -359,3 +359,21 @@ ylabel('AE(z)');
 subplot(3,1,3)
 plot(e_abs_3);
 ylabel('AE(theta)')
+%% PLOT THE X-Z POSITION
+figure;
+plot(xi_cl(1,:), xi_cl(2,:),'-x','LineWidth',2.5);
+hold on;
+plot(xi_traj(1,1:opt_params.num_pts-4),xi_traj(2,1:opt_params.num_pts-4),'LineWidth',2.5);
+grid on;
+xlabel('X /m');
+ylabel('Z /m');
+title('Plot of X-Z Position');
+%% PLOT THE ANGULAR TRAJECTORY
+figure;
+plot(xi_cl(3,:), '-x','LineWidth',2.5);
+hold on;
+plot(xi_traj(3,1:end-4),'LineWidth',2.5);
+grid on;
+xlabel('steps');
+ylabel(' \theta /arc');
+title('Plot of \theta over steps');

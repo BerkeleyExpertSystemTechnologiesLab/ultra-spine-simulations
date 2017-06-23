@@ -10,7 +10,7 @@
 % Created: 12/8/16
 % Modified: 12/10/16
 
-function [tensions, restLengths] = getTensions_two_vertebra(xi, spineParameters, minCableTension)
+function [tensions, restLengths] = getTensions_two_vertbr(xi, spineParameters, minCableTension)
 
 %% Spine Parameters
 
