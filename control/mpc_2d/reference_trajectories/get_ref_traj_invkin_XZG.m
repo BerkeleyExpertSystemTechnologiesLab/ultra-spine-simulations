@@ -18,7 +18,7 @@ function [traj, num_points] = get_ref_traj_invkin_XZG(tetra_vertical_spacing, nu
 
 % Hardcode the number of moving vertebrae here
 % TO-DO: make this a parameter.
-num_vertebrae = 2; 
+num_vertebrae = 1; 
 
 % Check to be sure "direction" is only 1 or -1, no scaling allowed.
 assert( (direction == 1) | (direction == -1), 'Direction can only be 1 (clockwise) or -1 (counterclockwise)');
@@ -49,8 +49,8 @@ c1 = 1e-4;
 % beta_f = -direction * pi/8; 
 
 beta_0 = 0;
-beta_f = -pi/8; 
-% 
+beta_f = -pi/4; 
+
 % beta_0 = -direction * pi/8;
 % beta_f = -direction * pi/16; 
 
@@ -125,8 +125,8 @@ dz_ref(num_points,:) = dz_ref(num_points-1,:);
 % TO-DO: find some reasonable relationship between these numbers. They look a bit like a power law?
 
 % Note, no need to adjust these by clockwise or counterclockwise, since beta is changed directly above.
-c2 = [-1.06, -1.39];
-% c2 = -1.06;
+% c2 = [1.06, 1.39, 1.54, 2.1, 2.5];
+c2 = -1.06;
 
 g_ref = zeros(num_points, num_vertebrae);
 dg_ref = zeros(num_points, num_vertebrae);

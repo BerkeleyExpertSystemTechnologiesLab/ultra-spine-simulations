@@ -55,13 +55,13 @@ paths.path_to_data_folder = '../../data/mpc_2d_data/';
 load('two_d_geometry.mat')
 
 % Create a struct of optimization parameters
-opt_params.num_pts = 9;
+opt_params.num_pts = 399;
 opt_params.num_states = 6;
 opt_params.num_inputs = 4;
 opt_params.horizon_length = 4;
 opt_params.opt_time_lim = 1.5;
 opt_params.spine_params = two_d_geometry;
-opt_params.dt = 1e-3;
+opt_params.dt = 2e-5;
 % opt_params.dt = 0.1/opt_params.num_pts;
 
 % Define initial states
@@ -359,6 +359,20 @@ ylabel('AE(z)');
 subplot(3,1,3)
 plot(e_abs_3);
 ylabel('AE(theta)')
+%% PLOT THE X-Z POSITION
+figure;
+plot(100*xi_cl(1,:), 100*xi_cl(2,:),'-x','LineWidth',2.5);
+hold on;
+% plot(100*xi_traj(1,1:opt_params.num_pts-14),100*xi_traj(2,1:opt_params.num_pts-14),'LineWidth',2.5);
+% plot(100*xi_traj(1,1:opt_params.num_pts+1-(opt_params.num_pts+1)/10),100*xi_traj(2,1:opt_params.num_pts+1-(opt_params.num_pts+1)/10),'LineWidth',2.5);
+plot(100*xi_traj(1,1:opt_params.num_pts+2-2*(opt_params.num_pts+1)/10),100*xi_traj(2,1:opt_params.num_pts+2-2*(opt_params.num_pts+1)/10),'LineWidth',2.5);
+grid on;
+hold on;
+plot(100*xi_cl(1,1), 100*xi_cl(2,1),'o','LineWidth',3.5);
+xlabel('X /cm');
+ylabel('Z /cm');
+title('Plot of X-Z Position');
+legend('tractory','reference','start point','location','best');
 %% PLOT THE ANGULAR TRAJECTORY
 figure;
 % plot(xi_cl(3,:), '-x','LineWidth',2.5);

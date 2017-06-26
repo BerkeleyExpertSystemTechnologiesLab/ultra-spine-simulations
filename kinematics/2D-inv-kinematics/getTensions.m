@@ -15,11 +15,6 @@ function [tensions, restLengths] = getTensions(xi, spineParameters, minCableTens
 %% Spine Parameters
 
 % Number of bars, cables, and nodes
-% r = 6; % bars
-% s = 4; % cables
-% n = 8; % nodes
-
-% With 2 moving vertebrea:
 r = 6; % bars
 s = 4; % cables
 n = 8; % nodes
