@@ -48,11 +48,11 @@ c1 = 1e-4;
 % beta_0 = -direction * pi/4;
 % beta_f = -direction * pi/8; 
 
-% beta_0 = 0;
-% beta_f = -pi/8; 
-
-beta_0 = -direction * pi/8;
-beta_f = -direction * pi/16; 
+beta_0 = 0;
+beta_f = -pi/8; 
+% 
+% beta_0 = -direction * pi/8;
+% beta_f = -direction * pi/16; 
 
 % On 2016-09-18: made beta larger for illustrating the trajectory in a figure for the ACC 2017 paper.
 % beta_f = direction * pi/4;
