@@ -35,7 +35,7 @@ assert( ~(any(isnan(u_bar))), 'Error! NaN was passed in to linearize_dynamics as
 
 % Small constant for taking the numerical derivative (finite difference approx.)
 % eps = 1e-5;
-eps = 2e-5;
+eps = 4e-4;
 
 % Initialize linearized state space matricies
 A = zeros(nx);

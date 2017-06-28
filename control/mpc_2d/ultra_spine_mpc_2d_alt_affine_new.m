@@ -55,13 +55,13 @@ paths.path_to_data_folder = '../../data/mpc_2d_data/';
 load('two_d_geometry.mat')
 
 % Create a struct of optimization parameters
-opt_params.num_pts = 399;
+opt_params.num_pts = 79;
 opt_params.num_states = 6;
 opt_params.num_inputs = 4;
 opt_params.horizon_length = 4;
 opt_params.opt_time_lim = 1.5;
 opt_params.spine_params = two_d_geometry;
-opt_params.dt = 2e-5;
+opt_params.dt = 1e-4;
 % opt_params.dt = 0.1/opt_params.num_pts;
 
 % Define initial states
@@ -363,9 +363,9 @@ ylabel('AE(theta)')
 figure;
 plot(100*xi_cl(1,:), 100*xi_cl(2,:),'-x','LineWidth',2.5);
 hold on;
-% plot(100*xi_traj(1,1:opt_params.num_pts-14),100*xi_traj(2,1:opt_params.num_pts-14),'LineWidth',2.5);
+plot(100*xi_traj(1,1:opt_params.num_pts+1),100*xi_traj(2,1:opt_params.num_pts+1),'LineWidth',2.5);
 % plot(100*xi_traj(1,1:opt_params.num_pts+1-(opt_params.num_pts+1)/10),100*xi_traj(2,1:opt_params.num_pts+1-(opt_params.num_pts+1)/10),'LineWidth',2.5);
-plot(100*xi_traj(1,1:opt_params.num_pts+2-2*(opt_params.num_pts+1)/10),100*xi_traj(2,1:opt_params.num_pts+2-2*(opt_params.num_pts+1)/10),'LineWidth',2.5);
+% plot(100*xi_traj(1,1:opt_params.num_pts+2-2*(opt_params.num_pts+1)/10),100*xi_traj(2,1:opt_params.num_pts+2-2*(opt_params.num_pts+1)/10),'LineWidth',2.5);
 grid on;
 hold on;
 plot(100*xi_cl(1,1), 100*xi_cl(2,1),'o','LineWidth',3.5);
@@ -378,9 +378,9 @@ figure;
 % plot(xi_cl(3,:), '-x','LineWidth',2.5);
 plot(xi_cl(3,:)*180/pi, '-x','LineWidth',2.5);
 hold on;
-% plot(xi_traj(3,1:opt_params.num_pts+1)*180/pi,'LineWidth',2.5);
+plot(xi_traj(3,1:opt_params.num_pts+1)*180/pi,'LineWidth',2.5);
 % plot(xi_traj(3,1:opt_params.num_pts+1-(opt_params.num_pts+1)/10)*180/pi,'LineWidth',2.5);
-plot(xi_traj(3,1:opt_params.num_pts+1-1.5*(opt_params.num_pts+1)/10)*180/pi,'LineWidth',2.5);
+% plot(xi_traj(3,1:opt_params.num_pts+1-1.5*(opt_params.num_pts+1)/10)*180/pi,'LineWidth',2.5);
 grid on;
 hold on;
 % plot(xi_cl(3,1),'o','LineWidth',3.5);

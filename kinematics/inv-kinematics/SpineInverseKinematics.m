@@ -28,7 +28,8 @@ B_base=[ 1  1  1  0  0  0;   %A
          0  0 -1 -1  0  1;   %C
          0 -1  0  0 -1 -1]';  %D
        
-pretension = 200; %force density N/m
+%pretension = 200; %force density N/m
+pretension = 20;
 
 %This is the string connetivity matrix for Any two tetrahedra
      %   1  2  3  4  5  6  7  8   
@@ -44,6 +45,7 @@ C_base=[ 1  0  0  0  0  0  0  0 ; %A
 
 %Number of tetrahedra (spine nodes)
 N=5;
+%N=2;
 C=zeros((N-1)*8,N*4);
 B=zeros(N*6,N*4);
 
@@ -61,14 +63,17 @@ end
 
 K_scale=eye((N-1)*8);
 
-
-Mass= 1; %mass of single tetra kg
+% CHANGE MASS OF EACH VERTEBRA
+Mass= 0.142; %mass of single tetra kg, was 1 kg.
+% CHANGE GEOMETRY OF EACH VERTEBRA
 L=0.2; %m, Edge of tetra 
 
 %These are coordinates for the first tetrahedron. All subsequent
 %tetrahedron are multiplied by the same translations repeatedly... this way
 %coupled actuation is straightforward if you kinematically constrain
 %yourself to these 4 degrees of freedom
+
+% CHANGE FOR VERTICAL SPACING
 z = 0.075; %vertical height
 xR = 0;    %x rotation bending
 yR = 0;    %y rotation bending
@@ -76,7 +81,8 @@ zR = 0;    %torsional rotation
 
 %Cable stiffnesses, only used for back calculating cable length from force
 %densities
-K=1000*ones((N-1)*8,1); %N/m
+%K=1000*ones((N-1)*8,1); %N/m
+K=2000*ones((N-1)*8,1); %N/m
  
 hFig = figure(1);
 set(hFig, 'Position', [800 50 1000 1200])
@@ -112,7 +118,8 @@ stringPts=zeros(16*(N-1),3);
 
 % iterate over number of frames to render
 frame=0;
-num_frames_to_render = 20;
+%num_frames_to_render = 20;
+num_frames_to_render = 30;
 
 % Uncomment these lines to save a video
 %videoObject = VideoWriter('videos/SpineExample.avi');
@@ -146,6 +153,9 @@ centersHistory = zeros(N, 4, num_frames_to_render);
 % The angles of rotation for each tetra at each timepoint will be recorded
 % There are 5 tetras.
 rotationHistory = zeros(5, num_frames_to_render);
+
+% Record the rest lengths of the cables (Drew, 2017-03-14)
+restLengthsHistory = zeros(size(stringForceHistory));
 
 % Main loop
 while frame < num_frames_to_render
@@ -227,12 +237,20 @@ while frame < num_frames_to_render
     V=Q(:,1:j-1);
     
     % Run the actual optimization for the inverse kinematics
-    w = quadprog(V(1:(N-1)*8,:)'*K_scale*V(1:(N-1)*8,:),V(1:(N-1)*8,:)'*K_scale*A_g(1:(N-1)*8,:)*F,-V(1:(N-1)*8,:),A_g(1:(N-1)*8,:)*F-pretension,[],[],[],[],[],options);
+    w = quadprog(V(1:(N-1)*8,:)'*K_scale*V(1:(N-1)*8,:), ...
+        V(1:(N-1)*8,:)'*K_scale*A_g(1:(N-1)*8,:)*F, ...
+        -V(1:(N-1)*8,:), ...
+        A_g(1:(N-1)*8,:)*F-pretension, ...
+        [],[],[],[],[],options);
+    
     q=A_g*F + V*w;
     
     stringLengths=getLengths(stringPts(:,1),stringPts(:,2),stringPts(:,3));
     Lengths= stringLengths(1:2:end);
     L0=Lengths-Lengths.*q(1:(N-1)*8)./K;
+    
+    % Store L0.
+    restLengthsHistory(:,frame) = L0;
     
     % Record the string lengths
     stringLengthsOverTime(:,frame) = stringLengths;
@@ -337,8 +355,8 @@ plot(stringLengthsOverTime(24,:));
 % Plot changes in length of each cable over time (CHANWOO)
 % Refer to plotLengthChange.m file; gearRatioFinder.m
 
-plotLengthChange
-gearRatioFinder
+%plotLengthChange
+%gearRatioFinder
 
 
 
