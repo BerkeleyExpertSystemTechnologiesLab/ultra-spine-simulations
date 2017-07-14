@@ -48,8 +48,8 @@ c1 = 1e-4;
 % beta_0 = -direction * pi/4;
 % beta_f = -direction * pi/8; 
 
-beta_0 = pi/8;
-beta_f = 0; 
+beta_0 = 0;
+beta_f = pi/8; 
 
 % beta_0 = 0;
 % beta_f = -pi/8; 
@@ -129,7 +129,7 @@ dz_ref(num_points,:) = dz_ref(num_points-1,:);
 
 % Note, no need to adjust these by clockwise or counterclockwise, since beta is changed directly above.
 % c2 = [1.06, 1.39, 1.54, 2.1, 2.5];
-c2 = -1.06;
+c2 = 1.06;
 
 g_ref = zeros(num_points, num_vertebrae);
 dg_ref = zeros(num_points, num_vertebrae);

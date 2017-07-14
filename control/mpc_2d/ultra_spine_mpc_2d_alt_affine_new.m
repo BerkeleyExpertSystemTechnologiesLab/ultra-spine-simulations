@@ -55,7 +55,7 @@ paths.path_to_data_folder = '../../data/mpc_2d_data/';
 load('two_d_geometry.mat')
 
 % Create a struct of optimization parameters
-opt_params.num_pts = 79;
+opt_params.num_pts = 19;
 opt_params.num_states = 6;
 opt_params.num_inputs = 4;
 opt_params.horizon_length = 4;
@@ -202,7 +202,7 @@ for i=1:opt_params.num_pts
     drawnow;
 end
 
-% Plot the state trajectory results of open loop control
+%% Plot the state trajectory results of open loop control
 figure;
 subplot(3,1,1)
 plot(1:opt_params.num_pts+1,xi_cl(1,:),'-x','LineWidth',1.5)
@@ -270,7 +270,7 @@ grid;
 plot(1:opt_params.num_pts,u_traj(4,1:opt_params.num_pts), 'LineWidth',1.5)
 ylabel('u_4 /m')
 
-% Analyse the errors of the MPC results
+%% Analyse the errors of the MPC results
 
 % x_1 = abs(xi_cl(1,1)*ones(1,size(xi_cl,2))-xi_cl(1,:));
 % x_2 = abs(xi_cl(2,1)*ones(1,size(xi_cl,2))-xi_cl(2,:));
@@ -389,4 +389,24 @@ xlabel('steps');
 % ylabel(' \theta /arc');
 ylabel(' \theta /°');
 title('Plot of \theta over steps');
+legend('tractory','reference','start point','location','best');
+%% PLOT X-Y-Theta IN 3D
+figure;
+plot3(100*xi_cl(1,:), 100*xi_cl(2,:),180/pi*xi_cl(3,:),'-x','LineWidth',2.5);
+hold on;
+plot3(100*xi_traj(1,1:opt_params.num_pts+1), ...
+    100*xi_traj(2,1:opt_params.num_pts+1), ...
+    180/pi*xi_traj(3,1:opt_params.num_pts+1), ...
+    '-o','LineWidth',1.5);
+% plot3(100*xi_traj(1,1:opt_params.num_pts+1-(opt_params.num_pts+1)/10), ...
+%     100*xi_traj(2,1:opt_params.num_pts+1-(opt_params.num_pts+1)/10), ...
+%     180/pi*xi_traj(3,1:opt_params.num_pts+1-(opt_params.num_pts+1)/10), ...
+%     '-o','LineWidth',2.5);
+grid on;
+hold on;
+plot3(100*xi_cl(1,1), 100*xi_cl(2,1),180/pi*xi_cl(3,1),'o','LineWidth',3.5);
+xlabel('X /cm');
+ylabel('Z /cm');
+zlabel(' \theta /°');
+title('Plot of states X - Z - \theta');
 legend('tractory','reference','start point','location','best');

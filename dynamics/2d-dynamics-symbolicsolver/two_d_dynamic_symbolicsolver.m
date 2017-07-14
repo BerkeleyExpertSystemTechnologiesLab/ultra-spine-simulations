@@ -132,7 +132,7 @@ disp('Defining tensegrity system physical parameters...');
 % and that the first node of this first unit is at exactly (0,0,0).
 % There are N units, including the fixed one:
 % N = 3;
-N= 3;
+N= 2;
 
 % Gravitational constant (used for calculating potential energy in Lagrangian):
 g = 9.8;
@@ -1322,12 +1322,12 @@ matlabFunction(tensions_sub_barrier,'file','two_d_spine_tensions_barrier','Vars'
 %PROGRESS_BAR
 disp('     Writing functions for dynamics approach #3:');
 disp('     Writing xi_dot function...');
-% matlabFunction(xi_dot_soln,'file','two_d_spine_xi_dot','Vars',{xi,u});
+matlabFunction(xi_dot_soln,'file','two_d_spine_xi_dot','Vars',{xi,u});
 
 %PROGRESS_BAR
 disp('     Writing functions for dynamics approach #4:');
 disp('     Writing xi_dot, with barrier function...');
-% matlabFunction(xi_dot_soln_barrier,'file','two_d_spine_xi_dot_barrier','Vars',{xi,u});
+matlabFunction(xi_dot_soln_barrier,'file','two_d_spine_xi_dot_barrier','Vars',{xi,u});
 
 % In order to keep these symbolic variables for later,
 % let's write them to a .mat file.%PROGRESS_BAR

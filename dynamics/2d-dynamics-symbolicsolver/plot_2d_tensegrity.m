@@ -39,7 +39,7 @@ handles = {};
 
 % First, the four nodes, as circles:
 % Note that "a" has 2 rows, for the (x,z) position of each node.
-for i=1:size(a,2);
+for i=1:size(a,2)
     handles{end+1} = plot(a(1,i), a(2,i), 'k.', 'MarkerSize', 40);
 end
 
@@ -81,7 +81,9 @@ for unit = 2:N
     % unit=4, theta=15
     % ...
     % Example: -(2-3) * 3 + 6 == -1*3 + 6 == -3 + 6 == 3.
-    theta_index = (unit-3)*(num_states_per_unit/2) + num_states_per_unit;
+    %   theta_index = (unit-3)*(num_states_per_unit/2) + num_states_per_unit;
+    % For single moving vertebra:
+        theta_index = (unit-3)*(num_states_per_unit/2) +num_states_per_unit;
     theta = xi(theta_index);
     % Also pick out the x,z states for this unit.
     % TO-DO: clean up this code, bad indexing.
@@ -90,8 +92,12 @@ for unit = 2:N
     % Next, calculate the nodes of the moving vertebra.
     % These are the locations a, translated by (x,z), and rotated by theta.
     % The rotation matrix for this given angle of theta is:
+    % 2016-12-06:
     rot = [ cos(theta),    -sin(theta);
             sin(theta),     cos(theta)];
+%     % 2017-06:
+%         rot = [ cos(theta),    sin(theta);
+%             -sin(theta),     cos(theta)];
     % We need to multiply each point in a by rot,
     % and add the (x,z) offset from the xi state vector.
     % To make this easier, so that we can use matrix algebra,
@@ -101,7 +107,7 @@ for unit = 2:N
     % Now, the locations of the nodes of this unit are
     b(:,:,unit) = rot*a + xz_offset;
     % 2.2) Plot the node locations of this vertebra. As circles:
-    for i=1:size(b,2);
+    for i=1:size(b,2)
         handles{end+1} = plot(b(1,i,unit), b(2,i,unit), 'k.', 'markersize', 40);
     end
     % 2.3) Plot the bars between nodes, just like with the static unit:

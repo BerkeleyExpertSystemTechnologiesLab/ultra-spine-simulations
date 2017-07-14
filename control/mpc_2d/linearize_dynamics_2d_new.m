@@ -63,7 +63,7 @@ end
 
 % A_k = eye(nx) + eps * A;
 % B_k = eps * B;
-c_t = simulate_2d_spine_dynamics_new(x_bar,u_bar,dt,10,dyn_type)-(A_k*x_bar+B_k*u_bar);
+c_t = simulate_2d_spine_dynamics_new(x_bar,u_bar,dt,10,dyn_type)-(A*x_bar+B*u_bar);
 
 A_k = exp(A * eps);
 B_k = inv(A) * (A_k - eye(nx)) * B;

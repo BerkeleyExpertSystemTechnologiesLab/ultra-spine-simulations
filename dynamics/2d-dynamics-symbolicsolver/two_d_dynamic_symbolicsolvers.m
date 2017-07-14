@@ -1303,7 +1303,7 @@ disp('     Writing functions for dynamics approach #1:');
 disp('     Writing tensions function...');
 matlabFunction(tensions_sub,'file','two_d_spine_tensions','Vars',{xi,u});
 disp('     Writing accelerations solution, without tensions substituted...');
-% matlabFunction(d2xi_solved_un,'file','two_d_spine_accel','Vars',{xi,tensions_un});
+matlabFunction(d2xi_solved_un,'file','two_d_spine_accel','Vars',{xi,tensions_un});
 
 %PROGRESS_BAR
 disp('     Writing functions for dynamics approach #2:');
@@ -1314,12 +1314,12 @@ matlabFunction(tensions_sub_barrier,'file','two_d_spine_tensions_barrier','Vars'
 %PROGRESS_BAR
 disp('     Writing functions for dynamics approach #3:');
 disp('     Writing xi_dot function...');
-% matlabFunction(xi_dot_soln,'file','two_d_spine_xi_dot','Vars',{xi,u});
+matlabFunction(xi_dot_soln,'file','two_d_spine_xi_dot','Vars',{xi,u});
 
 %PROGRESS_BAR
 disp('     Writing functions for dynamics approach #4:');
 disp('     Writing xi_dot, with barrier function...');
-% matlabFunction(xi_dot_soln_barrier,'file','two_d_spine_xi_dot_barrier','Vars',{xi,u});
+matlabFunction(xi_dot_soln_barrier,'file','two_d_spine_xi_dot_barrier','Vars',{xi,u});
 
 % In order to keep these symbolic variables for later,
 % let's write them to a .mat file.%PROGRESS_BAR
