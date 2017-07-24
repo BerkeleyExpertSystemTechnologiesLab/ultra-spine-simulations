@@ -23,7 +23,7 @@
 % dynamics:
 %   simulate_2d_spine_dynamics
 
-function [A_k, B_k,c_k] = linearize_dynamics_2d_affine(x_bar, u_bar, dt, dyn_type)
+function [A_k, B_k,c_k] = linearize_dynamics_2d_affine(x_bar,xp1_bar, u_bar, dt, dyn_type)
 
 % Number of states and inputs
 nx = length(x_bar);
@@ -35,7 +35,7 @@ assert( ~(any(isnan(u_bar))), 'Error! NaN was passed in to linearize_dynamics as
 
 % Small constant for taking the numerical derivative (finite difference approx.)
 % eps = 1e-5;
-eps = 4e-4;
+eps = 4e-5;
 
 % Initialize linearized state space matricies
 A = zeros(nx);
@@ -45,10 +45,12 @@ B = zeros(nx,nu);
 for i = 1:nx
     x_bar_U = x_bar;
     x_bar_L = x_bar;
-    x_bar_U(i) = x_bar_U(i) + eps;
-    x_bar_L(i) = x_bar_L(i) - eps;
-    A(:,i) = (simulate_2d_spine_dynamics_new(x_bar_U,u_bar,dt,10,dyn_type) - ...
-        simulate_2d_spine_dynamics(x_bar_L,u_bar,dt,1,dyn_type))/(2*eps);
+    x_bar_U(i) = x_bar(i) + eps*(xp1_bar(i) - x_bar(i));
+    x_bar_L(i) = x_bar(i) - eps*(xp1_bar(i) - x_bar(i));
+%     A(:,i) = (simulate_2d_spine_dynamics_new(x_bar_U,u_bar,dt,4,dyn_type) - ...
+%         simulate_2d_spine_dynamics_new(x_bar_L,u_bar,dt,4,dyn_type))/(2*eps);
+    A(:,i) = (simulate_2d_spine_dynamics_new(x_bar_U,u_bar,dt,1,dyn_type) - ...
+        simulate_2d_spine_dynamics_new(x_bar_L,u_bar,dt,1,dyn_type))/(2*eps);
 end
 
 % Linearize input matrix B
@@ -57,8 +59,8 @@ for i = 1:nu
     u_bar_L = u_bar;
     u_bar_U(i) = u_bar_U(i) + eps;
     u_bar_L(i) = u_bar_L(i) - eps;
-    B(:,i) = (simulate_2d_spine_dynamics_new(x_bar,u_bar_U,dt,10,dyn_type) - ...
-        simulate_2d_spine_dynamics(x_bar,u_bar_L,dt,1,dyn_type))/(2*eps);
+    B(:,i) = (simulate_2d_spine_dynamics_new(x_bar,u_bar_U,dt,1,dyn_type) - ...
+        simulate_2d_spine_dynamics_new(x_bar,u_bar_L,dt,1,dyn_type))/(2*eps);
 end
 
 c = simulate_2d_spine_dynamics_new(x_bar,u_bar,dt,1,dyn_type) - (A*x_bar+B*u_bar);
@@ -71,6 +73,7 @@ B_af = [B;zeros(1,nu)];
      sysD = c2d(sysC, eps);
      A_af_k = sysD.A;
      B_af_k = sysD.B;
+
      
 A_k = A_af_k(1:nx,1:nx);
 B_k = B_af_k(1,1:nu);

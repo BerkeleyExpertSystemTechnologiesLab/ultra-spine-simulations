@@ -57,24 +57,26 @@ for i = 1:nu
     u_bar_L = u_bar;
     u_bar_U(i) = u_bar_U(i) + eps;
     u_bar_L(i) = u_bar_L(i) - eps;
-    B(:,i) = (simulate_2d_spine_dynamics_new(x_bar,u_bar_U,dt,10,dyn_type) - ...
+    B(:,i) = (simulate_2d_spine_dynamics_new(x_bar,u_bar_U,dt,1,dyn_type) - ...
         simulate_2d_spine_dynamics_new(x_bar,u_bar_L,dt,1,dyn_type))/(2*eps);
 end
 
 % A_k = eye(nx) + eps * A;
 % B_k = eps * B;
-c_t = simulate_2d_spine_dynamics_new(x_bar,u_bar,dt,10,dyn_type)-(A*x_bar+B*u_bar);
+c_t = simulate_2d_spine_dynamics_new(x_bar,u_bar,dt,1,dyn_type)-(A*x_bar+B*u_bar);
 
-A_k = exp(A * eps);
-B_k = inv(A) * (A_k - eye(nx)) * B;
-%  A_k = eye(nx) + A_t * eps;
-%  B_k = B_t * eps;
-% c_k = simulate_2d_spine_dynamics(x_bar,u_bar,dt,1,dyn_type)-(A_k*x_bar+B_k*u_bar);
-c_k = c_t*eps;
+% A_k = exp(A * eps);
+% B_k = inv(A) * (A_k - eye(nx)) * B;
+% %  A_k = eye(nx) + A_t * eps;
+% %  B_k = B_t * eps;
+% %c_k = simulate_2d_spine_dynamics(x_bar,u_bar,dt,1,dyn_type)-(A_k*x_bar+B_k*u_bar);
+% c_k = c_t*eps;
 
-% %      C = eye(nx);
-% %      sysC = ss(A, B, C, 0);
-% %      sysD = c2d(sysC, eps);
-% %      A_k = sysD.A;
-% %      B_k = sysD.B;
-% %      c_k = simulate_2d_spine_dynamics(x_bar,u_bar,dt,1,dyn_type)-(A_k*x_bar+B_k*u_bar);
+% Note that the output out of simulate_2d_spine_dynamics_new is x_dot, and
+% output of simulate_2d_spine_dynamics is x_kp1:
+     C = eye(nx);
+     sysC = ss(A, B, C, 0);
+     sysD = c2d(sysC, eps);
+     A_k = sysD.A;
+     B_k = sysD.B;
+     c_k = simulate_2d_spine_dynamics(x_bar,u_bar,dt,1,dyn_type)-(A_k*x_bar+B_k*u_bar);

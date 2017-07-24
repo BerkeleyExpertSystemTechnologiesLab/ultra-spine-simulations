@@ -29,7 +29,9 @@ function [ xi_dot ] = simulate_2d_spine_dynamics_new( xi, inputs, dt, num_steps,
 assert( num_steps > 0, 'num_steps must be positive.');
 
 % The time interval for each step is:
-dt_step = dt / num_steps;
+% dt_step = dt / num_steps;
+
+dt_step = dt;
 
 % Forward simulate for the given number of steps
 for i = 1:num_steps

@@ -55,13 +55,13 @@ paths.path_to_data_folder = '../../data/mpc_2d_data/';
 load('two_d_geometry.mat')
 
 % Create a struct of optimization parameters
-opt_params.num_pts = 19;
+opt_params.num_pts = 199;
 opt_params.num_states = 6;
 opt_params.num_inputs = 4;
 opt_params.horizon_length = 4;
 opt_params.opt_time_lim = 1.5;
 opt_params.spine_params = two_d_geometry;
-opt_params.dt = 1e-4;
+opt_params.dt = 1e-5;
 % opt_params.dt = 0.1/opt_params.num_pts;
 
 % Define initial states
@@ -93,6 +93,9 @@ for i = 1:opt_params.num_pts+opt_params.horizon_length+1
 %     disp(xi_traj(:,i))
 end
 opt_params.xi = xi_traj(:,1);
+opt_params.xip1 = xi_traj(:,2);
+% opt_params.xi(:,1:2) = xi_traj(:,1:2);
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Create controller
@@ -125,6 +128,7 @@ B_step = zeros(opt_params.num_states,opt_params.num_inputs,opt_params.num_pts);
 c_step = zeros(opt_params.num_states,opt_params.num_pts);
 
 xi_cl(:,1) = opt_params.xi;
+xi_clp1(:,1) = opt_params.xip1;
 dyn_type = 2;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -141,8 +145,12 @@ for i = 1:opt_params.num_pts
     u = sdpvar(opt_params.num_inputs,opt_params.horizon_length);
     
     % Linearize dynamics about current state and input
-    [A_k, B_k, c_k] = linearize_dynamics_2d_affine(opt_params.xi,opt_params.u,opt_params.dt,dyn_type);
+    [A_k, B_k, c_k] = linearize_dynamics_2d_affine(opt_params.xi,opt_params.xip1, ...
+        opt_params.u,opt_params.dt,dyn_type);
+ %   [A_k, B_k, c_k] = linearize_dynamics_2d_affine(xi_traj(:,i),u_traj(:,i),opt_params.dt,dyn_type);
 
+    xi_step(:,i) = opt_params.xi;
+    
     % Linearize dynamics about state and input references
 %     [A_k, B_k, c_k] = linearize_dynamics_2d(opt_params.xi,u_traj(:,i),opt_params.dt,dyn_type);
     
@@ -161,11 +169,16 @@ for i = 1:opt_params.num_pts
     opt_params.u = control;
     prev_u = control;
     
+%     xi_kp1 =    simulate_2d_spine_dynamics(opt_params.xi,opt_params.u,opt_params.dt,1,dyn_type);
     xi_kp1 = simulate_2d_spine_dynamics(opt_params.xi,opt_params.u,opt_params.dt,1,dyn_type);
+    xi_kp2 = simulate_2d_spine_dynamics(opt_params.xip1,opt_params.u,opt_params.dt,1,dyn_type);
+    
 %     xi_kp1 = simulate_2d_spine_dynamics(opt_params.xi,opt_params.u,opt_params.dt,1,dyn_type)... 
 %         -A_k*opt_params.xi - B_k*opt_params.u;
     xi_cl(:,i+1) = xi_kp1;
     opt_params.xi = xi_kp1;
+    
+    opt_params.xip1 = xi_kp2;
         
     AM_step(:,:) = A_step(:,:,i);
     AM_eig(:,i) = eig(AM_step);
@@ -205,43 +218,27 @@ end
 %% Plot the state trajectory results of open loop control
 figure;
 subplot(3,1,1)
-plot(1:opt_params.num_pts+1,xi_cl(1,:),'-x','LineWidth',1.5)
+plot(1:opt_params.num_pts+1,100*xi_cl(1,:),'-x','LineWidth',1.5)
 hold on
-plot(1:opt_params.num_pts+1,xi_traj(1,1:opt_params.num_pts+1),'LineWidth',1.5)
-ylabel('x /m')
+plot(1:opt_params.num_pts+1,100*xi_traj(1,1:opt_params.num_pts+1),'LineWidth',1.5)
+ylabel('x /cm')
 legend('traj with u_{ref}','reference','Location','Best')
 title('State Trajectories')
 grid
 subplot(3,1,2)
-plot(1:opt_params.num_pts+1,xi_cl(2,:),'-x','LineWidth',1.5)
+plot(1:opt_params.num_pts+1,100*xi_cl(2,:),'-x','LineWidth',1.5)
 hold on
-plot(1:opt_params.num_pts+1,xi_traj(2,1:opt_params.num_pts+1),'LineWidth',1.5)
-ylabel('z /m')
+plot(1:opt_params.num_pts+1,100*xi_traj(2,1:opt_params.num_pts+1),'LineWidth',1.5)
+ylabel('z /cm')
 grid
 subplot(3,1,3)
-plot(1:opt_params.num_pts+1,xi_cl(3,:),'-x','LineWidth',1.5)
+plot(1:opt_params.num_pts+1,180/pi*xi_cl(3,:),'-x','LineWidth',1.5)
 hold on
-plot(1:opt_params.num_pts+1,xi_traj(3,1:opt_params.num_pts+1),'LineWidth',1.5)
-ylabel('\theta /arc')
+plot(1:opt_params.num_pts+1,180/pi*xi_traj(3,1:opt_params.num_pts+1),'LineWidth',1.5)
+ylabel('\theta /°')
 grid
 
-% subplot(6,1,4)
-% plot(1:opt_params.num_pts+1,xi_cl(4,:),'.')
-% hold on
-% plot(1:opt_params.num_pts+1,xi_traj(4,1:opt_params.num_pts+1))
-% ylabel('v_x')
-% subplot(6,1,5)
-% plot(1:opt_params.num_pts+1,xi_cl(5,:),'.')
-% hold on
-% plot(1:opt_params.num_pts+1,xi_traj(5,1:opt_params.num_pts+1))
-% ylabel('v_z')
-% subplot(6,1,6)
-% plot(1:opt_params.num_pts+1,xi_cl(6,:),'.')
-% hold on
-% plot(1:opt_params.num_pts+1,xi_traj(6,1:opt_params.num_pts+1))
-% ylabel('omega')
-
-% Plot the input trajectory results of open loop control
+%% Plot the input trajectory results of open loop control
 figure;
 subplot(4,1,1)
 plot(1:opt_params.num_pts,u_cl(1,:),'-x','LineWidth',1.5)
@@ -272,28 +269,27 @@ ylabel('u_4 /m')
 
 %% Analyse the errors of the MPC results
 
-% x_1 = abs(xi_cl(1,1)*ones(1,size(xi_cl,2))-xi_cl(1,:));
-% x_2 = abs(xi_cl(2,1)*ones(1,size(xi_cl,2))-xi_cl(2,:));
-% x_3 = abs(xi_cl(3,1)*ones(1,size(xi_cl,2))-xi_cl(3,:));
+x_1 = abs(xi_traj(1,1)*ones(1,size(xi_cl,2))-xi_traj(1,1:end-opt_params.horizon_length));
+x_2 = abs(xi_traj(2,1)*ones(1,size(xi_cl,2))-xi_traj(2,1:end-opt_params.horizon_length));
+x_3 = abs(xi_traj(3,1)*ones(1,size(xi_cl,2))-xi_traj(3,1:end-opt_params.horizon_length));
 
-x_1 = abs(xi_traj(1,1)*ones(1,size(xi_cl,2))-xi_traj(1,1:end-4));
-x_2 = abs(xi_traj(2,1)*ones(1,size(xi_cl,2))-xi_traj(2,1:end-4));
-x_3 = abs(xi_traj(3,1)*ones(1,size(xi_cl,2))-xi_traj(3,1:end-4));
-
-% Using absolue state value as x: cannot reflect absolute value change of
+% % Prior: Use absolue state value as x, which cannot reflect absolute value change of
 % z_state, as it starts from 0.1 in case of 0 initial sweeping angle
-% x_1 = abs(xi_cl(1,:));
-% x_2 = abs(xi_cl(2,:));
-% x_3 = abs(xi_cl(3,:));
 % x_1 = abs(xi_cl(1,:));
 % x_2 = abs(xi_cl(2,:));
 % x_3 = abs(xi_cl(3,:));
 
 % Calculate absolute errors of states
 % x_1 = xi_cl(1,:)-xi_traj(1,1:length(xi_cl(1,:)));
-e_1 = xi_cl(1,:)-xi_traj(1,1:end-4);
-e_2 = xi_cl(2,:)-xi_traj(2,1:end-4);
-e_3 = xi_cl(3,:)-xi_traj(3,1:end-4);
+e_1 = xi_cl(1,:)-xi_traj(1,1:end-opt_params.horizon_length);
+e_2 = xi_cl(2,:)-xi_traj(2,1:end-opt_params.horizon_length);
+e_3 = xi_cl(3,:)-xi_traj(3,1:end-opt_params.horizon_length);
+
+
+% % TEST for trajectory lag:
+% e_1p = xi_cl(1,:)/0.9 - xi_traj(1,1:end-opt_params.horizon_length);
+% e_2p = (xi_cl(2,1)*ones(1,size(xi_cl,2)) - (xi_cl(2,1)*ones(1,size(xi_cl,2)) - xi_cl(2,:))/0.8) - xi_traj(2,1:end-opt_params.horizon_length);
+% e_3p = xi_cl(3,:)/0.9 - xi_traj(3,1:end-opt_params.horizon_length);
 
 % x_sq_1 = zeros(1,length(x_1));
 % x_sq_2 = zeros(1,length(x_1));
@@ -321,18 +317,22 @@ e_rl_1 = e_abs_1./x_1;
 e_rl_2 = e_abs_2./x_2;
 e_rl_3 = e_abs_3./x_3;
 
+
 % Plot the relevat errors of each state, namely the absolute errors over absolue velues
 figure;
 subplot(3,1,1)
-plot(100*e_rl_1);
-ylabel('RE(x)/ %');
+plot(100*e_rl_1,'.-','LineWidth',1.25);
+grid;
+ylabel('Relative E(x)/ %');
 title('Relative Tracking Errors of States')
 subplot(3,1,2)
-plot(100*e_rl_2);
-ylabel('RE(z)/ %');
+plot(100*e_rl_2,'.-','LineWidth',1.25);
+ylabel('Relative E(z)/ %');
+grid;
 subplot(3,1,3)
-plot(100*e_rl_3);
-ylabel('RE(theta)/ %')
+plot(100*e_rl_3,'.-','LineWidth',1.25);
+grid;
+ylabel('Relative E(\theta)/ %')
 
 % % Plot the square errors of each state 
 % figure;
@@ -350,37 +350,43 @@ ylabel('RE(theta)/ %')
 % Plot the absolut error of 3 states, if necessary
 figure;
 subplot(3,1,1)
-plot(e_abs_1);
-ylabel('AE(x)');
+plot(100*e_abs_1,'.-','LineWidth',1.25);
+grid;
+ylabel('AE(x)/cm');
 title('Absolute Errors of States')
 subplot(3,1,2)
-plot(e_abs_2);
-ylabel('AE(z)');
+plot(100*e_abs_2,'.-','LineWidth',1.25);
+grid;
+ylabel('AE(z)/cm');
 subplot(3,1,3)
-plot(e_abs_3);
-ylabel('AE(theta)')
+plot(180/pi*e_abs_3,'.-','LineWidth',1.25);
+grid;
+ylabel('AE(\theta)/°');
+xlabel('steps');
+
 %% PLOT THE X-Z POSITION
 figure;
-plot(100*xi_cl(1,:), 100*xi_cl(2,:),'-x','LineWidth',2.5);
-hold on;
-plot(100*xi_traj(1,1:opt_params.num_pts+1),100*xi_traj(2,1:opt_params.num_pts+1),'LineWidth',2.5);
-% plot(100*xi_traj(1,1:opt_params.num_pts+1-(opt_params.num_pts+1)/10),100*xi_traj(2,1:opt_params.num_pts+1-(opt_params.num_pts+1)/10),'LineWidth',2.5);
+plot(100*xi_traj(1,1:opt_params.num_pts+1),100*xi_traj(2,1:opt_params.num_pts+1),'-o','LineWidth',2.5);
+% plot(100*xi_traj(1,1:opt_params.num_pts+1-(opt_params.num_pts+1)/10),100*xi_traj(2,1:opt_params.num_pts+1-(opt_params.num_pts+1)/10),'-o','LineWidth',2.5);
 % plot(100*xi_traj(1,1:opt_params.num_pts+2-2*(opt_params.num_pts+1)/10),100*xi_traj(2,1:opt_params.num_pts+2-2*(opt_params.num_pts+1)/10),'LineWidth',2.5);
+hold on;
+plot(100*xi_cl(1,:), 100*xi_cl(2,:),'-x','LineWidth',2.5);
 grid on;
 hold on;
 plot(100*xi_cl(1,1), 100*xi_cl(2,1),'o','LineWidth',3.5);
 xlabel('X /cm');
 ylabel('Z /cm');
+% ylim([0,10]);
 title('Plot of X-Z Position');
-legend('tractory','reference','start point','location','best');
+legend('reference','tractory','start point','location','best');
 %% PLOT THE ANGULAR TRAJECTORY
 figure;
-% plot(xi_cl(3,:), '-x','LineWidth',2.5);
-plot(xi_cl(3,:)*180/pi, '-x','LineWidth',2.5);
-hold on;
-plot(xi_traj(3,1:opt_params.num_pts+1)*180/pi,'LineWidth',2.5);
-% plot(xi_traj(3,1:opt_params.num_pts+1-(opt_params.num_pts+1)/10)*180/pi,'LineWidth',2.5);
+plot(xi_traj(3,1:opt_params.num_pts+1)*180/pi,'-o','LineWidth',2.5);
+% plot(xi_traj(3,1:opt_params.num_pts+2-(opt_params.num_pts+1)/10)*180/pi,'-o','LineWidth',2.5);
 % plot(xi_traj(3,1:opt_params.num_pts+1-1.5*(opt_params.num_pts+1)/10)*180/pi,'LineWidth',2.5);
+% plot(xi_cl(3,:), '-x','LineWidth',2.5);
+hold on;
+plot(xi_cl(3,:)*180/pi, '-x','LineWidth',2.5);
 grid on;
 hold on;
 % plot(xi_cl(3,1),'o','LineWidth',3.5);
@@ -389,7 +395,7 @@ xlabel('steps');
 % ylabel(' \theta /arc');
 ylabel(' \theta /°');
 title('Plot of \theta over steps');
-legend('tractory','reference','start point','location','best');
+legend('reference','tractory','start point','location','best');
 %% PLOT X-Y-Theta IN 3D
 figure;
 plot3(100*xi_cl(1,:), 100*xi_cl(2,:),180/pi*xi_cl(3,:),'-x','LineWidth',2.5);

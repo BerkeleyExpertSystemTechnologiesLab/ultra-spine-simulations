@@ -126,9 +126,9 @@ hold on;
 set(gca,'FontSize',fontsize);
 % Plot u4
 % Reference is
-plot(t, u_traj(4, 1:num_pts)*100, 'b.-', 'LineWidth', 1.5 , 'markersize', 15);
+plot(t, u_traj(3, 1:num_pts)*100, 'b.-', 'LineWidth', 1.5 , 'markersize', 15);
 % Closed-loop behavior is
-plot(t, u_cl(4, 1:num_pts)*100, 'g.-', 'LineWidth', 1.5 , 'markersize', 10);
+plot(t, u_cl(3, 1:num_pts)*100, 'g.-', 'LineWidth', 1.5 , 'markersize', 10);
 % Labels
 ylabel('U4 (cm)');
 % Put the time label below the bottom graph.

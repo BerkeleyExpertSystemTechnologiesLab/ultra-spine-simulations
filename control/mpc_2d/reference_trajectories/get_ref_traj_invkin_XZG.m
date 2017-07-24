@@ -49,10 +49,10 @@ c1 = 1e-4;
 % beta_f = -direction * pi/8; 
 
 beta_0 = 0;
-beta_f = pi/8; 
+beta_f = -pi/8; 
 
-% beta_0 = 0;
-% beta_f = -pi/8; 
+% beta_0 = pi/8;
+% beta_f = -pi/32; 
 
 % beta_0 = -direction * pi/8;
 % beta_f = -direction * pi/16; 
@@ -83,7 +83,7 @@ for i=1:num_vertebrae
     % For the i-th moving vertebra: create points from beta_0 to beta_f adjusted by the multiplier:
     % (remember that we're using this multipler here to "make the higher-up vertebrae move further")
     beta_f_current = beta_f * 1/( 1 + (1/2) * (3-i));
-%     beta_f_current = beta_f;
+   % beta_f_current = beta_f;
     beta(:,i) = linspace( beta_0, beta_f_current, num_points)';
 %     beta(:,i) = linspace( beta_0, beta_f_current, num_points/2)';
 end
@@ -129,7 +129,7 @@ dz_ref(num_points,:) = dz_ref(num_points-1,:);
 
 % Note, no need to adjust these by clockwise or counterclockwise, since beta is changed directly above.
 % c2 = [1.06, 1.39, 1.54, 2.1, 2.5];
-c2 = 1.06;
+c2 = -1.39;
 
 g_ref = zeros(num_points, num_vertebrae);
 dg_ref = zeros(num_points, num_vertebrae);
@@ -176,6 +176,6 @@ end
 
 % end function.
     
-    
+end
     
     

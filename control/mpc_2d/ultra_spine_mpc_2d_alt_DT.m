@@ -54,7 +54,7 @@ paths.path_to_data_folder = '../../data/mpc_2d_data/';
 load('two_d_geometry.mat')
 
 % Create a struct of optimization parameters
-opt_params.num_pts = 40;
+opt_params.num_pts = 39;
 opt_params.num_states = 6;
 opt_params.num_inputs = 4;
 opt_params.horizon_length = 4;
@@ -316,7 +316,7 @@ ylabel('RE(x)');
 title('Relative Errors of State')
 subplot(3,1,2)
 plot(e_rl_2);
-ylim([0,0.1]);
+%ylim([0,0.1]);
 ylabel('RE(z)');
 subplot(3,1,3)
 plot(e_rl_3);
