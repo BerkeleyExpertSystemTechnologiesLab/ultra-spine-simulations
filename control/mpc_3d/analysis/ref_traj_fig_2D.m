@@ -6,15 +6,15 @@
 close all;
 
 % load in necessary files
-path_to_dynamics = '../../../dynamics/3d-dynamics-symbolicsolver';
-spine_geometric_parameters_path = strcat(path_to_dynamics, '/spine_geometric_parameters.mat');
+path_to_dynamics = '../../../dynamics/2d-dynamics-symbolicsolver';
+spine_geometric_parameters_path = strcat(path_to_dynamics, '/spine_geometric_parameters_2D.mat');
 load(spine_geometric_parameters_path);
 
 % make sure these paths are set so the invkin function can be called later
 path_to_reference_trajectories = '../reference_trajectories';
 addpath(path_to_reference_trajectories);
 
-path_to_plotSpineLink = '../';
+path_to_plotSpineLink = '../../mpc_3d';
 addpath(path_to_plotSpineLink);
 
 % Spine geometry:
@@ -22,19 +22,19 @@ g = spine_geometric_parameters.g;
 N_tetras = spine_geometric_parameters.N; %unused as of 2016-04-24
 l = spine_geometric_parameters.l;
 h = spine_geometric_parameters.h;
-m_t = spine_geometric_parameters.m_t;
+m = spine_geometric_parameters.m;
 
 % make some edits for a better visualization
 l = 0.1;
 h = 0.1;
 
 % Optimization parameters:
-links = 3;
+links = 1;
 tetra_vertical_spacing = 0.1;
-frame = 3;
+frame = 1;
 
 % Plotting parameters:
-figure_window_location = [0, 0, 800 700];
+figure_window_location = [0, 0, 600 700];
 figure_window_color = 'w';
 rad = 0.005;
 %cmaps = gray(512); % summer(512);
@@ -56,6 +56,8 @@ anchor = [0 0 rad];
 cmaps = summer(512);
 colormap(cmaps(1:256,:))
 
+close;
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Initialize plot
 
@@ -71,9 +73,9 @@ hold on;
 view(figure_rotation);
 
 % Size everything properly
-xlim([-0.3 0.2])
+xlim([-0.2 0.2])
 ylim([-0.2 0.2])
-zlim([-0.1, 0.4])
+zlim([-0.1, 0.2])
 set(gca,'FontSize',fontsize)
 
 shading interp
@@ -107,7 +109,7 @@ Tetra{1} = [(l^2 - (h/2)^2)^.5, 0, -h/2; ...
 set(gca,'YTick',[]);
 set(gca,'YTickLabel',[]);
 grid off;
-%%
+%
 % Perform 3 iterations: one for each moving tetrahedron.
 for k = 1:links
     % Each tetrahedron starts completely still, centered at (x,y) = (0,0) with a z-offset
@@ -162,11 +164,18 @@ for k = 1:links
     
 end
 
+
+% Plot cables
 stringEnable = 1;
 % Plot the cables for this spine position
 if (stringEnable)
-    % Get the endpoints of the cables
-    String_pts = get_spine_cable_points(Tetra, anchor);
+    %     % Get the endpoints of the cables
+    %     % Find the string points in 3d situation:
+    %     String_pts_all = get_spine_cable_points_2d(Tetra, anchor);
+    %     % Choose those to be used in 2d situation:
+    %     String_pts_ft = String_pts_all(1:3,:);
+    %     String_pts =
+    String_pts = get_spine_cable_points_2d(Tetra, anchor);
     % Plot. Save the handle so we can delete this set of cables later
     string_handle=plot3(String_pts(:,1),String_pts(:,2),String_pts(:,3),'LineWidth',cable_thickness,'Color',cable_color);
 end
@@ -178,22 +187,19 @@ end
 % The states at the final point in this trajectory are
 systemStates = reshape(ref_traj(:,end), 12, 3)';
 
-%% Plot cables
-
-
-
 %%
-
 % Plot the cables for this spine position
 if (stringEnable)
     % delete the previous plotted cables
     delete(string_handle);
+        delete(string_handle2);
     % Get the endpoints of the cables
-    String_pts = get_spine_cable_points(Tetra, anchor);
+    String_pts = get_spine_cable_points_2d(Tetra, anchor);
     % Plot. Save the handle so we can delete these strings later.
-    string_handle=plot3(String_pts(:,1),String_pts(:,2),String_pts(:,3),'LineWidth',cable_thickness,'Color',cable_color);
+    string_handle=plot3(String_pts(1:3,1),String_pts(1:3,2),String_pts(1:3,3),'LineWidth',cable_thickness,'Color',cable_color);
+    string_handle2=plot3(String_pts(5:7,1),String_pts(5:7,2),String_pts(5:7,3),'LineWidth',cable_thickness,'Color',cable_color);
 end
-
+%%
 % Pull out the states as needed for the transformation below
 for k = 1:links
     x(k) = systemStates(k, 1);
@@ -219,9 +225,7 @@ for k = 1:links
     set(transform{k+1},'Matrix',RR{k});
 end
 
-if (stringEnable)
-    % First, delete the old cables
-    delete(string_handle);
+%%
     
     % Calculate the new position of the tetra's coordinates, for plotting, based on the transform from the current system states.
     % This section of code is the same as that in the initialization section, but instead, directly indexes the Tetra{} array.
@@ -240,10 +244,16 @@ if (stringEnable)
         % Remove the trailing "1" from the position vectors.
         Tetra{k} = Tetra{k}(:,1:3);
     end
+    
+    if (stringEnable)
+    % First, delete the old cables
+    delete(string_handle);
+    delete(string_handle2);
     % Get the coordinates of the spine cables
     String_pts = get_spine_cable_points(Tetra, anchor);
     % Plot the new strings
-    string_handle=plot3(String_pts(:,1),String_pts(:,2),String_pts(:,3),'LineWidth',cable_thickness,'Color',cable_color);
+    string_handle=plot3(String_pts(1:3,1),String_pts(1:3,2),String_pts(1:3,3),'LineWidth',cable_thickness,'Color',cable_color);
+    string_handle2=plot3(String_pts(5:7,1),String_pts(5:7,2),String_pts(5:7,3),'LineWidth',cable_thickness,'Color',cable_color);
 end
 
 %set(gca,'YTick',[]);

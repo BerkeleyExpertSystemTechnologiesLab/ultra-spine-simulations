@@ -55,13 +55,13 @@ paths.path_to_data_folder = '../../data/mpc_2d_data/';
 load('two_d_geometry.mat')
 
 % Create a struct of optimization parameters
-opt_params.num_pts = 199;
+opt_params.num_pts = 12;
 opt_params.num_states = 6;
 opt_params.num_inputs = 4;
 opt_params.horizon_length = 4;
 opt_params.opt_time_lim = 1.5;
 opt_params.spine_params = two_d_geometry;
-opt_params.dt = 1e-5;
+opt_params.dt = 1e-4;
 % opt_params.dt = 0.1/opt_params.num_pts;
 
 % Define initial states
@@ -86,7 +86,7 @@ prev_u = opt_params.u;
 % placed in the reference_trajectories folder and called here.
 % [traj, ~] = get_ref_traj_zero(opt_params.num_pts,opt_params.horizon_length,opt_params.num_states);
 % [xi_traj, u_traj, ~] = get_ref_traj_eq(opt_params.num_pts,opt_params.horizon_length);
-[xi_traj, ~] = get_ref_traj_invkin_XZG(0.1,opt_params.num_pts+opt_params.horizon_length+1,-1,opt_params.dt);
+[xi_traj, ~] = get_ref_traj_invkin_XZG_new(0.1,opt_params.num_pts+opt_params.horizon_length+1,-1,opt_params.dt);
 u_traj = zeros(opt_params.num_inputs,opt_params.num_pts+opt_params.horizon_length+1);
 for i = 1:opt_params.num_pts+opt_params.horizon_length+1
     [~, u_traj(:,i)] = getTensions(xi_traj(:,i),opt_params.spine_params,30);

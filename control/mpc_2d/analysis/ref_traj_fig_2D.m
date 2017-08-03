@@ -6,15 +6,15 @@
 close all;
 
 % load in necessary files
-path_to_dynamics = '../../../dynamics/3d-dynamics-symbolicsolver';
-spine_geometric_parameters_path = strcat(path_to_dynamics, '/spine_geometric_parameters.mat');
+path_to_dynamics = '../../../dynamics/2d-dynamics-symbolicsolver';
+spine_geometric_parameters_path = strcat(path_to_dynamics, '/spine_geometric_parameters_2D.mat');
 load(spine_geometric_parameters_path);
 
 % make sure these paths are set so the invkin function can be called later
 path_to_reference_trajectories = '../reference_trajectories';
 addpath(path_to_reference_trajectories);
 
-path_to_plotSpineLink = '../';
+path_to_plotSpineLink = '../../mpc_3d';
 addpath(path_to_plotSpineLink);
 
 % Spine geometry:
@@ -22,19 +22,19 @@ g = spine_geometric_parameters.g;
 N_tetras = spine_geometric_parameters.N; %unused as of 2016-04-24
 l = spine_geometric_parameters.l;
 h = spine_geometric_parameters.h;
-m_t = spine_geometric_parameters.m_t;
+m = spine_geometric_parameters.m;
 
 % make some edits for a better visualization
 l = 0.1;
 h = 0.1;
 
 % Optimization parameters:
-links = 3;
+links = 1;
 tetra_vertical_spacing = 0.1;
-frame = 3;
+frame = 1;
 
 % Plotting parameters:
-figure_window_location = [0, 0, 800 700];
+figure_window_location = [0, 0, 600 700];
 figure_window_color = 'w';
 rad = 0.005;
 %cmaps = gray(512); % summer(512);
@@ -69,11 +69,11 @@ grid on;
 axis equal;
 hold on;
 view(figure_rotation);
-
+ 
 % Size everything properly
-xlim([-0.3 0.2])
+xlim([-0.2 0.2])
 ylim([-0.2 0.2])
-zlim([-0.1, 0.4])
+zlim([-0.1, 0.2])
 set(gca,'FontSize',fontsize)
 
 shading interp
@@ -96,9 +96,9 @@ x_initial = [];
 
 % Plot the first tetrahedron body (k=1 in the Tetra{} usage)
 Tetra{1} = [(l^2 - (h/2)^2)^.5, 0, -h/2; ...
-    -(l^2 - (h/2)^2)^.5, 0, -h/2; ...
-    0, (l^2 - (h/2)^2)^.5, h/2; ...
-    0, -(l^2 - (h/2)^2)^.5, h/2];
+            -(l^2 - (h/2)^2)^.5, 0, -h/2; ...
+            0, (l^2 - (h/2)^2)^.5, h/2; ...
+            0, -(l^2 - (h/2)^2)^.5, h/2];
 
 % Plot a visualization of this spine tetrahedron
 [transform{1}, ~] = plotSpineLink(Tetra{1}, rad, ax);
@@ -108,20 +108,20 @@ set(gca,'YTick',[]);
 set(gca,'YTickLabel',[]);
 grid off;
 %%
-% Perform 3 iterations: one for each moving tetrahedron.
+% Perform 1 iterations in 2D: one for each moving tetrahedron.
 for k = 1:links
     % Each tetrahedron starts completely still, centered at (x,y) = (0,0) with a z-offset
-    x(k) = 0;
-    y(k) = 0.0;
-    z(k) = tetra_vertical_spacing * k;
-    T(k) = 0.0;
-    G(k) = 0.0;
+    x(k) = 0; 
+    y(k) = 0.0; 
+    z(k) = tetra_vertical_spacing * k; 
+    T(k) = 0.0; 
+    G(k) = 0.0; 
     P(k) = 0.0;
-    dx(k) = 0;
-    dy(k) = 0;
-    dz(k) = 0;
-    dT(k) = 0;
-    dG(k) = 0;
+    dx(k) = 0; 
+    dy(k) = 0; 
+    dz(k) = 0; 
+    dT(k) = 0; 
+    dG(k) = 0; 
     dP(k) = 0;
     
     % Save the system states
@@ -133,10 +133,10 @@ for k = 1:links
     % Plot the tetrahedra.
     % Start the initial position of each tetrahedron at the bottom location: center at (0,0,0)
     Tetra{k+1} = [(l^2 - (h/2)^2)^.5, 0, -h/2; ...
-        -(l^2 - (h/2)^2)^.5, 0, -h/2; ...
-        0, (l^2 - (h/2)^2)^.5, h/2; ...
-        0, -(l^2 - (h/2)^2)^.5, h/2];
-    
+                -(l^2 - (h/2)^2)^.5, 0, -h/2; ...
+                0, (l^2 - (h/2)^2)^.5, h/2; ...
+                0, -(l^2 - (h/2)^2)^.5, h/2];
+            
     % Plot a visualization of this spine tetrahedron
     [transform{k+1}, ~] = plotSpineLink(Tetra{k+1}, rad, ax);
     
@@ -146,12 +146,12 @@ for k = 1:links
     RR{k} =  getHG_Tform(x(k),y(k),z(k),T(k),G(k),P(k));
     % Update the transform object
     set(transform{k+1},'Matrix',RR{k});
-    
+
     % Finally, move the positions of the cables of this tetrahedra into place, by modifying the Tetra{} array.
     % We use this same transform matrix here.
     % First, append a column of "1"s to this set of coordinates, needed for applying the transform.
     % Note again that there are 4 node points per tetra.
-    Tetra{k+1} = [Tetra{k+1}, ones(4,1)];
+    Tetra{k+1} = [Tetra{k+1}, ones(4,1)]; 
     
     % Move the cables of this tetra into position.
     Tetra{k+1} = RR{k}*Tetra{k+1}';
@@ -159,16 +159,7 @@ for k = 1:links
     Tetra{k+1} = Tetra{k+1}';
     % Remove the trailing "1" from the position vectors.
     Tetra{k+1} = Tetra{k+1}(:,1:3);
-    
-end
 
-stringEnable = 1;
-% Plot the cables for this spine position
-if (stringEnable)
-    % Get the endpoints of the cables
-    String_pts = get_spine_cable_points(Tetra, anchor);
-    % Plot. Save the handle so we can delete this set of cables later
-    string_handle=plot3(String_pts(:,1),String_pts(:,2),String_pts(:,3),'LineWidth',cable_thickness,'Color',cable_color);
 end
 
 % Load in the final position of the vertebrae:
@@ -177,37 +168,21 @@ end
 
 % The states at the final point in this trajectory are
 systemStates = reshape(ref_traj(:,end), 12, 3)';
-
-%% Plot cables
-
-
-
 %%
-
-% Plot the cables for this spine position
-if (stringEnable)
-    % delete the previous plotted cables
-    delete(string_handle);
-    % Get the endpoints of the cables
-    String_pts = get_spine_cable_points(Tetra, anchor);
-    % Plot. Save the handle so we can delete these strings later.
-    string_handle=plot3(String_pts(:,1),String_pts(:,2),String_pts(:,3),'LineWidth',cable_thickness,'Color',cable_color);
-end
-
 % Pull out the states as needed for the transformation below
 for k = 1:links
-    x(k) = systemStates(k, 1);
-    y(k) = systemStates(k, 2);
-    z(k) = systemStates(k, 3);
-    T(k) = systemStates(k, 4);
-    G(k) = systemStates(k, 5);
-    P(k) = systemStates(k, 6);
-    dx(k) = systemStates(k, 7);
-    dy(k) = systemStates(k, 8);
-    dz(k) = systemStates(k, 9);
-    dT(k) = systemStates(k, 10);
-    dG(k) = systemStates(k, 11);
-    dP(k) = systemStates(k, 12);
+        x(k) = systemStates(k, 1); 
+        y(k) = systemStates(k, 2); 
+        z(k) = systemStates(k, 3);
+        T(k) = systemStates(k, 4); 
+        G(k) = systemStates(k, 5); 
+        P(k) = systemStates(k, 6);
+        dx(k) = systemStates(k, 7); 
+        dy(k) = systemStates(k, 8); 
+        dz(k) = systemStates(k, 9);
+        dT(k) = systemStates(k, 10); 
+        dG(k) = systemStates(k, 11); 
+        dP(k) = systemStates(k, 12);
 end
 
 % Update the visualization of the tetrahedra.
@@ -217,33 +192,6 @@ for k = 1:links
     RR{k} =  getHG_Tform(x(k),y(k),z(k),T(k),G(k),P(k)); % Build graphical model of each link
     %set(transform{k},'Matrix',RR{k});
     set(transform{k+1},'Matrix',RR{k});
-end
-
-if (stringEnable)
-    % First, delete the old cables
-    delete(string_handle);
-    
-    % Calculate the new position of the tetra's coordinates, for plotting, based on the transform from the current system states.
-    % This section of code is the same as that in the initialization section, but instead, directly indexes the Tetra{} array.
-    for k = 2:(links+1)
-        % Reset this specific tetrahedron to the initial state of the bottom tetra.
-        Tetra{k} = [(l^2 - (h/2)^2)^.5, 0, -h/2, 1; ...
-            -(l^2 - (h/2)^2)^.5, 0, -h/2, 1; ...
-            0, (l^2 - (h/2)^2)^.5, h/2, 1; ...
-            0, -(l^2 - (h/2)^2)^.5, h/2, 1];
-        % Move the coordinates of the string points of this tetra into position.
-        % Note that the transforms are indexed as per the system states: set k=1 is for the first moving tetra,
-        % AKA the second tetra graphically.
-        Tetra{k} = RR{k-1}*Tetra{k}';
-        % Needs a transpose!
-        Tetra{k} = Tetra{k}';
-        % Remove the trailing "1" from the position vectors.
-        Tetra{k} = Tetra{k}(:,1:3);
-    end
-    % Get the coordinates of the spine cables
-    String_pts = get_spine_cable_points(Tetra, anchor);
-    % Plot the new strings
-    string_handle=plot3(String_pts(:,1),String_pts(:,2),String_pts(:,3),'LineWidth',cable_thickness,'Color',cable_color);
 end
 
 %set(gca,'YTick',[]);
