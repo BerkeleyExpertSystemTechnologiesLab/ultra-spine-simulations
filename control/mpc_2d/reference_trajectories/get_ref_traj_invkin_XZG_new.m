@@ -144,7 +144,7 @@ dg_ref = zeros(num_points, num_vertebrae);
 for i=1:num_vertebrae
     % We already have our betas, just convert to gammas.
     % g_ref(:,i) = c2(i) .* beta(:,i);
-    g_ref(:,i) = -0.85*beta(:,i);
+    g_ref(:,i) = -1.0*beta(:,i);
 end
 
 for i=1:num_points-1

@@ -55,13 +55,13 @@ paths.path_to_data_folder = '../../data/mpc_2d_data/';
 load('two_d_geometry.mat')
 
 % Create a struct of optimization parameters
-opt_params.num_pts = 399;
+opt_params.num_pts = 29;
 opt_params.num_states = 6;
 opt_params.num_inputs = 4;
 opt_params.horizon_length = 4;
 opt_params.opt_time_lim = 1.5;
 opt_params.spine_params = two_d_geometry;
-opt_params.dt = 1e-5;
+opt_params.dt = 1e-4;
 % opt_params.dt = 0.1/opt_params.num_pts;
 
 % Define initial states

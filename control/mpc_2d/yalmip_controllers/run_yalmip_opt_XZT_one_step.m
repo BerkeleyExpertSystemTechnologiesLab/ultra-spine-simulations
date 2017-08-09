@@ -77,7 +77,7 @@ constraints = [constraints xi(2,N+1)>=spine_geo.h/2];
 % Q = blkdiag(eye(nx/2),zeros(nx/2));
 % Q = eye(nx/2);
 Q = eye(nx);
-R = 2*eye(nu);
+R = 10*eye(nu);
 % P = blkdiag(eye(nx/2),zeros(nx/2));
 % P = eye(nx/2);
 P = eye(nx);
@@ -108,7 +108,8 @@ objective = objective + (xi(:,N+1)-xi_ref(:,N+1))'*P*(xi(:,N+1)-xi_ref(:,N+1));
 
 %% Optimize
 
-options = sdpsettings('verbose',1,'gurobi.TimeLimit',opt_time_lim,'solver','gurobi');
+% options = sdpsettings('verbose',1,'gurobi.TimeLimit',opt_time_lim,'solver','gurobi');
+options = sdpsettings('verbose',1,'gurobi.TimeLimit',opt_time_lim);
 
 opt_flag = optimize(constraints,objective,options);
 
