@@ -37,7 +37,7 @@ handles = {};
 
 %% 1) Plot the bottom (not-moving) spine
 
-% First, the four nodes, as circles:
+% First, the nodes, as circles:
 % Note that "a" has 2 rows, for the (x,z) position of each node.
 for i=1:size(a,2);
     handles{end+1} = plot(a(1,i), a(2,i), 'k.', 'MarkerSize', 40);

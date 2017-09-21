@@ -36,7 +36,7 @@ xi_0 = [-0.05; 0.15; pi/4; 0; 0; 0];
 u = [0.12; 0.12; 0.12; 0.09];
 
 % We'll simulate for the following amount of time, in seconds:
-t = 0.5;
+t = 0.3;
 % That means, with our dt, we'll have the following iterations of 
 % forward-Euler simulation:
 steps = t / dt;
@@ -53,7 +53,6 @@ figure;
 hold on;
 axis([-0.2, 0.2, -0.1, 0.3]);
 % Plot the first location of the spine:
-%handles = plot_2d_spine(xi(:,1), two_d_geometry);
 handles = plot_2d_tensegrity(xi(:,1), two_d_geometry);
 drawnow;
 
@@ -70,7 +69,6 @@ for i=1:steps
         delete(handles{j});
     end
     % plot:
-    %handles = plot_2d_spine(xi(:,i+1), two_d_geometry);
     handles = plot_2d_tensegrity(xi(:,i+1), two_d_geometry);
     drawnow;
 end

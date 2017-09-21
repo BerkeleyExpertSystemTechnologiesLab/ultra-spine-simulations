@@ -1,5 +1,5 @@
 function [ xi_kp1 ] = simulate_2d_spine_dynamics( xi, inputs, dt, num_steps )
-%simulate_d2_spine_dynamics.m
+%simulate_2d_spine_dynamics.m
 %   Forward-simulate the dynamics of the 2D tensegrity spine model, 
 %   the "inverted-Y" shape, using the basic Euler integration method.
 %   This function uses the dynamics functions, solved symbolically,
