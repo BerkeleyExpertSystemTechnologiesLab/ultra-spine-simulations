@@ -1,13 +1,79 @@
-function [ q, A, p] = InvKin( C , x, y, z, forcesZ, momentsX, momentsY, momentsZ, coms, fixed, minCableTension  )
+function [ q, A, p, tensions] = InvKin( C , x, y, z, forcesZ, momentsX, momentsY, momentsZ, coms, fixed, minCableTension  )
 % Inverse Kinematics Solver V1.0
-%   By Ellande Tang, credit to Mallory Daly
-% Last edited: March 23rd, 2017
+%   By Ellande Tang, Mallory Daly, Drew Sabelhaus
+% Last edited: Oct 17, 2017
+
+% Inputs:
+%   C = connectivity matrix. Elements are 0, -1, or 1.
+%       - Size is (s + r) by n, where s is the number of cables, r is num
+%           rods, and n is number of nodes.
+%       - See H.-J. Schek's "The Force Density Method for Form Finding and Computation of General Networks."
+%       - Note that C needs to be for the whole structure, not just one body.
+%   x, y, z = the positions of each of the nodes. 
+%       - Each vector is size n by 1, same dimension as columns(C).
+%   forcesZ = vector of forces applied to each body.
+%       - Size is m by 1, where m is the number of bodies.
+%       - In the future, we'll calculate M automatically somehow, since
+%           it's related to n, but that's not supported yet.
+%       - This is the force in only the Z direction, so it's a scalar.
+%   momentsX = same as forces, m by 1.
+%   momentsY = same form as momentsX
+%   momentsZ = unused? Is this supported yet?
+%   coms = centers of mass. This is a vector of indexes into the C matrix.
+%       - Size is m by 1
+%       - This script assumes that the bodies are SYMMETRIC, so that one
+%           of the nodes is the center of mass. Future work: calculate the
+%           COM automatically.
+%       - Example: for the tetrahedral spine, with 5 nodes, we specify node
+%           one as the center node, so that's the center of mass. With two
+%           vertebrae, COM nodes are 1 and 6, so coms = [1 6]'
+%   fixed = indices of which nodes are "fixed" to the ground.
+%       - Size is k by 1, where k is the number of fixed nodes.
+%       - This script works by first solving for the reaction forces at
+%           these nodes, then solves for the tensions in the rest of the
+%           structure. So, for some applications, this is a bit arbitrary,
+%           but needs to happen so that the structure doesn't "fall through
+%           the floor" when gravity is applied.
+%   minCableTension = minimum force in the cables.
+%       - If set to 0, some cables will be likely be untensioned. For most
+%           engineering designs, we don't want this.
+%       - So, minCableTension is a parameter that we control, and you can
+%           change this based on the design that's made.
+
+% Outputs:
+%   q = vector of force densities
+%       - Size is s by 1 (number of cables, column vector.)
+%       - Note that these are NOT the tensions, but the force densities.
+%           Multiply by cable length (distance between nodes) to get
+%           forces.
+%   A = matrix used for Sum(Forces)=0 calculation, A q = p.
+%       - See the Schek paper or other research papers (Friesen 2014) for
+%           examples. A contains all the information about the cable
+%           locations and lengths, calculated from the inputs.
+%   p = vector of applied forces to each body.
+%       - p is calculated by combining the reaction forces (calculated as
+%           part of this script) and the external forces passed in to this
+%           script (e.g., forcesZ.)
+%       - If this inverse kinematics problem has a solution, there should
+%           be cable forces q that exactly balance out p, e.g., A q = p.
+%   tensions = the actual cable tensions. This is q * L_cables.
 
 % NOTES:
-% External Z moments not currently supported
-% External X,Y forces not currently supported
-% Can accomodate 2D cases, for fixed nodes, use only 2 elements. Assumes an
-% X,Z coordinate system with Z being vertical
+%   External Z moments not currently supported
+%   External X,Y forces not currently supported
+%   Can accomodate 2D cases, for fixed nodes, use only 2 elements. 
+%       (That assumes an X,Z coordinate system with Z being vertical)
+
+% TO-DO:
+%   Check against the pseudo-inverse methods from the Friesen paper.
+%       (Is that why we get infeasible solutions sometimes?)
+%       Answer: YES, this needs to change to solve using the pseudoinverse
+%       of A. Also, need to check that we're not constraining rods to be
+%       themselves or something like that? Friesen only uses part of A, I
+%       think...
+%   Include additional constraints on the cable tensions. Example would
+%       be that cables along the same "strip" of material have the same
+%       tension. E.g, constrain some q to be the same.
 
 %% Quick multi-output splitter function
 % ex: [x, y, z] = dealer([1 2 3]);
@@ -15,6 +81,9 @@ toCSV = @(in) in{:};
 dealer = @(in) toCSV(num2cell(in));
 
 %% Setup And counting
+
+% Debugging statement:
+disp('Starting the inverse kinematics solver for tensegrity systems...');
 
 % Create vector of distance differences
 dx = C*x;
@@ -64,6 +133,11 @@ L_cables = diag(l_cables);
 %% Solve for Reaction Forces
 % Assume spine is sitting on a surface. Then there are vertical reaction
 % forces at designated nodes
+
+% TO-DO: this is hard-coded for the tetrahedral spine, in either 2D or 3D
+% versions. Instead, needs to be more general, to accommodate arbitrary
+% fixed bodies. For example, have reaction forces at the center of the
+% vertebrae.
 
 [Rforces,RmomentsX,RmomentsY,RmomentsZ] = deal(zeros(bodies,1));
 if length(fixed) == 3
@@ -173,7 +247,9 @@ if exitFlag == 1
     %     end
 else
     display(['Quadprog exit flag: ' num2str(exitFlag)])
-    tensions = Inf*ones(s,1);
+    disp('These tensions will not keep the bodies stationary...');
+    tensions = L_cables*q; % N
+    %tensions = Inf*ones(s,1);
     %     restLengths = -Inf*ones(s,1);
 end
 
