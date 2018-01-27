@@ -1,9 +1,11 @@
-% ultra_spine_mpc_2d.m
+% ultra_spine_mpc_2d_alt_affine_new.m
 %
-% Copyright 2016 Mallory Daly, Andrew P. Sabelhaus, Ellande Tang, Shirley
+% Copyright 2016-2018 Mallory Daly, Andrew P. Sabelhaus, Ellande Tang, Shirley
 % Zhao, Edward Zhu, Berkeley Emergent Space Tensegrities Lab
 %
 % This is the primary script file that runs MPC on a 2d spine
+% After much experimentation, this implementation of MPC is what's going 
+% to be submitted for publication. -Drew 2018-01-27
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Script outline
@@ -62,6 +64,7 @@ opt_params.horizon_length = 4;
 opt_params.opt_time_lim = 1.5;
 opt_params.spine_params = two_d_geometry;
 opt_params.dt = 1e-5;
+%opt_params.dt = 1e-3;
 % opt_params.dt = 0.1/opt_params.num_pts;
 
 % Define initial states
@@ -88,6 +91,7 @@ prev_u = opt_params.u;
 % [xi_traj, u_traj, ~] = get_ref_traj_eq(opt_params.num_pts,opt_params.horizon_length);
 [xi_traj, ~] = get_ref_traj_invkin_XZG_new(0.1,opt_params.num_pts+opt_params.horizon_length+1,-1,opt_params.dt);
 u_traj = zeros(opt_params.num_inputs,opt_params.num_pts+opt_params.horizon_length+1);
+% Use the inverse kinematics for the 2D spine to generate reference inputs.
 for i = 1:opt_params.num_pts+opt_params.horizon_length+1
     [~, u_traj(:,i)] = getTensions(xi_traj(:,i),opt_params.spine_params,30);
 %     disp(xi_traj(:,i))
@@ -129,6 +133,22 @@ c_step = zeros(opt_params.num_states,opt_params.num_pts);
 
 xi_cl(:,1) = opt_params.xi;
 xi_clp1(:,1) = opt_params.xip1;
+
+% For the forward simulation of the nonlinear dynamics, this script
+% supports multiple types of simulations. They're types 1 through 4.
+% See simulate_2d_spine_dynamics for more information. Here's a brief
+% overview:
+%   1 = no constraint on negative cable tensions, dynamics model allows
+%       cables to exert negative tensions (not realistic.)
+%   2 = rectified cable tensions, negative reset to zero. (realistic.)
+%   3 = same as approach 1 but uses a different function. This option will
+%       be used to compare the forward-simulation itself, and it not really
+%       useful in the context of this MPC script.
+%   4 = uses the logistically-smoothed cable tensions model, which
+%       rectifies negative tensions back to 0, but is smooth!
+
+% Using dynamics type 2 corresponds with the approach in the 2015 ACC
+% paper.
 dyn_type = 2;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -145,6 +165,7 @@ for i = 1:opt_params.num_pts
     u = sdpvar(opt_params.num_inputs,opt_params.horizon_length);
     
     % Linearize dynamics about current state and input
+    % IS THIS LINEARIZING AROUND THE ACTUAL TRAJECTORY OR THE REFERENCE???
     [A_k, B_k, c_k] = linearize_dynamics_2d_affine(opt_params.xi,opt_params.xip1, ...
         opt_params.u,opt_params.dt,dyn_type);
  %   [A_k, B_k, c_k] = linearize_dynamics_2d_affine(xi_traj(:,i),u_traj(:,i),opt_params.dt,dyn_type);
@@ -235,7 +256,7 @@ subplot(3,1,3)
 plot(1:opt_params.num_pts+1,180/pi*xi_traj(3,1:opt_params.num_pts+1),'-b','LineWidth',1.5)
 hold on
 plot(1:opt_params.num_pts+1,180/pi*xi_cl(3,:),'-xg','LineWidth',1.5)
-ylabel('\theta /¡ã')
+ylabel('\theta /ï¿½ï¿½')
 grid
 
 %% Plot the input trajectory results of open loop control
@@ -362,7 +383,7 @@ ylabel('AE(z)/cm');
 subplot(3,1,3)
 plot(180/pi*e_abs_3,'.-','LineWidth',1.25);
 grid;
-ylabel('AE(\theta)/¡ã');
+ylabel('AE(\theta)/ï¿½ï¿½');
 xlabel('steps');
 
 %% PLOT THE X-Z POSITION
@@ -394,7 +415,7 @@ hold on;
 plot(xi_cl(3,1)*180/pi,'oy','LineWidth',3.5);
 xlabel('steps');
 % ylabel(' \theta /arc');
-ylabel(' \theta /¡ã');
+ylabel(' \theta /ï¿½ï¿½');
 title('Plot of \theta over steps');
 legend('reference','tractory','start point','location','best');
 %% PLOT X-Y-Theta IN 3D
@@ -414,6 +435,6 @@ hold on;
 plot3(100*xi_cl(1,1), 100*xi_cl(2,1),180/pi*xi_cl(3,1),'yo','LineWidth',3.5);
 xlabel('X /cm');
 ylabel('Z /cm');
-zlabel(' \theta /¡ã');
+zlabel(' \theta /ï¿½ï¿½');
 title('Plot of states X - Z - \theta');
 legend('tractory','reference','start point','location','best');
