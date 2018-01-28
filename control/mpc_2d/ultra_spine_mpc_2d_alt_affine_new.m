@@ -57,13 +57,21 @@ paths.path_to_data_folder = '../../data/mpc_2d_data/';
 load('two_d_geometry.mat')
 
 % Create a struct of optimization parameters
+% To-do: try and keep the same size of an A matrix, but with the vertebrae
+% going slower. maybe if we do num_pts = 800, then we could get something
+% better out of dt=1e-3?
+% Also, should try out the better inverse kinematics solution here to see
+% if it makes a difference. Maybe if we keep the robot in 
 opt_params.num_pts = 399;
 opt_params.num_states = 6;
 opt_params.num_inputs = 4;
 opt_params.horizon_length = 4;
 opt_params.opt_time_lim = 1.5;
 opt_params.spine_params = two_d_geometry;
+opt_params.dt = 0.01;
+% worked decent with 1e-5.
 opt_params.dt = 1e-5;
+%opt_params.dt = 1e-4;
 %opt_params.dt = 1e-3;
 % opt_params.dt = 0.1/opt_params.num_pts;
 
@@ -91,14 +99,21 @@ prev_u = opt_params.u;
 % [xi_traj, u_traj, ~] = get_ref_traj_eq(opt_params.num_pts,opt_params.horizon_length);
 [xi_traj, ~] = get_ref_traj_invkin_XZG_new(0.1,opt_params.num_pts+opt_params.horizon_length+1,-1,opt_params.dt);
 u_traj = zeros(opt_params.num_inputs,opt_params.num_pts+opt_params.horizon_length+1);
+
 % Use the inverse kinematics for the 2D spine to generate reference inputs.
+% To-do: parameterize the pretension force? That's the third input here.
+min_cable_tension = 5; % N, I think? Depends on units in inv kin.
+% was 30 for the working version.
+
 for i = 1:opt_params.num_pts+opt_params.horizon_length+1
-    [~, u_traj(:,i)] = getTensions(xi_traj(:,i),opt_params.spine_params,30);
+    [~, u_traj(:,i)] = getTensions(xi_traj(:,i), opt_params.spine_params, ...
+                            min_cable_tension);
 %     disp(xi_traj(:,i))
 end
 opt_params.xi = xi_traj(:,1);
 opt_params.xip1 = xi_traj(:,2);
 % opt_params.xi(:,1:2) = xi_traj(:,1:2);
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
