@@ -35,6 +35,9 @@ addpath(ref_traj_path)
 % YALMIP controllers path
 yalmip_controllers_path = './yalmip_controllers';
 addpath(yalmip_controllers_path)
+% For plotting the vertebra:
+plotting_path = './plotting';
+addpath(plotting_path);
 
 % Since the individual simulations will save their own videos and data, this script
 % passes in the paths to the data and videos folders to the mpc function.
