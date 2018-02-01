@@ -65,7 +65,9 @@ load('two_d_geometry.mat')
 % better out of dt=1e-3?
 % Also, should try out the better inverse kinematics solution here to see
 % if it makes a difference. Maybe if we keep the robot in 
-opt_params.num_pts = 399;
+%opt_params.num_pts = 399;
+% testing the visualization:
+opt_params.num_pts = 10;
 opt_params.num_states = 6;
 opt_params.num_inputs = 4;
 opt_params.horizon_length = 4;
