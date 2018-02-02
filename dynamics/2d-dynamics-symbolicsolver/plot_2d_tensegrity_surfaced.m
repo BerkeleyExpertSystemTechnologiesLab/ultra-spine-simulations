@@ -51,6 +51,10 @@ handles = {};
 % The surfaces are discretized. Let's specify the (amount of discretization
 % of the surfaces?) Default is 20?
 surf_discretization = 20;
+% For the cylinders, we need another discretization for the *length* of the
+% cylinder in addition to the *arc length* of the surrounding circles.
+% Jeff Friesen used 40 here.
+surf_length_discretization = 40;
 
 % We also need to specify the radius of the cylinders/spheres.
 rad = 0.005; % as per 3D model.
@@ -78,26 +82,30 @@ z_sphere_outer = rad * sphere_z;
 % again, note that since this is in the X-Z plane, the Y won't need to be
 % adjusted (but will still be needed for surf.)
 
+% ...looks like we're doing X-Y in matlab terminology. Doesn't really make
+% a difference though.
+
 % First, the nodes, as circles:
 % Note that "a" has 2 rows, for the (x,z) position of each node.
 for i=1:size(a,2)
     % Calculate the translates sphere positions for surf
     x_translated = x_sphere_outer + a(1,i);
     y_translated = y_sphere_outer + a(2,i);
-    z_translated = z_sphere_outer; % + a(2,i);
+    z_translated = z_sphere_outer;
     % Plot the surface
     handles{end+1} = surf(ax, x_translated, y_translated, ...
         z_translated, 'LineStyle', 'none');
 end
 
-% x4 = rad*x + spineCoord(1,1); y4 = rad*y + spineCoord(1,2); z4 = rad*z + spineCoord(1,3);
-
-% OLD CODE:
-% First, the four nodes, as circles:
-% Note that "a" has 2 rows, for the (x,z) position of each node.
-%for i=1:size(a,2);
-%    handles{end+1} = plot(a(1,i), a(2,i), 'k.', 'MarkerSize', 40);
-%end
+% For the bars:
+% want to make cylinder points between the two ends of the bar.
+% Jeff did this from origin -> node, but we don't have any concept of a
+% node at the 'origin' here, so it's got to be between two points.
+% His code was:
+% [X, Y, Z] = cylinder2P(R, N,r1,r2)
+% where X, Y, Z are like the outputs of 'sphere',
+%   R is the radius of the cylinder,
+%   and r1 and r2 are the endpoints of the cylinder.
 
 % Plot the vertebra itself (lines between nodes)
 % The "bars" matrix is lower-triangular, with NaN
@@ -108,14 +116,43 @@ for i=1:size(bars,1)
     for j=1:size(bars,2)
         % If there is a one here,
         if bars(i,j) == 1
-            % Plot a line, storing the handle.
+            % Plot a cylindrical surface between the two nodes.
+            % Specify the nodes in 3D space, for the surface.
+            start_pt = [a(1,i), a(2,i), 0];
+            end_pt = [a(1,j), a(2,j), 0];
+            % First, get the points:
+            [x_cyl, y_cyl, z_cyl] = get_2d_surface_points(rad, surf_discretization, ...
+                surf_length_discretization, start_pt, end_pt);
+            % Plot the surface
+            handles{end+1} = surf(ax, x_cyl, y_cyl, ...
+                z_cyl, 'LineStyle', 'none');
             % Note that 'line' takes the x postions as the
             % first argument, and the z positions as the second.
-            handles{end+1} = line( [a(1,i), a(1,j)], ...
-                [a(2,i), a(2,j)], 'Color', 'k');
+            %handles{end+1} = line( [a(1,i), a(1,j)], ...
+            %    [a(2,i), a(2,j)], 'Color', 'k');
         end
     end
 end
+
+
+% OLD CODE:
+% Plot the vertebra itself (lines between nodes)
+% The "bars" matrix is lower-triangular, with NaN
+% in the upper triangle to remind us that any rod/bar that
+% connects node 2 to node 3 also by definition connects node 3
+% to node 2.
+%for i=1:size(bars,1)
+%    for j=1:size(bars,2)
+%        % If there is a one here,
+%         if bars(i,j) == 1
+%             % Plot a line, storing the handle.
+%             % Note that 'line' takes the x postions as the
+%             % first argument, and the z positions as the second.
+%             handles{end+1} = line( [a(1,i), a(1,j)], ...
+%                 [a(2,i), a(2,j)], 'Color', 'k');
+%         end
+%     end
+% end
 
 %% 2) Plot each of the moving vertebrae
 
@@ -159,9 +196,15 @@ for unit = 2:N
     xz_offset = repmat( [x; z], 1, num_pm_unit);
     % Now, the locations of the nodes of this unit are
     b(:,:,unit) = rot*a + xz_offset;
-    % 2.2) Plot the node locations of this vertebra. As circles:
-    for i=1:size(b,2);
-        handles{end+1} = plot(b(1,i,unit), b(2,i,unit), 'k.', 'markersize', 40);
+    % 2.2) Plot the node locations as surfaced spheres:
+    for i=1:size(b,2)
+        % Calculate the translates sphere positions for surf
+        x_translated = x_sphere_outer + b(1,i,unit);
+        y_translated = y_sphere_outer + b(2,i,unit);
+        z_translated = z_sphere_outer;
+        % Plot the surface
+        handles{end+1} = surf(ax, x_translated, y_translated, ...
+            z_translated, 'LineStyle', 'none');
     end
     % 2.3) Plot the bars between nodes, just like with the static unit:
     for i=1:size(bars,1)
