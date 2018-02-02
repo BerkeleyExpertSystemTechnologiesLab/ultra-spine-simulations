@@ -98,15 +98,6 @@ for i=1:size(a,2)
 end
 
 % For the bars:
-% want to make cylinder points between the two ends of the bar.
-% Jeff did this from origin -> node, but we don't have any concept of a
-% node at the 'origin' here, so it's got to be between two points.
-% His code was:
-% [X, Y, Z] = cylinder2P(R, N,r1,r2)
-% where X, Y, Z are like the outputs of 'sphere',
-%   R is the radius of the cylinder,
-%   and r1 and r2 are the endpoints of the cylinder.
-
 % Plot the vertebra itself (lines between nodes)
 % The "bars" matrix is lower-triangular, with NaN
 % in the upper triangle to remind us that any rod/bar that
@@ -126,33 +117,10 @@ for i=1:size(bars,1)
             % Plot the surface
             handles{end+1} = surf(ax, x_cyl, y_cyl, ...
                 z_cyl, 'LineStyle', 'none');
-            % Note that 'line' takes the x postions as the
-            % first argument, and the z positions as the second.
-            %handles{end+1} = line( [a(1,i), a(1,j)], ...
-            %    [a(2,i), a(2,j)], 'Color', 'k');
         end
     end
 end
 
-
-% OLD CODE:
-% Plot the vertebra itself (lines between nodes)
-% The "bars" matrix is lower-triangular, with NaN
-% in the upper triangle to remind us that any rod/bar that
-% connects node 2 to node 3 also by definition connects node 3
-% to node 2.
-%for i=1:size(bars,1)
-%    for j=1:size(bars,2)
-%        % If there is a one here,
-%         if bars(i,j) == 1
-%             % Plot a line, storing the handle.
-%             % Note that 'line' takes the x postions as the
-%             % first argument, and the z positions as the second.
-%             handles{end+1} = line( [a(1,i), a(1,j)], ...
-%                 [a(2,i), a(2,j)], 'Color', 'k');
-%         end
-%     end
-% end
 
 %% 2) Plot each of the moving vertebrae
 
@@ -211,11 +179,21 @@ for unit = 2:N
         for j=1:size(bars,2)
             % If there is a one here,
             if bars(i,j) == 1
+                % Plot a cylindrical surface between the two nodes.
+                % Specify the nodes in 3D space, for the surface.
+                start_pt = [b(1,i,unit), b(2,i,unit), 0];
+                end_pt = [b(1,j,unit), b(2,j,unit), 0];
+                % First, get the points:
+                [x_cyl, y_cyl, z_cyl] = get_2d_surface_points(rad, surf_discretization, ...
+                    surf_length_discretization, start_pt, end_pt);
+                % Plot the surface
+                handles{end+1} = surf(ax, x_cyl, y_cyl, ...
+                    z_cyl, 'LineStyle', 'none');
                 % Plot a line, storing the handle.
                 % Note that 'line' takes the x postions as the
                 % first argument, and the z positions as the second.
-                handles{end+1} = line( [b(1,i,unit), b(1,j,unit)], ...
-                    [b(2,i,unit), b(2,j,unit)], 'Color', 'k');
+                %handles{end+1} = line( [b(1,i,unit), b(1,j,unit)], ...
+                %    [b(2,i,unit), b(2,j,unit)], 'Color', 'k');
             end
         end
     end
