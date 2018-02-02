@@ -16,6 +16,16 @@ function handles = plot_2d_tensegrity_surfaced( xi, geometry, ax )
 %   Outputs:
 %       handles, the handles to each of the elements that was drawn this timestep.
 %           These are used in the calling function to clear what was drawn this timestep.
+%
+%   VERY IMPORTANT: need to create a window and set 'hold on.' otherwise, 
+%       you'll only get part of the output here.
+
+% If things are going wrong - we can always force 'hold on' in this script.
+% Again, not really the best here.
+%hold on;
+%xlabel('X');
+%ylabel('Y');
+%zlabel('Z');
 
 % First, pull out the geometry of the spine.
 % (See the two_d_dynamics_* scripts, where this struct is defined.)
@@ -73,8 +83,8 @@ z_sphere_outer = rad * sphere_z;
 for i=1:size(a,2)
     % Calculate the translates sphere positions for surf
     x_translated = x_sphere_outer + a(1,i);
-    y_translated = y_sphere_outer;
-    z_translated = z_sphere_outer + a(2,i);
+    y_translated = y_sphere_outer + a(2,i);
+    z_translated = z_sphere_outer; % + a(2,i);
     % Plot the surface
     handles{end+1} = surf(ax, x_translated, y_translated, ...
         z_translated, 'LineStyle', 'none');
@@ -85,9 +95,9 @@ end
 % OLD CODE:
 % First, the four nodes, as circles:
 % Note that "a" has 2 rows, for the (x,z) position of each node.
-for i=1:size(a,2);
-    handles{end+1} = plot(a(1,i), a(2,i), 'k.', 'MarkerSize', 40);
-end
+%for i=1:size(a,2);
+%    handles{end+1} = plot(a(1,i), a(2,i), 'k.', 'MarkerSize', 40);
+%end
 
 % Plot the vertebra itself (lines between nodes)
 % The "bars" matrix is lower-triangular, with NaN

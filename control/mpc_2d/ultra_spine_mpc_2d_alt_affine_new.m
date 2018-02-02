@@ -238,7 +238,8 @@ hold on;
 axis([-0.2, 0.2, -0.1, 0.3]);
 % Plot the first location of the spine:
 %handles = plot_2d_spine(xi(:,1), two_d_geometry);
-handles = plot_2d_tensegrity(xi_cl(:,1), opt_params.spine_params);
+%handles = plot_2d_tensegrity(xi_cl(:,1), opt_params.spine_params);
+%handles = plot_2d_tensegrity_surfaced(xi_cl(:,1), opt_params.spine_params, gca);
 % Plot desired state trajectory
 plot(xi_traj(1,:),xi_traj(2,:),'or','lineWidth',2)
 drawnow;
@@ -252,7 +253,8 @@ for i=1:opt_params.num_pts
     end
     % plot:
     %handles = plot_2d_spine(xi(:,i+1), two_d_geometry);
-    handles = plot_2d_tensegrity(xi_cl(:,i+1), opt_params.spine_params);
+    %handles = plot_2d_tensegrity(xi_cl(:,i+1), opt_params.spine_params);
+    %handles = plot_2d_tensegrity_surfaced(xi_cl(:,i+1), opt_params.spine_params, gca);
     drawnow;
 end
 
