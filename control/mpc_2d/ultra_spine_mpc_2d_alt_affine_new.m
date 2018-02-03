@@ -67,9 +67,9 @@ load('two_d_geometry.mat')
 % if it makes a difference. Maybe if we keep the robot in 
 % NOTE that this script really does num_pts+1 points, since includes
 % initial position, so you'd set 399 for 400 points, for example.
-%opt_params.num_pts = 399;
+opt_params.num_pts = 399;
 % testing the visualization:
-opt_params.num_pts = 9;
+%opt_params.num_pts = 9;
 opt_params.num_states = 6;
 opt_params.num_inputs = 4;
 opt_params.horizon_length = 4;
@@ -234,17 +234,13 @@ for i = 1:opt_params.num_pts
     
 end
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Plot results
 
-% To-do: make the lines as the 3D MPC, and put the trajectory line "on top"
-% of the cylinders so it's actually visible.
-% Also to-do: make the surfaces a single color, since gray is NOT working
-% well here.
-% From the internet: something like
-% h = surf(peaks(50));
-%set(h,'edgecolor','none','facecolor',[.1 .9 .1])
-% ...which sets to a green color. What's black, in a 3-vector?
+% To-do: 
+% cables correct color and size
 
 
 % Specify the plot colors and line types
@@ -256,7 +252,8 @@ trajectory_color = 'b';
 % are big when zoomed out but small when zoomed in...
 trajectory_thickness = 2;
 mpc_result_color = 'c';
-mpc_result_thickness = 2;
+%mpc_result_color = 'm';
+mpc_result_thickness = 4;
 
 % Set up the window.
 figure;
@@ -297,10 +294,7 @@ for i=1:length(handles)
     % handles to lines.
     % Also need to turn off all shading and lighting.
     % Check if we're working with one of the surfaces.
-    disp('handle type is');
-    disp( get(handles{i},'type') );
     if strcmp( get(handles{i},'type'), 'surface')
-        disp('setting handle properties');
         set(handles{i},'edgecolor',black,'facecolor',black);
     end
     drawnow
@@ -320,11 +314,11 @@ line_z = traj_line_offset * ones(1, pts_cl);
 %plot3(xi_traj(1,1:pts_cl), xi_traj(2,1:pts_cl), line_z, '.', trajectory_color, 'LineWidth', trajectory_thickness);
 % A very complicated plot command, which makes circles at each position of
 % the center of mass, and draws a line between them:
-plot3(xi_traj(1,1:pts_cl), xi_traj(2,1:pts_cl), line_z, '-o', ...
-    'MarkerEdgeColor', trajectory_color, 'MarkerFaceColor', ...
-    trajectory_color, 'MarkerSize', trajectory_thickness, ...
-    'LineWidth', trajectory_thickness);
-drawnow;
+%plot3(xi_traj(1,1:pts_cl), xi_traj(2,1:pts_cl), line_z, '-o', ...
+%    'MarkerEdgeColor', trajectory_color, 'MarkerFaceColor', ...
+%    trajectory_color, 'MarkerSize', trajectory_thickness, ...
+%    'LineWidth', trajectory_thickness);
+%drawnow;
 
 for i=1:opt_params.num_pts
     fprintf('Plot iteration: %g\n',i)
@@ -347,7 +341,7 @@ end
 plot3(xi_cl(1,:), xi_cl(2,:), line_z, '-o', ...
     'MarkerEdgeColor', mpc_result_color, 'MarkerFaceColor', ...
     mpc_result_color, 'MarkerSize', mpc_result_thickness, ...
-    'LineWidth', mpc_result_thickness);
+    'LineWidth', mpc_result_thickness, 'Color', mpc_result_color);
 
 % Again, turn everything black.
 % For all the surfaces: change them to black only.
@@ -357,10 +351,7 @@ for i=1:length(handles)
     % handles to lines.
     % Also need to turn off all shading and lighting.
     % Check if we're working with one of the surfaces.
-    disp('handle type is');
-    disp( get(handles{i},'type') );
     if strcmp( get(handles{i},'type'), 'surface')
-        disp('setting handle properties');
         set(handles{i},'edgecolor',black,'facecolor',black);
     end
     drawnow
@@ -369,6 +360,7 @@ end
 % Try to turn off all lights?
 % This seems to work!
 delete(findall(gcf,'Type','light'));
+
 
 %% Plot the state trajectory results of open loop control
 figure;

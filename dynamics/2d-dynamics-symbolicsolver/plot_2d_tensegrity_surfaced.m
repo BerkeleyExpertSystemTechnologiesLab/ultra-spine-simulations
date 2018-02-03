@@ -61,6 +61,13 @@ rad = 0.008; % slightly better for 2D model.
 %rad = 0.01; % as per 3D model. The cylinders over lap badly.
 %rad = 0.005; % as per prior 2D MPC work.
 
+% Specify the color and thickness of cables. Copied from what looked nice
+% in the 3D plotting script.
+cable_color = 'r';
+cable_thickness = 2;
+
+
+
 %% 1) Plot the bottom (not-moving) spine
 
 % We assume here that there's always a stationary unit at the origin.
@@ -209,8 +216,10 @@ for unit = 2:N
                 % Plot between this unit
                 % and the one below it.
                 % The "from", at unit i, comes first, then the "to" at unit j.
+                % And, use the colors and thicknesses specified above.
                 handles{end+1} = line( [b(1,i,unit-1), b(1,j,unit)], ...
-                    [b(2,i,unit-1), b(2,j,unit)], 'Color', 'b');
+                    [b(2,i,unit-1), b(2,j,unit)], 'Color', cable_color, ...
+                    'LineWidth', cable_thickness);
             end
         end
     end
