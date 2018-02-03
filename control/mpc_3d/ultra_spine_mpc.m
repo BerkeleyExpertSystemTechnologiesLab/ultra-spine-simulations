@@ -356,6 +356,8 @@ disp('There will be:');
 disp(num_mpc_runs);
 disp('iterations of MPC.');
 
+%return
+
 for mpc_iteration = 1:num_mpc_runs
     
     disp('MPC iteration:');

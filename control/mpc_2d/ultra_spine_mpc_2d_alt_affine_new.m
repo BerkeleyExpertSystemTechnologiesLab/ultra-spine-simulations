@@ -107,6 +107,8 @@ prev_u = opt_params.u;
 [xi_traj, ~] = get_ref_traj_invkin_XZG_new(0.1,opt_params.num_pts+opt_params.horizon_length+1,-1,opt_params.dt);
 u_traj = zeros(opt_params.num_inputs,opt_params.num_pts+opt_params.horizon_length+1);
 
+%return
+
 % Use the inverse kinematics for the 2D spine to generate reference inputs.
 % To-do: parameterize the pretension force? That's the third input here.
 min_cable_tension = 5; % N, I think? Depends on units in inv kin.
@@ -288,13 +290,20 @@ set(gca,'FontSize',fontsize)
 handles = plot_2d_tensegrity_surfaced(xi_cl(:,1), opt_params.spine_params, gca);
 
 % For all the surfaces: change them to black only.
-%black = [0,0,0];
-%for i=1:length(handles)
-%    % Failure here: should only set the surfaces to black! doesn't work for
-%    % handles to lines.
-%    % Also need to turn off all shading and lighting.
-%    set(handles{i},'edgecolor','none','facecolor',black);
-%end
+black = [0,0,0];
+for i=1:length(handles)
+    % Failure here: should only set the surfaces to black! doesn't work for
+    % handles to lines.
+    % Also need to turn off all shading and lighting.
+    % Check if we're working with one of the surfaces.
+    disp('handle type is');
+    disp( get(handles{i},'type') );
+    if strcmp( get(handles{i},'type'), 'surface')
+        disp('setting handle properties');
+        set(handles{i},'edgecolor',black,'facecolor',black);
+    end
+    drawnow
+end
 
 % Plot desired state trajectory
 % In order to make the line appear on top of the surf, offset it by some
@@ -338,6 +347,23 @@ plot3(xi_cl(1,:), xi_cl(2,:), line_z, '-o', ...
     'MarkerEdgeColor', mpc_result_color, 'MarkerFaceColor', ...
     mpc_result_color, 'MarkerSize', mpc_result_thickness, ...
     'LineWidth', mpc_result_thickness);
+
+% Again, turn everything black.
+% For all the surfaces: change them to black only.
+black = [0,0,0];
+for i=1:length(handles)
+    % Failure here: should only set the surfaces to black! doesn't work for
+    % handles to lines.
+    % Also need to turn off all shading and lighting.
+    % Check if we're working with one of the surfaces.
+    disp('handle type is');
+    disp( get(handles{i},'type') );
+    if strcmp( get(handles{i},'type'), 'surface')
+        disp('setting handle properties');
+        set(handles{i},'edgecolor',black,'facecolor',black);
+    end
+    drawnow
+end
 
 % Try to turn off all lights?
 % This seems to work!
