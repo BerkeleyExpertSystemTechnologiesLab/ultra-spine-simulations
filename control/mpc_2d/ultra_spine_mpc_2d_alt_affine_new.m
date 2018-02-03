@@ -65,9 +65,11 @@ load('two_d_geometry.mat')
 % better out of dt=1e-3?
 % Also, should try out the better inverse kinematics solution here to see
 % if it makes a difference. Maybe if we keep the robot in 
+% NOTE that this script really does num_pts+1 points, since includes
+% initial position, so you'd set 399 for 400 points, for example.
 %opt_params.num_pts = 399;
 % testing the visualization:
-opt_params.num_pts = 10;
+opt_params.num_pts = 9;
 opt_params.num_states = 6;
 opt_params.num_inputs = 4;
 opt_params.horizon_length = 4;
@@ -232,11 +234,33 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Plot results
 
+% To-do: make the lines as the 3D MPC, and put the trajectory line "on top"
+% of the cylinders so it's actually visible.
+% Also to-do: make the surfaces a single color, since gray is NOT working
+% well here.
+% From the internet: something like
+% h = surf(peaks(50));
+%set(h,'edgecolor','none','facecolor',[.1 .9 .1])
+% ...which sets to a green color. What's black, in a 3-vector?
+
+
+% Specify the plot colors and line types
+cable_color = 'r';
+cable_thickness = 2;
+trajectory_color = 'b';
+% needs to be a bit larger here to be visible.
+% Note: Seems to be weirdly inconsistent between dots and lines? The dots
+% are big when zoomed out but small when zoomed in...
+trajectory_thickness = 2;
+mpc_result_color = 'c';
+mpc_result_thickness = 2;
+
 % Set up the window.
 figure;
 hold on;
 axis equal;
-axis([-0.2, 0.2, -0.1, 0.3]);
+% used to be: [-0.2, 0.2, -0.1, 0.3]
+axis([-0.2, 0.2, -0.1, 0.2]);
 % coloring:
 cmaps = gray(512); 
 colormap(cmaps(1:256,:));
@@ -245,12 +269,51 @@ shading interp
 light
 lighting phong
 
+% Labels and text
+xlabel('X (m)')
+ylabel('Y (m)')
+zlabel('Z (m)')
+title('Spine Model')
+
+% Size everything properly
+%xlim([-0.2 0.2])
+%ylim([-0.2 0.2]) % Note, we use 'axis' above instead
+%zlim([-0.1, 0.4])
+fontsize = 20;
+set(gca,'FontSize',fontsize)
+
 % Plot the first location of the spine:
 %handles = plot_2d_spine(xi(:,1), two_d_geometry);
 %handles = plot_2d_tensegrity(xi_cl(:,1), opt_params.spine_params);
 handles = plot_2d_tensegrity_surfaced(xi_cl(:,1), opt_params.spine_params, gca);
+
+% For all the surfaces: change them to black only.
+%black = [0,0,0];
+%for i=1:length(handles)
+%    % Failure here: should only set the surfaces to black! doesn't work for
+%    % handles to lines.
+%    % Also need to turn off all shading and lighting.
+%    set(handles{i},'edgecolor','none','facecolor',black);
+%end
+
 % Plot desired state trajectory
-plot(xi_traj(1,:),xi_traj(2,:),'or','lineWidth',2)
+% In order to make the line appear on top of the surf, offset it by some
+% amount.
+traj_line_offset = 0.1;
+% Need to make it into a vector. Number of points is 2nd dimension
+% (columns) of xi_cl.
+% Number of actual points in closed loop:
+pts_cl = size(xi_cl, 2);
+line_z = traj_line_offset * ones(1, pts_cl);
+%plot(xi_traj(1,:),xi_traj(2,:),'or','lineWidth',2)
+% Pulling from the xi_traj, up until endpoint.
+%plot3(xi_traj(1,1:pts_cl), xi_traj(2,1:pts_cl), line_z, '.', trajectory_color, 'LineWidth', trajectory_thickness);
+% A very complicated plot command, which makes circles at each position of
+% the center of mass, and draws a line between them:
+plot3(xi_traj(1,1:pts_cl), xi_traj(2,1:pts_cl), line_z, '-o', ...
+    'MarkerEdgeColor', trajectory_color, 'MarkerFaceColor', ...
+    trajectory_color, 'MarkerSize', trajectory_thickness, ...
+    'LineWidth', trajectory_thickness);
 drawnow;
 
 for i=1:opt_params.num_pts
@@ -266,6 +329,19 @@ for i=1:opt_params.num_pts
     handles = plot_2d_tensegrity_surfaced(xi_cl(:,i+1), opt_params.spine_params, gca);
     drawnow;
 end
+
+% Plot the trajectory of the centers of mass of the moving vertebra.
+% Was, in 3D:
+%plot3(refx(1, :), refx(2, :), refx(3, :), mpc_result_color, 'LineWidth', mpc_result_thickness);
+%plot3(xi_cl(1,:), xi_cl(2,:), line_z, '.', mpc_result_color, 'LineWidth', mpc_result_thickness);
+plot3(xi_cl(1,:), xi_cl(2,:), line_z, '-o', ...
+    'MarkerEdgeColor', mpc_result_color, 'MarkerFaceColor', ...
+    mpc_result_color, 'MarkerSize', mpc_result_thickness, ...
+    'LineWidth', mpc_result_thickness);
+
+% Try to turn off all lights?
+% This seems to work!
+delete(findall(gcf,'Type','light'));
 
 %% Plot the state trajectory results of open loop control
 figure;

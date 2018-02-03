@@ -57,7 +57,9 @@ surf_discretization = 20;
 surf_length_discretization = 40;
 
 % We also need to specify the radius of the cylinders/spheres.
-rad = 0.005; % as per 3D model.
+rad = 0.008; % slightly better for 2D model. 
+%rad = 0.01; % as per 3D model. The cylinders over lap badly.
+%rad = 0.005; % as per prior 2D MPC work.
 
 %% 1) Plot the bottom (not-moving) spine
 
