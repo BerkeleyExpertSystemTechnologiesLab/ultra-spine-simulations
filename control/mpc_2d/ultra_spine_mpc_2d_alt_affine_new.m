@@ -107,6 +107,7 @@ prev_u = opt_params.u;
 [xi_traj, ~] = get_ref_traj_invkin_XZG_new(0.1,opt_params.num_pts+opt_params.horizon_length+1,-1,opt_params.dt);
 u_traj = zeros(opt_params.num_inputs,opt_params.num_pts+opt_params.horizon_length+1);
 
+% If looking at the trajectories for comparison, stop the script here:
 %return
 
 % Use the inverse kinematics for the 2D spine to generate reference inputs.
