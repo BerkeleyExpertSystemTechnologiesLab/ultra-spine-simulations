@@ -6,13 +6,19 @@
 % reaction forces at each of the two bottom nodes in contact. The function
 % returns the cable tensions and the corresponding rest lengths.
 %
-% Authors: Mallory Daly and Ellande Tang
+% Authors: Drew Sabelhaus, Mallory Daly, and Ellande Tang
 % Created: 12/8/16
-% Modified: 12/10/16
+% Modified: 2/7/18
 
-function [tensions, restLengths] = getTensions(xi, spineParameters, minCableTension)
+% THIS FUNCTION USES THE PSEUDOINVERSE FORMULATION of the inverse
+% kinematics. The optimization is now inequality constrained. We'll see if
+% that works better.
+
+function [tensions, restLengths, A, p, A_skelton_c, qOpt] = getTensions_pseudoinv(xi, spineParameters, minCableTension)
 
 %% Spine Parameters
+
+% all parameters hard-coded.
 
 % Number of bars, cables, and nodes
 r = 6; % bars
@@ -29,7 +35,7 @@ w = sqrt(ll^2-(h/2)^2); % m, width from center of tetra
 g = spineParameters.g; % m/s^2, acceleration due to gravity
 M = spineParameters.total_m; % kg/tetra
 springConstant = spineParameters.k_vert; % structure has vertical and horizontal k, but they're the same, so ignore for now
-% m = spineParameters.m; % kg/node
+m_node = spineParameters.m; % kg/node
 M = spineParameters.total_m; % kg/tetra
 springConstant = spineParameters.k_vert;
 
@@ -57,6 +63,9 @@ C = [0  1  0  0  0 -1  0  0;  %  1
 % Connection matrix of cables
 % Cs = C(1:s,:);
 
+% For later, let's store a reduced C matrix that only contains the cables.
+C_cablesonly = C(1:4,:);
+
 %% Nodal Positions
 % Coordinate system such that nodes 3 and 4 are on the x axis and nodes 1
 % and 2 are centered on the z axis.
@@ -80,12 +89,12 @@ theta = xi(3);
 % For our coordinate system, with Z upwards, X to the right, then a rotation 
 % about +Y (into the page) of +theta turns the vertebra clockwise. This is
 % because we're looking at the vertebra "from behind."
-%rot = [ cos(theta), sin(theta);
-%       -sin(theta), cos(theta)];
-   
-% WRONG. Flip the direction:
+
+
+% THIS ROTATION MATRIX was wrong, with the (-) in the (2,1) element.
+% Now moved to the (1,2) element.
 rot = [ cos(theta), -sin(theta);
-        sin(theta), cos(theta)];
+       sin(theta), cos(theta)];
    
 % Need to multiply each node by the rotation matrix and add the (x,z)
 % offset from the xi state vector. Copy out (x,z) offset to a 2x4 matrix to
@@ -101,15 +110,14 @@ x_top = xz_top(1,:)';
 z_top = xz_top(2,:)';
 
 % Combined nodal positions
-x = [x_bot; x_top];
-z = [z_bot; z_top];
+x = [x_bot; x_top]
+z = [z_bot; z_top]
 
 % Plot nodal positions
-%figure
-%plot(x_bot,z_bot,'k.','MarkerSize',10)
-%hold on
-%plot(x_top,z_top,'r.','MarkerSize',10)
-%close all
+figure
+plot(x_bot,z_bot,'k.','MarkerSize',10)
+hold on
+plot(x_top,z_top,'r.','MarkerSize',10)
 
 %% Lengths of Bars and Cables
 
@@ -137,9 +145,48 @@ L_cables = diag(l_cables);
 % Solve AR*[R2; R3] = bR, where AR will always be invertible
 AR = [1 1; 0 (x(3)-x(2))];
 bR = [2*M*g; M*g*(x(1)-x(2))+M*g*(x(5)-x(2))];
-R = AR\bR;
-R2 = R(1);
-R3 = R(2);
+R = AR\bR
+R2 = R(1)
+R3 = R(2)
+
+% This calculation 
+
+% Let's do the forces applied to each node, so we can use the skelton
+% configuration. (Drew thinks this gets rid of the need for moment
+% balance???)
+% We'll store this as the p_skelton vector. Copied from my notes below:
+
+% In the manual derivation formulation, each row of A is the force balance
+% in one dimension, for all cable tensions. Example: A(1,:) is the
+% x-coordinate balance for all 4 of the cables, size( A(1,:), 2) is 4.
+
+% In the Skelton_c formulation, one row of A is one cable's contribution to
+% the force balance, for one node. Example: A(1,:) is the forces at node 0,
+% where no cables touch, thus has no contribution to the force balance. A(
+
+% The p that's used here is p = [p_x; p_z], where p_x is the vector of
+% external loads applied to each node (in order) in the x-direction.
+% So, to compare it to Mallory/Ellande's p, we'd want to... take this p and
+% make sure all the x-forces balance out for one rigid body. For example,
+% that would be forces at the coordinates for x(1:4) for the first vertebra, which would then correspond
+% to p(1:4). And, p(5:8) == x(5:8), p(9:12) = z(1:4), etc. (but here, the x
+% and z are distances, and I'm just talking indices.) 
+% Maybe the comparison is p_mallory(1) == p_skelton(1:4), which sums
+% x-forces for the bottom rigid body, for example.
+
+% Drew's best guess is that we just do gravity here, BUT we may need to do
+% reactions in X and Z for vertebra 1, nodes 2 and 3 (are these the ones
+% that contact the ground?)
+
+p_skelton = zeros(14,1);
+% v1, x, 4 nodes:
+p_skelton(1:4) = zeros(4,1);
+% v2, x, 4 nodes:
+p_skelton(5:8) = zeros(4,1);
+% v1, z, 4 nodes:
+p_skelton(9:12) = - m_node * g; % not the total mass of one vert!
+% v2, z, 4 nodes:
+p_skelton(13:16) = -m_node * g;
 
 % Note R2 and R3 cannot be negative, but this constraint is not imposed
 % here. However, a condition under which R2 or R3 becomes negative creates
@@ -160,6 +207,62 @@ A = [ -dx(1) -dx(2) -dx(3) -dx(4);  % horizontal forces, bottom tetra
        dx(1)  dx(2)  dx(3)  dx(4);  % horizontal forces, top tetra
       -dz(1) -dz(2) -dz(3) -dz(4);  % vertical forces, bottom tetra
        dz(1)  dz(2)  dz(3)  dz(4)]; % vertical forces, top tetra
+   
+disp('A, initially, from manual derivation:');
+A
+size(A)
+
+% Skelton/Friesen formulation:
+% A= [C_A' *diag(C_A*tetraNodes(:,1));
+%        C_A' *diag(C_A*tetraNodes(:,2));
+%        C_A' *diag(C_A*tetraNodes(:,3))];
+
+% Jeff's tetraNodes seem to be [x, z]. C_A is "full C, including cables and
+% bars."
+
+
+% tetraNodesPreTransform = [L/2   0     -h/2  1; %A
+%                          -L/2   0     -h/2  1; %B                 
+%                          0    -L/2    h/2  1; %C
+%                          0     L/2    h/2  1];%D
+
+% 
+
+A_skelton = [ C' * diag(C * x);
+              C' * diag(C * z)]
+size(A_skelton)
+          
+% Seems different. Different dimensions, at least!
+% Let's see what it looks like when we only pick out the cables, and ignore
+% the bars. (After all, we don't care about the compressive forces in the
+% bars right now.)
+C_c = C_cablesonly;
+A_skelton_c = [ C_c' * diag(C_c * x);
+              C_c' * diag(C_c * z)]
+size(A_skelton_c)
+
+% In the manual derivation formulation, each row of A is the force balance
+% in one dimension, for all cable tensions. Example: A(1,:) is the
+% x-coordinate balance for all 4 of the cables, size( A(1,:), 2) is 4.
+
+% In the Skelton_c formulation, one row of A is one cable's contribution to
+% the force balance, for one node. Example: A(1,:) is the forces at node 0,
+% where no cables touch, thus has no contribution to the force balance. A(
+
+% The p that's used here is p = [p_x; p_z], where p_x is the vector of
+% external loads applied to each node (in order) in the x-direction.
+% So, to compare it to Mallory/Ellande's p, we'd want to... take this p and
+% make sure all the x-forces balance out for one rigid body. For example,
+% that would be forces at the coordinates for x(1:4) for the first vertebra, which would then correspond
+% to p(1:4). And, p(5:8) == x(5:8), p(9:12) = z(1:4), etc. (but here, the x
+% and z are distances, and I'm just talking indices.) 
+% Maybe the comparison is p_mallory(1) == p_skelton(1:4), which sums
+% x-forces for the bottom rigid body, for example.
+
+% YES! This works. p_skelton(1:4) == p_mallory(1), to numerical precision. Except, the signs seem
+% to be flipped for the x and z for the 2nd vertebra, elements p_mallory(3)
+% and 4 versus p_skelton(9:12), 13:16.
+% Might need to flip gravity...?
 
 % Moments about each tetra.
 % Takes node numbers, which are indexed into the x and z matrices, and calculates the force by using those positions.
@@ -175,6 +278,9 @@ qfun = @(a,b,c) (x(b)-x(a))*(z(c)-z(b)) - (z(b)-z(a))*(x(c)-x(b));
 A = [A;
      qfun(5,6,2) qfun(5,7,3) qfun(5,6,4) qfun(5,7,4)];
 %      qfun(1,2,6) qfun(1,3,7) qfun(1,4,6) qfun(1,4,7)];
+
+disp('A, augmented, from manual derivation:');
+A
  
 % p = [ 0; 0; M*g-R2-R3; M*g; 0; (R2-R3)*w];
 
@@ -182,8 +288,10 @@ A = [A;
 % The zeros come from \sum F = 0 in the X direction, for vertebra 1 and vertebra 2.
 % 3rd, 4th rows are \sum F = 0 in the Z direction, for vertebra 1 and vertebra 2.
 % 5th row is moment balance, = 0.
-p = [ 0; 0; M*g-R2-R3; M*g; 0];
+disp('p, manual derivation:');
+p = [ 0; 0; M*g-R2-R3; M*g; 0]
 
+% p_skelton above.
 
 %% Solve Problem for Minimized Cable Tension
 
@@ -241,6 +349,9 @@ bineq = -minCableTension*ones(s,1);
 % opts = optimoptions(@quadprog,'Display','notify-detailed');
 [qOpt, ~, exitFlag] = quadprog(H,f,Aineq,bineq,Aeq,beq);
 
+disp('qOpt:');
+disp(qOpt);
+
 if exitFlag == 1
     tensions = L_cables*qOpt; % N
     restLengths = l_cables - tensions/springConstant;
@@ -252,6 +363,24 @@ else
     tensions = Inf*ones(s,1);
     restLengths = -Inf*ones(s,1);
 end
+
+% Out of curiosity, let's see what we get when the moments are ignored:
+Aeq_ig = A(1:4, :);
+beq_ig = p(1:4);
+[qOpt_ig, ~, ~] = quadprog(H, f, Aineq, bineq, Aeq_ig, beq_ig)
+
+qOpt_ig
+% seems to be the same for now? Is there a good reason why we can ignore
+% moments in the structure?
+disp('Using the Skelton formulation:');
+
+A_skelton_c
+p_skelton
+
+% let's do the optimization using the skelton formulation. Should be:
+[qOpt_sk, ~, exitFlag] = quadprog(H, f, Aineq, bineq, A_skelton_c, p_skelton)
+
+qOpt_sk
 
 %% Check Distance Vectors Symbollically
 

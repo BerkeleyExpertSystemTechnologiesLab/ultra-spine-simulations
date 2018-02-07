@@ -220,7 +220,7 @@ A = [A1;A2;A3;A4;A5;A6];
 p = [p1;p2;p3;p4;p5;p6];
 
 %% Solve Problem for Minimized Cable Tension
-
+getTensions
 % Solve with QUADPROG
 % min (1/2 x'Hx + f'x)
 % Aineq*x < bineq
