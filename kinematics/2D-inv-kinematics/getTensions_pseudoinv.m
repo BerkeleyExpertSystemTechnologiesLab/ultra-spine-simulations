@@ -110,14 +110,14 @@ x_top = xz_top(1,:)';
 z_top = xz_top(2,:)';
 
 % Combined nodal positions
-x = [x_bot; x_top]
-z = [z_bot; z_top]
+x = [x_bot; x_top];
+z = [z_bot; z_top];
 
 % Plot nodal positions
-figure
-plot(x_bot,z_bot,'k.','MarkerSize',10)
-hold on
-plot(x_top,z_top,'r.','MarkerSize',10)
+%figure
+%plot(x_bot,z_bot,'k.','MarkerSize',10)
+%hold on
+%plot(x_top,z_top,'r.','MarkerSize',10)
 
 %% Lengths of Bars and Cables
 
@@ -146,9 +146,9 @@ L_cables = diag(l_cables);
 % Solve AR*[R2; R3] = bR, where AR will always be invertible
 AR = [1 1; 0 (x(3)-x(2))];
 bR = [2*M*g; M*g*(x(1)-x(2))+M*g*(x(5)-x(2))];
-R = AR\bR
-R2 = R(1)
-R3 = R(2)
+R = AR\bR;
+R2 = R(1);
+R3 = R(2);
 
 % This calculation 
 
@@ -209,9 +209,9 @@ A = [ -dx(1) -dx(2) -dx(3) -dx(4);  % horizontal forces, bottom tetra
       -dz(1) -dz(2) -dz(3) -dz(4);  % vertical forces, bottom tetra
        dz(1)  dz(2)  dz(3)  dz(4)]; % vertical forces, top tetra
    
-disp('A, initially, from manual derivation:');
-A
-size(A)
+%disp('A, initially, from manual derivation:');
+%A
+%size(A)
 
 % Skelton/Friesen formulation:
 % A= [C_A' *diag(C_A*tetraNodes(:,1));
@@ -230,8 +230,8 @@ size(A)
 % 
 
 A_skelton = [ C' * diag(C * x);
-              C' * diag(C * z)]
-size(A_skelton)
+              C' * diag(C * z)];
+%size(A_skelton)
           
 % Seems different. Different dimensions, at least!
 % Let's see what it looks like when we only pick out the cables, and ignore
@@ -239,8 +239,8 @@ size(A_skelton)
 % bars right now.)
 C_c = C_cablesonly;
 A_skelton_c = [ C_c' * diag(C_c * x);
-              C_c' * diag(C_c * z)]
-size(A_skelton_c)
+              C_c' * diag(C_c * z)];
+%size(A_skelton_c)
 
 % In the manual derivation formulation, each row of A is the force balance
 % in one dimension, for all cable tensions. Example: A(1,:) is the
@@ -280,8 +280,8 @@ A = [A;
      qfun(5,6,2) qfun(5,7,3) qfun(5,6,4) qfun(5,7,4)];
 %      qfun(1,2,6) qfun(1,3,7) qfun(1,4,6) qfun(1,4,7)];
 
-disp('A, augmented, from manual derivation:');
-A
+%disp('A, augmented, from manual derivation:');
+%A
  
 % p = [ 0; 0; M*g-R2-R3; M*g; 0; (R2-R3)*w];
 
@@ -289,8 +289,8 @@ A
 % The zeros come from \sum F = 0 in the X direction, for vertebra 1 and vertebra 2.
 % 3rd, 4th rows are \sum F = 0 in the Z direction, for vertebra 1 and vertebra 2.
 % 5th row is moment balance, = 0.
-disp('p, manual derivation:');
-p = [ 0; 0; M*g-R2-R3; M*g; 0]
+%disp('p, manual derivation:');
+p = [ 0; 0; M*g-R2-R3; M*g; 0];
 
 % p_skelton above.
 
@@ -352,8 +352,8 @@ bineq = -minCableTension*ones(s,1);
 % opts = optimoptions(@quadprog,'Display','notify-detailed');
 [qOpt, ~, exitFlag] = quadprog(H,f,Aineq,bineq,Aeq,beq);
 
-disp('qOpt:');
-disp(qOpt);
+%disp('qOpt:');
+%disp(qOpt);
 
 if exitFlag == 1
     tensions = L_cables*qOpt; % N
@@ -370,12 +370,12 @@ end
 % Out of curiosity, let's see what we get when the moments are ignored:
 Aeq_ig = A(1:4, :);
 beq_ig = p(1:4);
-[qOpt_ig, ~, ~] = quadprog(H, f, Aineq, bineq, Aeq_ig, beq_ig)
+[qOpt_ig, ~, ~] = quadprog(H, f, Aineq, bineq, Aeq_ig, beq_ig);
 
-qOpt_ig
+%qOpt_ig
 % seems to be the same for now? Is there a good reason why we can ignore
 % moments in the structure?
-disp('Using the Skelton formulation:');
+%disp('Using the Skelton formulation:');
 
 %A_skelton_c
 %p_skelton
@@ -388,38 +388,43 @@ disp('Using the Skelton formulation:');
 % Let's just try to relax the Mal/Ellande formulation and see if the answer
 % changes.
 
-disp('Solving the inequality relaxed version:');
+%disp('Solving the inequality relaxed version:');
 
 % As = A (it's already strings only, column-wise, and isn't 3n rows but it
 % should still match the other matrices.
-As = A
+As = A;
 % Need the pseudoinverse
-Apinv = pinv(As)
+Apinv = pinv(As);
 % The quantity V is I - A+ A
 % What's the side of A+ * A?
 % Answer: seems to be 4. Is that num cables???
-ApA = Apinv * As % is, necessarily, square.
+ApA = Apinv * As; % is, necessarily, square.
 ApA_dim = size(ApA, 1); % ...so either dimension can be taken.
-V = eye(ApA_dim) - ApA
+V = eye(ApA_dim) - ApA;
 
 % Now we can formulate the relaxed problem:
-H_lax = V' * V
-f_lax = V' * Apinv * p
-A_ineq_lax = -V
+H_lax = V' * V;
+f_lax = V' * Apinv * p;
+A_ineq_lax = -V;
 % Calculate the minumum force densities from the min cable tension and
 % length. l_cables is an 8 dimensional vector. (capital L is diag version.)
 % let's just do element-wise division for ease.
-min_force_densities = minCableTension*ones(s,1) ./ l_cables
+min_force_densities = minCableTension*ones(s,1) ./ l_cables;
 % the b term here is Apinv * p - c. 
 % MIGHT BE NEGATIVE OF THIS. actually, prob not. Direction of inequality
 % flipped between Jeff's paper and the use of quadprog.
-b_ineq_lax = Apinv * p - min_force_densities
+b_ineq_lax = Apinv * p - min_force_densities;
 
 
 % Finally, let's see if we can solve. Dropping the equality terms.
 [qOpt_lax, ~, ~] = quadprog(H_lax, f_lax, A_ineq_lax, b_ineq_lax);
 
-qOpt_lax
+%qOpt_lax
+
+% Change the rest lengths to the relaxed values and see what changes in the
+% MPC simulation:
+tensions = L_cables*qOpt_lax; % N
+restLengths = l_cables - tensions/springConstant;
 
 % ...this seems to work now. We should check and confirm that both
 % solutions stabilize the vertebrae.

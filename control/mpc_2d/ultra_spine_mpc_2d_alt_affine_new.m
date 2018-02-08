@@ -67,11 +67,11 @@ load('two_d_geometry.mat')
 % if it makes a difference. Maybe if we keep the robot in 
 % NOTE that this script really does num_pts+1 points, since includes
 % initial position, so you'd set 399 for 400 points, for example.
-%opt_params.num_pts = 399;
+opt_params.num_pts = 399;
 % testing with slower dt:
 %opt_params.num_pts = opt_params.num_pts * 4;
 % testing the visualization:
-opt_params.num_pts = 9;
+%opt_params.num_pts = 9;
 opt_params.num_states = 6;
 opt_params.num_inputs = 4;
 opt_params.horizon_length = 4;
@@ -135,8 +135,21 @@ opt_params.xi = xi_traj(:,1);
 opt_params.xip1 = xi_traj(:,2);
 % opt_params.xi(:,1:2) = xi_traj(:,1:2);
 
+% Let's compare the reference trajectories with the new formulation:
+u_traj_relaxed = zeros(size(u_traj));
+for i = 1:opt_params.num_pts+opt_params.horizon_length+1
+    [~, u_traj_relaxed(:,i), ~, ~, ~, ~, ~] = getTensions_pseudoinv(xi_traj(:,i), opt_params.spine_params, ...
+                            min_cable_tension);
+%     disp(xi_traj(:,i))
+end
+
+% let's swap out the relaxed-formulation trajectory and see if anything
+% changes. Hypothesis is that nothing much happens.
+u_traj_eqconstr = u_traj;
+u_traj = u_traj_relaxed;
+
 % Some debugging - just look at the reference trajectory
-return
+%return
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Create controller
