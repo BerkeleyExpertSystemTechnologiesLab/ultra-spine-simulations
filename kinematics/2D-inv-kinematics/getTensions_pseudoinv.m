@@ -14,7 +14,7 @@
 % kinematics. The optimization is now inequality constrained. We'll see if
 % that works better.
 
-function [tensions, restLengths, A, p, A_skelton_c, qOpt] = getTensions_pseudoinv(xi, spineParameters, minCableTension)
+function [tensions, restLengths, A, p, A_skelton_c, qOpt, qOpt_lax] = getTensions_pseudoinv(xi, spineParameters, minCableTension)
 
 %% Spine Parameters
 
@@ -123,6 +123,7 @@ plot(x_top,z_top,'r.','MarkerSize',10)
 
 % Rows 1-6 are bars
 % Rows 7-10 are cables
+% ^ NOPE, other way around. 1-4 are cables.
 l = [norm([x(2),z(2)]-[x(6),z(6)]); %  1
      norm([x(3),z(3)]-[x(7),z(7)]); %  2
      norm([x(4),z(4)]-[x(6),z(6)]); %  3
@@ -329,9 +330,11 @@ p = [ 0; 0; M*g-R2-R3; M*g; 0]
 %     % Run the actual optimization for the inverse kinematics
 %     $ quadprog is (H, f, A, b), 0.5*x'Hx + f'x, Ax <= b
 %     w = quadprog( V(1:(N-1)*8,:)' * K_scale * V(1:(N-1)*8,:), ... % H, which is w'V'Vw 
-%        V(1:(N-1)*8,:)'*K_scale*A_g(1:(N-1)*8,:)*F, ... % f, which is w'*V'*A+p (Jeff has factor of 2 in paper, but since quadprog has 0.5 * H, works out.)
+%        V(1:(N-1)*8,:)'*K_scale*A_g(1:(N-1)*8,:)*F, ... % f, which is
+%        w'*V'*A+p (Jeff has factor of 2 in paper, but since quadprog has
+%        0.5 * H, works out.) This is not "+" but "A+", pinv.
 %        -V(1:(N-1)*8,:), ... % A, -Vw
-%        A_g(1:(N-1)*8,:)*F-pretension, ... % b, A+p 
+%        A_g(1:(N-1)*8,:)*F-pretension, ... % b, A+p - c , c=pretension.
 %        [],[],[],[],[],options); % misc stuff.
 %     q=A_g*F + V*w;
 
@@ -374,13 +377,52 @@ qOpt_ig
 % moments in the structure?
 disp('Using the Skelton formulation:');
 
-A_skelton_c
-p_skelton
+%A_skelton_c
+%p_skelton
 
 % let's do the optimization using the skelton formulation. Should be:
-[qOpt_sk, ~, exitFlag] = quadprog(H, f, Aineq, bineq, A_skelton_c, p_skelton)
+%[qOpt_sk, ~, exitFlag] = quadprog(H, f, Aineq, bineq, A_skelton_c, p_skelton)
 
-qOpt_sk
+%qOpt_sk
+
+% Let's just try to relax the Mal/Ellande formulation and see if the answer
+% changes.
+
+disp('Solving the inequality relaxed version:');
+
+% As = A (it's already strings only, column-wise, and isn't 3n rows but it
+% should still match the other matrices.
+As = A
+% Need the pseudoinverse
+Apinv = pinv(As)
+% The quantity V is I - A+ A
+% What's the side of A+ * A?
+% Answer: seems to be 4. Is that num cables???
+ApA = Apinv * As % is, necessarily, square.
+ApA_dim = size(ApA, 1); % ...so either dimension can be taken.
+V = eye(ApA_dim) - ApA
+
+% Now we can formulate the relaxed problem:
+H_lax = V' * V
+f_lax = V' * Apinv * p
+A_ineq_lax = -V
+% Calculate the minumum force densities from the min cable tension and
+% length. l_cables is an 8 dimensional vector. (capital L is diag version.)
+% let's just do element-wise division for ease.
+min_force_densities = minCableTension*ones(s,1) ./ l_cables
+% the b term here is Apinv * p - c. 
+% MIGHT BE NEGATIVE OF THIS. actually, prob not. Direction of inequality
+% flipped between Jeff's paper and the use of quadprog.
+b_ineq_lax = Apinv * p - min_force_densities
+
+
+% Finally, let's see if we can solve. Dropping the equality terms.
+[qOpt_lax, ~, ~] = quadprog(H_lax, f_lax, A_ineq_lax, b_ineq_lax);
+
+qOpt_lax
+
+% ...this seems to work now. We should check and confirm that both
+% solutions stabilize the vertebrae.
 
 %% Check Distance Vectors Symbollically
 
