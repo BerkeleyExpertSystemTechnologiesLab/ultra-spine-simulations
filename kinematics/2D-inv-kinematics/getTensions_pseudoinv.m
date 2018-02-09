@@ -24,6 +24,7 @@ function [tensions, restLengths, A, p, A_skelton_c, qOpt, qOpt_lax] = getTension
 r = 6; % bars
 s = 4; % cables
 n = 8; % nodes
+% Parameter that we need for the reaction forces: 
 
 % Geometric parameters
 ll = spineParameters.l; % m, length of long bars
@@ -59,6 +60,9 @@ C = [0  1  0  0  0 -1  0  0;  %  1
      0  0  0  0  1 -1  0  0;  %  8
      0  0  0  0  1  0 -1  0;  %  9
      0  0  0  0  1  0  0 -1]; % 10
+ 
+ % Checked on 2018-02-08 and confirmed that this matches Jeff Friesen's
+ % paper's formulation of the connectivity matrix. In (s+r) x n, 10x8.
 
 % Connection matrix of cables
 % Cs = C(1:s,:);
@@ -110,8 +114,10 @@ x_top = xz_top(1,:)';
 z_top = xz_top(2,:)';
 
 % Combined nodal positions
-x = [x_bot; x_top];
-z = [z_bot; z_top];
+% As per Jeff's formulation, each of these should be vectors in R^n, where
+% n is the number of nodes. So, we're looking at each as an 8-vector.
+x = [x_bot; x_top]
+z = [z_bot; z_top]
 
 % Plot nodal positions
 %figure
@@ -142,7 +148,7 @@ L_cables = diag(l_cables);
 %% Solve for Reaction Forces
 % Assume spine is sitting on a surface. Then there are vertical reaction
 % forces at nodes 2 and 3.
-
+  
 % Solve AR*[R2; R3] = bR, where AR will always be invertible
 AR = [1 1; 0 (x(3)-x(2))];
 bR = [2*M*g; M*g*(x(1)-x(2))+M*g*(x(5)-x(2))];
@@ -150,7 +156,43 @@ R = AR\bR;
 R2 = R(1);
 R3 = R(2);
 
-% This calculation 
+% First: how about we specify which nodes are fixed. We assume that these
+% experience external reaction forces that must be balanced out.
+
+% Here, nodes 2 and 3 contact the ground. Assume built-in.
+%        
+%fixed = [0; % 1
+%         1; % 2
+%         1; % 3
+%         0; % 4
+%         0; % 5
+%         0; % 6
+%         0; % 7
+%         0]; % 8
+
+% ...leave this for future research. I'm gonna have to do it some day, like
+% for the Laika model, but for now I'm just going to let Mallory and
+% Ellande's calculations stand. (I did the math by hand and I agree with
+% them, although it would be interesting to see if adding X-direction reactions
+% will change anything. Maybe makes indeterminate? Built in vs. rollers
+% might not matter, either, since we're keeping the nodes in the same
+% position.
+
+% To-do: let's see if we can solve for the reaction forces algorithmically.
+% Another idea, maybe future research into tensegrity systems, is to
+% include reaction forces into the optimization. See something like this
+% example problem,
+% http://www.unm.edu/~bgreen/ME360/Statics%20-%20Truss%20Problem.pdf, which
+% might imply that we augment the cable densities 'q' with some reaction
+% forces 'R'.
+
+% To envision why we need these external reaction forces: imagine a
+% tensegrity triangle, floating in space, with the same gravitational force
+% applied to all nodes. Gravity will cancel out, overall. Then, imagine if
+% one edge of the triangle hits thr ground. The top node will now be
+% "lower" than if it was free floating, if tensions are equivalent, so in
+% other words, the tensions must be DIFFERENT in order to keep the
+% structure in the same position.
 
 % Let's do the forces applied to each node, so we can use the skelton
 % configuration. (Drew thinks this gets rid of the need for moment
@@ -175,9 +217,8 @@ R3 = R(2);
 % Maybe the comparison is p_mallory(1) == p_skelton(1:4), which sums
 % x-forces for the bottom rigid body, for example.
 
-% Drew's best guess is that we just do gravity here, BUT we may need to do
-% reactions in X and Z for vertebra 1, nodes 2 and 3 (are these the ones
-% that contact the ground?)
+% We'll need to go gravity here for everything, but then also include the
+% vertical reaction forces for nodes 2 and 3 (which sit on the ground.)
 
 p_skelton = zeros(14,1);
 % v1, x, 4 nodes:
@@ -188,6 +229,16 @@ p_skelton(5:8) = zeros(4,1);
 p_skelton(9:12) = - m_node * g; % not the total mass of one vert!
 % v2, z, 4 nodes:
 p_skelton(13:16) = -m_node * g;
+% BUT we should adjust by adding the reaction forces to node 2 and 3 of the
+% lower vertebra. Otherwise, the problem becomes infeasible, the tensegrity
+% always falls / cannot have zero force.
+% Nodes 2 and 3 in Z are n + 2, n+ 3, since 8 nodes means 8 coordinates in
+% the X direction first. That's 10 and 11.
+p_skelton(10) = p_skelton(10) + R2;
+p_skelton(11) = p_skelton(11) + R3;
+
+disp('Do the external forces sum to zero? Sum is:')
+sum(p_skelton)
 
 % Note R2 and R3 cannot be negative, but this constraint is not imposed
 % here. However, a condition under which R2 or R3 becomes negative creates
@@ -228,10 +279,11 @@ A = [ -dx(1) -dx(2) -dx(3) -dx(4);  % horizontal forces, bottom tetra
 %                          0     L/2    h/2  1];%D
 
 % 
+disp('Debugging: lets see the Skelton full A matrix:');
 
 A_skelton = [ C' * diag(C * x);
-              C' * diag(C * z)];
-%size(A_skelton)
+              C' * diag(C * z)]
+size(A_skelton)
           
 % Seems different. Different dimensions, at least!
 % Let's see what it looks like when we only pick out the cables, and ignore
@@ -239,8 +291,13 @@ A_skelton = [ C' * diag(C * x);
 % bars right now.)
 C_c = C_cablesonly;
 A_skelton_c = [ C_c' * diag(C_c * x);
-              C_c' * diag(C_c * z)];
+                C_c' * diag(C_c * z)]
 %size(A_skelton_c)
+
+% Maybe we can't just cut the configuration matrix off just here. Jeff does
+% it after calculating A, and going by the columns. Let's do it that way
+% and compare. s=4 here. 
+A_skelton_c_after = A_skelton(:,1:s)
 
 % In the manual derivation formulation, each row of A is the force balance
 % in one dimension, for all cable tensions. Example: A(1,:) is the
@@ -374,16 +431,53 @@ beq_ig = p(1:4);
 
 %qOpt_ig
 % seems to be the same for now? Is there a good reason why we can ignore
-% moments in the structure?
-%disp('Using the Skelton formulation:');
+% moments in the structure? YES, because this is just a point mass system.
+% That does not, however, mean we can ignore moments for the *whole
+% structure* when calculating the reaction forces!! E.g., the way that Mal
+% and Ellande did this, cutting off the last bit of "p" does not seem to
+% make a difference, BUT for the skelton formulation, we really do need to
+% include +R2 and +R3 in the p vector.
+disp('Using the Skelton formulation:');
 
-%A_skelton_c
-%p_skelton
+A_skelton_c
+p_skelton
 
 % let's do the optimization using the skelton formulation. Should be:
-%[qOpt_sk, ~, exitFlag] = quadprog(H, f, Aineq, bineq, A_skelton_c, p_skelton)
+[qOpt_sk, ~, exitFlag] = quadprog(H, f, Aineq, bineq, A_skelton_c, p_skelton)
 
 %qOpt_sk
+
+% Let's try relaxing the skelton formulation to see if we get a feasible
+% answer that way. Maybe it's just that quadprog has difficulty
+% initializing? (Or is it really that no solutions exist, and we've
+% formulated the problem incorrectly?)
+% See the comments below for what each term means.
+A_sk = A_skelton_c % renamed.
+A_sk_pinv = pinv(A_sk)
+ApA_sk = A_sk_pinv * A_sk
+ApA_sk_dim = size(ApA_sk, 1) % ...so either dimension can be taken.
+V_sk = eye(ApA_sk_dim) - ApA_sk
+
+% Now we can formulate the relaxed problem:
+H_sk_lax = V_sk' * V_sk
+f_sk_lax = V_sk' * A_sk_pinv * p_skelton
+A_sk_ineq_lax = -V_sk
+% Calculate the minumum force densities from the min cable tension and
+% length. l_cables is an 8 dimensional vector. (capital L is diag version.)
+% let's just do element-wise division for ease.
+min_force_densities = minCableTension*ones(s,1) ./ l_cables;
+% the b term here is Apinv * p - c. 
+% MIGHT BE NEGATIVE OF THIS. actually, prob not. Direction of inequality
+% flipped between Jeff's paper and the use of quadprog.
+b_sk_ineq_lax = A_sk_pinv * p_skelton - min_force_densities
+
+% Finally, let's see if we can solve. Dropping the equality terms.
+[qOpt_sk_lax, ~, ~] = quadprog(H_sk_lax, f_sk_lax, A_sk_ineq_lax, b_sk_ineq_lax);
+
+disp('Optimal q, relaxed Skelton formulation:');
+qOpt_sk_lax
+
+disp('Relaxing the Mal/Ellande formulation:');
 
 % Let's just try to relax the Mal/Ellande formulation and see if the answer
 % changes.

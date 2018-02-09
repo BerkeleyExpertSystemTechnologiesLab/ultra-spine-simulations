@@ -43,7 +43,7 @@ C_base=[ 1  0  0  0  0  0  0  0 ; %A
 
 
 %Number of tetrahedra (spine nodes)
-%N=5;
+N=5;
 % Let's test to see if this script really works with different N.
 %N = 2; %nope.
 C=zeros((N-1)*8,N*4);
