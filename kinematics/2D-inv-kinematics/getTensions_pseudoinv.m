@@ -116,8 +116,8 @@ z_top = xz_top(2,:)';
 % Combined nodal positions
 % As per Jeff's formulation, each of these should be vectors in R^n, where
 % n is the number of nodes. So, we're looking at each as an 8-vector.
-x = [x_bot; x_top]
-z = [z_bot; z_top]
+x = [x_bot; x_top];
+z = [z_bot; z_top];
 
 % Plot nodal positions
 %figure
@@ -282,8 +282,8 @@ A = [ -dx(1) -dx(2) -dx(3) -dx(4);  % horizontal forces, bottom tetra
 disp('Debugging: lets see the Skelton full A matrix:');
 
 A_skelton = [ C' * diag(C * x);
-              C' * diag(C * z)]
-size(A_skelton)
+              C' * diag(C * z)];
+size(A_skelton);
           
 % Seems different. Different dimensions, at least!
 % Let's see what it looks like when we only pick out the cables, and ignore
@@ -291,13 +291,13 @@ size(A_skelton)
 % bars right now.)
 C_c = C_cablesonly;
 A_skelton_c = [ C_c' * diag(C_c * x);
-                C_c' * diag(C_c * z)]
+                C_c' * diag(C_c * z)];
 %size(A_skelton_c)
 
 % Maybe we can't just cut the configuration matrix off just here. Jeff does
 % it after calculating A, and going by the columns. Let's do it that way
 % and compare. s=4 here. 
-A_skelton_c_after = A_skelton(:,1:s)
+A_skelton_c_after = A_skelton(:,1:s);
 
 % In the manual derivation formulation, each row of A is the force balance
 % in one dimension, for all cable tensions. Example: A(1,:) is the
