@@ -5,28 +5,20 @@
 
 function [] = plotCurvedArrows_2D()
     hold on
-    %CreateCurvedArrow3([0.2 0 -0.03], [0.2 0.03 0], [0.2, 0, 0]);
-    %CreateCurvedArrow3([0.2 0.03 0], [0.2, 0, 0.03], [0.2, 0, 0]);
-    %CreateCurvedArrow3([0.2 0 0.03], [0.2 -0.03 0], [0.2, 0, 0]);
-    
-    %CreateCurvedArrow3([0 0.2 -0.03], [0.03 0.2 0], [0, 0.2, 0]);
-    %CreateCurvedArrow3([0.03 0.2 0], [0 0.2, 0.03], [0, 0.2, 0]);
-    %CreateCurvedArrow3([0 0.2 0.03], [-0.03 0.2 0], [0, 0.2, 0]);
     
     % Rotation label for \theta around the Y-axis.
     CreateCurvedArrow3([0, -0.03, .2], [0.03, 0, .2], [0, 0, .2])
     CreateCurvedArrow3([0.03, 0, .2], [0, 0.03, .2], [0, 0, .2])
-    CreateCurvedArrow3([0, 0.03, .2], [-0.03, 0, .2], [0, 0, .2])
+    % ...removing the section of the -x axis.
+    %CreateCurvedArrow3([0, 0.03, .2], [-0.03, 0, .2], [0, 0, .2])
     
     % X-axis: rightward, pink.
     CreateStraightArrow([0 0 0], [0.18 0 0], 'm');
     
     % z-axis: upward, black.
-    CreateStraightArrow([0 0 0], [0 0.18 0], 'k');
+    CreateStraightArrow([0 0 0], [0 0.16 0], 'k');
     
-    %CreateStraightArrow([0 0 0], [0 0 0.3], 'k');
     hold off
-    %daspect([1 1 1]);
 end
 
 function [h] = CreateCurvedArrow3(from, to, center, count)

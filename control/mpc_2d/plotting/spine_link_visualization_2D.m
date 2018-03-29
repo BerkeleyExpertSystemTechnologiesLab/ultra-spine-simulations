@@ -102,20 +102,23 @@ set(gca, 'ZTick', []);
 plotCurvedArrows_2D;
 
 % add the text labels
-zlabel = text(0.03, 0.14, 0, 'Z'); zlabel.FontWeight = 'bold'; zlabel.FontSize = 28;
+zlabel = text(0.03, 0.12, 0, 'Z'); zlabel.FontWeight = 'bold'; zlabel.FontSize = 28;
 xlabel = text(0.14, 0.03, 0, 'X'); xlabel.FontWeight = 'bold'; xlabel.FontSize = 28;
+tlabel = text(0.03, 0.03, 0, '\theta'); tlabel.FontWeight = 'bold'; tlabel.FontSize = 28;
 
-%ylabel = text(0, 0.3, 0.05, 'Y'); ylabel.FontWeight = 'bold';
 
 %plabel = text(0, -0.09, 0.18, '\phi'); plabel.FontWeight = 'bold'; plabel.FontSize = 12;
 %tlabel = text(0.2, 0, 0.065, '\tau'); tlabel.FontWeight = 'bold'; tlabel.FontSize = 12;
 %glabel = text(0, 0.2, 0.065, '\gamma'); glabel.FontWeight = 'bold'; glabel.FontSize = 12;
 
-%annotation(gcf,'arrow',[0.430625 0.430625],...
-%    [0.364261813537677 0.349936143039593],'Color',[0 0 1]);
-%annotation(gcf,'arrow',[0.604375 0.604375],...
-%    [0.362984674329503 0.348659003831419],'Color',[0 0 1]);
-%annotation(gcf,'arrow',[0.532500000000001 0.525625],...
-%    [0.619689655172416 0.628352490421457],'Color',[0 0 1]);
+% Add the arrowhead to the theta axis
+%from = [0; -0.2];
+%to = [-0.1; -0.2];
+% in normalized coordinates?
+from = [ 0.495; 0.31];
+to = [ 0.475; 0.31];
+arrow = annotation(gcf, 'arrow', [from(1), to(1)], [from(2), to(2)], 'Color', [0 0 1]);
+arrow.HeadWidth = 24;
+arrow.HeadLength = 14;
 
 
