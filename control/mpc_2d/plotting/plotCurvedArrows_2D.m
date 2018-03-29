@@ -13,13 +13,18 @@ function [] = plotCurvedArrows_2D()
     %CreateCurvedArrow3([0.03 0.2 0], [0 0.2, 0.03], [0, 0.2, 0]);
     %CreateCurvedArrow3([0 0.2 0.03], [-0.03 0.2 0], [0, 0.2, 0]);
     
-    %CreateCurvedArrow3([0, -0.03, .2], [0.03, 0, .2], [0, 0, .2])
-    %CreateCurvedArrow3([0.03, 0, .2], [0, 0.03, .2], [0, 0, .2])
-    %CreateCurvedArrow3([0, 0.03, .2], [-0.03, 0, .2], [0, 0, .2])
+    % Rotation label for \theta around the Y-axis.
+    CreateCurvedArrow3([0, -0.03, .2], [0.03, 0, .2], [0, 0, .2])
+    CreateCurvedArrow3([0.03, 0, .2], [0, 0.03, .2], [0, 0, .2])
+    CreateCurvedArrow3([0, 0.03, .2], [-0.03, 0, .2], [0, 0, .2])
     
-    CreateStraightArrow([0 0 0], [0.3 0 0], 'r');
-    CreateStraightArrow([0 0 0], [0 0.3 0], 'g');
-    CreateStraightArrow([0 0 0], [0 0 0.3], 'k');
+    % X-axis: rightward, pink.
+    CreateStraightArrow([0 0 0], [0.18 0 0], 'm');
+    
+    % z-axis: upward, black.
+    CreateStraightArrow([0 0 0], [0 0.18 0], 'k');
+    
+    %CreateStraightArrow([0 0 0], [0 0 0.3], 'k');
     hold off
     %daspect([1 1 1]);
 end
@@ -65,12 +70,12 @@ function [h] = CreateCurvedArrow3(from, to, center, count)
     tf = ishold;
     if (~tf), hold on; end
     h = line(X,Y,Z);       
-    set(h, 'LineWidth', 3);
+    set(h, 'LineWidth', 5);
     if (~tf), hold off; end
 end
 
 function [h] = CreateStraightArrow(from, to, lineSpec)
     h = quiver3(from(1), from(2), from(3), to(1)-from(1), to(2)-from(2), to(3)-from(3), lineSpec);
-    set(h, 'LineWidth', 3);
+    set(h, 'LineWidth', 5);
     h.MaxHeadSize = 0.5;
 end
