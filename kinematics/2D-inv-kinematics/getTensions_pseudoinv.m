@@ -214,7 +214,7 @@ R3 = R(2);
 
 
 
-%% Equilibrium Force Equations
+%% Equilibrium Force Equations - Both Mal\Ellande and Skelton
 
 
 % First: the Mallory/Ellande approach.
@@ -279,11 +279,13 @@ A = [A;
 %                          0     L/2    h/2  1];%D
 
 % 
-disp('Debugging: lets see the Skelton full A matrix:');
+disp('Debugging: lets see the Skelton full A matrix, with size:');
 
 A_skelton = [ C' * diag(C * x);
-              C' * diag(C * z)];
-size(A_skelton);
+              C' * diag(C * z)]
+size(A_skelton)
+
+% ...this is size s+r = 10, so the size of q will be 10.
           
 % Seems different. Different dimensions, at least!
 % Let's see what it looks like when we only pick out the cables, and ignore
@@ -291,13 +293,15 @@ size(A_skelton);
 % bars right now.)
 % We've already cut out the C to include cables only (Cs),
 A_skelton_c = [ Cs' * diag(Cs * x);
-                Cs' * diag(Cs * z)];
+                Cs' * diag(Cs * z)]
 %size(A_skelton_c)
 
+% DEBUGGING:
 % Maybe we can't just cut the configuration matrix off just here. Jeff does
 % it after calculating A, and going by the columns. Let's do it that way
 % and compare. s=4 here. 
-A_skelton_c_after = A_skelton(:,1:s);
+%A_skelton_c_after = A_skelton(:,1:s)
+% Result: this is the same as A_skelton_c.
  
 
 %% Mallory / Ellande's External Force Vector
@@ -315,7 +319,13 @@ A_skelton_c_after = A_skelton(:,1:s);
 % 3rd, 4th rows are \sum F = 0 in the Z direction, for vertebra 1 and vertebra 2.
 % 5th row is moment balance, = 0.
 %disp('p, manual derivation:');
-p = [ 0; 0; M*g-R2-R3; M*g; 0];
+
+% ON 2018-03-18: ...shouldn't this be -mg, and then +R2, +R3? Change it and
+% see what happens:
+%p = [ 0; 0; M*g-R2-R3; M*g; 0];
+% ...seems to be a much more reasonable answer. Rrrrgh need to re-run the
+% MPC now at least.
+p = [ 0; 0; -M*g + R2 + R3; -M*g; 0];
 
 %% Skelton's external force vector
 
@@ -330,7 +340,7 @@ p = [ 0; 0; M*g-R2-R3; M*g; 0];
 
 % In the Skelton_c formulation, one row of A is one cable's contribution to
 % the force balance, for one node. Example: A(1,:) is the forces at node 0,
-% where no cables touch, thus has no contribution to the force balance. A(
+% where no cables touch, thus has no contribution to the force balance.
 
 % The p that's used here is p = [p_x; p_z], where p_x is the vector of
 % external loads applied to each node (in order) in the x-direction.
@@ -341,6 +351,11 @@ p = [ 0; 0; M*g-R2-R3; M*g; 0];
 % and z are distances, and I'm just talking indices.) 
 % Maybe the comparison is p_mallory(1) == p_skelton(1:4), which sums
 % x-forces for the bottom rigid body, for example.
+
+% This leads to a p_skelton of size 2 * n, since p_x is of size n and p_z
+% is also of size n.
+% Importantly, this is INDEPENDENT of the number of bars AS WELL AS the
+% number of cables!
 
 % We'll need to go gravity here for everything, but then also include the
 % vertical reaction forces for nodes 2 and 3 (which sit on the ground.)
@@ -358,19 +373,28 @@ p_skelton(13:16) = -m_node * g;
 % lower vertebra. Otherwise, the problem becomes infeasible, the tensegrity
 % always falls / cannot have zero force.
 % Nodes 2 and 3 in Z are n + 2, n+ 3, since 8 nodes means 8 coordinates in
-% the X direction first. That's 10 and 11.
+% the X direction first. That's 10 and 11. (not 14, 15 since those would be
+% the top vertebra instead.
+
+% On 2018-03-30: it seems that Mallory and Ellande have defined R2 and R3
+% to be downward?? They subtract R2 and R3, not add.
 p_skelton(10) = p_skelton(10) + R2;
 p_skelton(11) = p_skelton(11) + R3;
 
-disp('Do the external forces sum to zero? Sum is:')
-sum(p_skelton)
+disp('p_skelton, size 2*n x 1, is:')
+p_skelton
+
+disp('Comparison: p (from Mallory/Ellande) is:');
+p
 
 % YES! This works. p_skelton(1:4) == p_mallory(1), to numerical precision. Except, the signs seem
 % to be flipped for the x and z for the 2nd vertebra, elements p_mallory(3)
 % and 4 versus p_skelton(9:12), 13:16.
 % Might need to flip gravity...?
 
-% p_skelton above.
+disp('Do the external forces sum to zero? Sum is:')
+sum(p_skelton)
+
 
 %% Solve Problem for Minimized Cable Tension - Mal/Ellande, Equality Constraint
 
