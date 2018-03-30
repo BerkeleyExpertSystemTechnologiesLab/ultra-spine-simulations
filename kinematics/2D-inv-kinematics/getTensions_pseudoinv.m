@@ -1,6 +1,6 @@
 %% Find Cable Forces and Rest Lengths in 2D Spine
 % This function minimizes the force density values of the cables in a 2D
-% spinr consisting of two stacked tetrahedra. The bottom tetra is fixed,
+% spine consisting of two stacked tetrahedra. The bottom tetra is fixed,
 % and the location of the top tetra is defined by the input xi. We assume
 % that the spine is sitting on a surface, so that there are vertical
 % reaction forces at each of the two bottom nodes in contact. The function
@@ -15,6 +15,16 @@
 % that works better.
 
 function [tensions, restLengths, A, p, A_skelton_c, qOpt, qOpt_lax] = getTensions_pseudoinv(xi, spineParameters, minCableTension)
+% Outputs:
+%   There are four solvers at work here, and this function is designed to
+%   return the A, p, and qOpt for all four. They are:
+%
+%   1) Mal/Ellande, Equality Constraint (original version)
+%   2) Skelton, Equality Constraint (uses algorithmic formulation of Aq=p
+%       and is thus more theoretically grounded)
+%   3) Mal/Elland, Inequality Constraint. Easier for quadprog to solve.
+%   4) Skeltn, Inequality Constraint. This is the Friesen ICRA 2014 paper,
+%       and is what we want to use from now on (if it works...)
 
 %% Spine Parameters
 
@@ -64,11 +74,9 @@ C = [0  1  0  0  0 -1  0  0;  %  1
  % Checked on 2018-02-08 and confirmed that this matches Jeff Friesen's
  % paper's formulation of the connectivity matrix. In (s+r) x n, 10x8.
 
-% Connection matrix of cables
-% Cs = C(1:s,:);
-
 % For later, let's store a reduced C matrix that only contains the cables.
-C_cablesonly = C(1:4,:);
+% s=4 cables
+Cs = C(1:s,:);
 
 %% Nodal Positions
 % Coordinate system such that nodes 3 and 4 are on the x axis and nodes 1
@@ -85,9 +93,12 @@ z_bot = [   0 -h/2 -h/2  h/2]';
 %   4) top
 
 % Nodal positions and rotation of top tetra
-x_top = xi(1);
-z_top = xi(2);
+% NOT THE NODES! This is a different dimension that x, z_bot
+x_rigid_top = xi(1);
+z_rigid_top = xi(2);
 theta = xi(3);
+
+% So... let's calculate the nodal positions of the top vertebra.
 
 % Rotation matrix for given angle of theta
 % For our coordinate system, with Z upwards, X to the right, then a rotation 
@@ -103,13 +114,14 @@ rot = [ cos(theta), -sin(theta);
 % Need to multiply each node by the rotation matrix and add the (x,z)
 % offset from the xi state vector. Copy out (x,z) offset to a 2x4 matrix to
 % make this easier.
-xz_offset = repmat([x_top; z_top], 1, 4);
+xz_offset = repmat([x_rigid_top; z_rigid_top], 1, 4);
 
 % Translate and rotate position of fixed nodes to get coordinates of free
 % nodes
 xz_top = rot*[x_bot'; z_bot'] + xz_offset;
 
 % Extract x and z of free nodes
+% NOTE: these vectors are now the same size as x, z_bot.
 x_top = xz_top(1,:)';
 z_top = xz_top(2,:)';
 
@@ -119,17 +131,19 @@ z_top = xz_top(2,:)';
 x = [x_bot; x_top];
 z = [z_bot; z_top];
 
+% DEBUGGING
 % Plot nodal positions
-%figure
-%plot(x_bot,z_bot,'k.','MarkerSize',10)
-%hold on
-%plot(x_top,z_top,'r.','MarkerSize',10)
+% ...looks good. 
+% figure
+% plot(x_bot,z_bot,'k.','MarkerSize',10)
+% hold on
+% plot(x_top,z_top,'r.','MarkerSize',10)
+% return;
 
 %% Lengths of Bars and Cables
 
-% Rows 1-6 are bars
-% Rows 7-10 are cables
-% ^ NOPE, other way around. 1-4 are cables.
+% Rows 1-4 are cables
+% Rows 5-10 are bars
 l = [norm([x(2),z(2)]-[x(6),z(6)]); %  1
      norm([x(3),z(3)]-[x(7),z(7)]); %  2
      norm([x(4),z(4)]-[x(6),z(6)]); %  3
@@ -149,12 +163,17 @@ L_cables = diag(l_cables);
 % Assume spine is sitting on a surface. Then there are vertical reaction
 % forces at nodes 2 and 3.
   
+% Mallory and Ellande version: solve by hand.
 % Solve AR*[R2; R3] = bR, where AR will always be invertible
 AR = [1 1; 0 (x(3)-x(2))];
 bR = [2*M*g; M*g*(x(1)-x(2))+M*g*(x(5)-x(2))];
 R = AR\bR;
 R2 = R(1);
 R3 = R(2);
+
+% Better version (to publish later): solve algorithmically,
+% specify the reaction forces in a certain way and then solve for them.
+% Lots of difficult indexing here so we'll save for later...
 
 % First: how about we specify which nodes are fixed. We assume that these
 % experience external reaction forces that must be balanced out.
@@ -178,8 +197,7 @@ R3 = R(2);
 % might not matter, either, since we're keeping the nodes in the same
 % position.
 
-% To-do: let's see if we can solve for the reaction forces algorithmically.
-% Another idea, maybe future research into tensegrity systems, is to
+% Maybe future research into tensegrity systems, is to
 % include reaction forces into the optimization. See something like this
 % example problem,
 % http://www.unm.edu/~bgreen/ME360/Statics%20-%20Truss%20Problem.pdf, which
@@ -194,12 +212,119 @@ R3 = R(2);
 % other words, the tensions must be DIFFERENT in order to keep the
 % structure in the same position.
 
+
+
+%% Equilibrium Force Equations
+
+
+% First: the Mallory/Ellande approach.
+% Solve sum forces, moments = 0, get a system of 4 equations (x, z, for
+% vertebra 1, 2.)
+
+% Create vector of distance differences
+dx = C*x;
+dz = C*z;
+
+% Define A*q = p, where q is a vector of the cable force densities and p is
+% a vector of the external forces. Note that A is not a full rank matrix
+% (not invertible).
+A = [ -dx(1) -dx(2) -dx(3) -dx(4);  % horizontal forces, bottom tetra
+       dx(1)  dx(2)  dx(3)  dx(4);  % horizontal forces, top tetra
+      -dz(1) -dz(2) -dz(3) -dz(4);  % vertical forces, bottom tetra
+       dz(1)  dz(2)  dz(3)  dz(4)]; % vertical forces, top tetra
+   
+%disp('A, initially, from manual derivation:');
+%A
+%size(A)
+
+% In the manual derivation formulation, each row of A is the force balance
+% in one dimension, for all cable tensions. Example: A(1,:) is the
+% x-coordinate balance for all 4 of the cables, size( A(1,:), 2) is 4.
+
+% Moments about each tetra.
+% Takes node numbers, which are indexed into the x and z matrices, and calculates the force by using those positions.
+% Inputs are:
+%   a = node number, for center of mass node
+%   b = node number, for the end of the moment arm (where the cable is applying a force)
+%   c = node number, the "other end" of the cable. This is required to calculate a force in Newtons, since 
+%           the q vector is force DENSITY, in N/m. 
+qfun = @(a,b,c) (x(b)-x(a))*(z(c)-z(b)) - (z(b)-z(a))*(x(c)-x(b));
+% The bottom row appended to A represents the contribution of each of the 4 cables, contributing to the moment around 
+% the Y-axis of the top vertebra.
+% Here, note that the "center of mass" node is 5 for the top vertebra, 1 for the center of mass of the bottom node.
+A = [A;
+     qfun(5,6,2) qfun(5,7,3) qfun(5,6,4) qfun(5,7,4)];
+%      qfun(1,2,6) qfun(1,3,7) qfun(1,4,6) qfun(1,4,7)];
+
+%disp('A, augmented, from manual derivation:');
+%A
+
+
+
+
+
+% Alternatively: Skelton/Friesen formulation, using C ' diag(C x) etc.
+
+% A= [C_A' *diag(C_A*tetraNodes(:,1));
+%        C_A' *diag(C_A*tetraNodes(:,2));
+%        C_A' *diag(C_A*tetraNodes(:,3))];
+
+% Jeff's tetraNodes seem to be [x, z]. C_A is "full C, including cables and
+% bars."
+
+% For reference:
+% tetraNodesPreTransform = [L/2   0     -h/2  1; %A
+%                          -L/2   0     -h/2  1; %B                 
+%                          0    -L/2    h/2  1; %C
+%                          0     L/2    h/2  1];%D
+
+% 
+disp('Debugging: lets see the Skelton full A matrix:');
+
+A_skelton = [ C' * diag(C * x);
+              C' * diag(C * z)];
+size(A_skelton);
+          
+% Seems different. Different dimensions, at least!
+% Let's see what it looks like when we only pick out the cables, and ignore
+% the bars. (After all, we don't care about the compressive forces in the
+% bars right now.)
+% We've already cut out the C to include cables only (Cs),
+A_skelton_c = [ Cs' * diag(Cs * x);
+                Cs' * diag(Cs * z)];
+%size(A_skelton_c)
+
+% Maybe we can't just cut the configuration matrix off just here. Jeff does
+% it after calculating A, and going by the columns. Let's do it that way
+% and compare. s=4 here. 
+A_skelton_c_after = A_skelton(:,1:s);
+ 
+
+%% Mallory / Ellande's External Force Vector
+
+% Note R2 and R3 cannot be negative, but this constraint is not imposed
+% here. However, a condition under which R2 or R3 becomes negative creates
+% an infeasible problem for the cable tensions, so the issue solves itself.
+% It's possible that a more generalized problem would need to solve for
+% reaction forces using a solver in order to impose this constraint.
+
+% p = [ 0; 0; M*g-R2-R3; M*g; 0; (R2-R3)*w];
+
+% The p vector is the right-hand side of the force balance.
+% The zeros come from \sum F = 0 in the X direction, for vertebra 1 and vertebra 2.
+% 3rd, 4th rows are \sum F = 0 in the Z direction, for vertebra 1 and vertebra 2.
+% 5th row is moment balance, = 0.
+%disp('p, manual derivation:');
+p = [ 0; 0; M*g-R2-R3; M*g; 0];
+
+%% Skelton's external force vector
+
 % Let's do the forces applied to each node, so we can use the skelton
 % configuration. (Drew thinks this gets rid of the need for moment
 % balance???)
 % We'll store this as the p_skelton vector. Copied from my notes below:
 
-% In the manual derivation formulation, each row of A is the force balance
+% In the manual derivation (Mal/Ellande) formulation, each row of A (below) is the force balance
 % in one dimension, for all cable tensions. Example: A(1,:) is the
 % x-coordinate balance for all 4 of the cables, size( A(1,:), 2) is 4.
 
@@ -240,119 +365,140 @@ p_skelton(11) = p_skelton(11) + R3;
 disp('Do the external forces sum to zero? Sum is:')
 sum(p_skelton)
 
-% Note R2 and R3 cannot be negative, but this constraint is not imposed
-% here. However, a condition under which R2 or R3 becomes negative creates
-% an infeasible problem for the cable tensions, so the issue solves itself.
-% It's possible that a more generalized problem would need to solve for
-% reaction forces using a solver in order to impose this constraint.
-
-%% Equilibrium Force Equations
-
-% Create vector of distance differences
-dx = C*x;
-dz = C*z;
-
-% Define A*q = p, where q is a vector of the cable force densities and p is
-% a vector of the external forces. Note that A is not a full rank matrix
-% (not invertible).
-A = [ -dx(1) -dx(2) -dx(3) -dx(4);  % horizontal forces, bottom tetra
-       dx(1)  dx(2)  dx(3)  dx(4);  % horizontal forces, top tetra
-      -dz(1) -dz(2) -dz(3) -dz(4);  % vertical forces, bottom tetra
-       dz(1)  dz(2)  dz(3)  dz(4)]; % vertical forces, top tetra
-   
-%disp('A, initially, from manual derivation:');
-%A
-%size(A)
-
-% Skelton/Friesen formulation:
-% A= [C_A' *diag(C_A*tetraNodes(:,1));
-%        C_A' *diag(C_A*tetraNodes(:,2));
-%        C_A' *diag(C_A*tetraNodes(:,3))];
-
-% Jeff's tetraNodes seem to be [x, z]. C_A is "full C, including cables and
-% bars."
-
-
-% tetraNodesPreTransform = [L/2   0     -h/2  1; %A
-%                          -L/2   0     -h/2  1; %B                 
-%                          0    -L/2    h/2  1; %C
-%                          0     L/2    h/2  1];%D
-
-% 
-disp('Debugging: lets see the Skelton full A matrix:');
-
-A_skelton = [ C' * diag(C * x);
-              C' * diag(C * z)];
-size(A_skelton);
-          
-% Seems different. Different dimensions, at least!
-% Let's see what it looks like when we only pick out the cables, and ignore
-% the bars. (After all, we don't care about the compressive forces in the
-% bars right now.)
-C_c = C_cablesonly;
-A_skelton_c = [ C_c' * diag(C_c * x);
-                C_c' * diag(C_c * z)];
-%size(A_skelton_c)
-
-% Maybe we can't just cut the configuration matrix off just here. Jeff does
-% it after calculating A, and going by the columns. Let's do it that way
-% and compare. s=4 here. 
-A_skelton_c_after = A_skelton(:,1:s);
-
-% In the manual derivation formulation, each row of A is the force balance
-% in one dimension, for all cable tensions. Example: A(1,:) is the
-% x-coordinate balance for all 4 of the cables, size( A(1,:), 2) is 4.
-
-% In the Skelton_c formulation, one row of A is one cable's contribution to
-% the force balance, for one node. Example: A(1,:) is the forces at node 0,
-% where no cables touch, thus has no contribution to the force balance. A(
-
-% The p that's used here is p = [p_x; p_z], where p_x is the vector of
-% external loads applied to each node (in order) in the x-direction.
-% So, to compare it to Mallory/Ellande's p, we'd want to... take this p and
-% make sure all the x-forces balance out for one rigid body. For example,
-% that would be forces at the coordinates for x(1:4) for the first vertebra, which would then correspond
-% to p(1:4). And, p(5:8) == x(5:8), p(9:12) = z(1:4), etc. (but here, the x
-% and z are distances, and I'm just talking indices.) 
-% Maybe the comparison is p_mallory(1) == p_skelton(1:4), which sums
-% x-forces for the bottom rigid body, for example.
-
 % YES! This works. p_skelton(1:4) == p_mallory(1), to numerical precision. Except, the signs seem
 % to be flipped for the x and z for the 2nd vertebra, elements p_mallory(3)
 % and 4 versus p_skelton(9:12), 13:16.
 % Might need to flip gravity...?
 
-% Moments about each tetra.
-% Takes node numbers, which are indexed into the x and z matrices, and calculates the force by using those positions.
-% Inputs are:
-%   a = node number, for center of mass node
-%   b = node number, for the end of the moment arm (where the cable is applying a force)
-%   c = node number, the "other end" of the cable. This is required to calculate a force in Newtons, since 
-%           the q vector is force DENSITY, in N/m. 
-qfun = @(a,b,c) (x(b)-x(a))*(z(c)-z(b)) - (z(b)-z(a))*(x(c)-x(b));
-% The bottom row appended to A represents the contribution of each of the 4 cables, contributing to the moment around 
-% the Y-axis of the top vertebra.
-% Here, note that the "center of mass" node is 5 for the top vertebra, 1 for the center of mass of the bottom node.
-A = [A;
-     qfun(5,6,2) qfun(5,7,3) qfun(5,6,4) qfun(5,7,4)];
-%      qfun(1,2,6) qfun(1,3,7) qfun(1,4,6) qfun(1,4,7)];
-
-%disp('A, augmented, from manual derivation:');
-%A
- 
-% p = [ 0; 0; M*g-R2-R3; M*g; 0; (R2-R3)*w];
-
-% The p vector is the right-hand side of the force balance.
-% The zeros come from \sum F = 0 in the X direction, for vertebra 1 and vertebra 2.
-% 3rd, 4th rows are \sum F = 0 in the Z direction, for vertebra 1 and vertebra 2.
-% 5th row is moment balance, = 0.
-%disp('p, manual derivation:');
-p = [ 0; 0; M*g-R2-R3; M*g; 0];
-
 % p_skelton above.
 
-%% Solve Problem for Minimized Cable Tension
+%% Solve Problem for Minimized Cable Tension - Mal/Ellande, Equality Constraint
 
+disp('Solving Mal/Ellande, Equality Constraint:');
+
+% Solve with QUADPROG
+% The objective function, described by 0.5 * x' * H * x + f' * x
+% This minimizes the total force density in the cables, quadratically.
+H = 2*eye(4);
+f = zeros(4,1);
+% The force and moment balances are constraints for the optimization
+Aeq = A;
+beq = p;
+% Inequalities ensure a minimum cable tension
+Aineq = -L_cables;
+bineq = -minCableTension*ones(s,1);
+% opts = optimoptions(@quadprog,'Display','notify-detailed');
+[qOpt, ~, exitFlag] = quadprog(H,f,Aineq,bineq,Aeq,beq);
+
+disp('qOpt, Mal/Ellande, Equality:');
+qOpt
+
+if exitFlag == 1
+    tensions = L_cables*qOpt; % N
+    restLengths = l_cables - tensions/springConstant;
+    if any(restLengths <= 0)
+        display('WARNING: One or more rest lengths are negative. Position is not feasible with current spring constant.')
+    end
+else
+    display(['Quadprog exit flag: ' num2str(exitFlag)])
+    tensions = Inf*ones(s,1);
+    restLengths = -Inf*ones(s,1);
+end
+
+% DEBUGGING:
+% Out of curiosity, let's see what we get when the moments are ignored:
+%Aeq_ig = A(1:4, :);
+%beq_ig = p(1:4);
+%[qOpt_ig, ~, ~] = quadprog(H, f, Aineq, bineq, Aeq_ig, beq_ig);
+
+%qOpt_ig
+% seems to be the same for now? Is there a good reason why we can ignore
+% moments in the structure? YES, because this is just a point mass system.
+% That does not, however, mean we can ignore moments for the *whole
+% structure* when calculating the reaction forces!! E.g., the way that Mal
+% and Ellande did this, cutting off the last bit of "p" does not seem to
+% make a difference, BUT we did need to do sum moments when calculating R2,
+% R3 that went into p(3:4) as force balance.
+
+%% Solve Problem for Minimized Cable Tension - Skelton/Friesen, Equality Constraint
+
+% BUT for the skelton formulation, we really do need to
+% include +R2 and +R3 in the p vector.
+
+disp('Using the Skelton formulation, equality:');
+
+A_skelton_c
+p_skelton
+
+% From above, we had H = 2*eye(4); f = zeros(4,1); since the objective
+% function is only q'q for now (NOT RELAXING YET).
+% The force and moment balances are constraints for the optimization
+Aeq_sk = A_skelton_c;
+beq_sk = p_skelton;
+% Inequalities ensure a minimum cable tension. That was Aineq = -L_cables;
+% bineq = -minCableTension*ones(s,1);
+
+disp('Skelton Formulation Solution, Equality Constraint:');
+
+% let's do the optimization using the skelton formulation. Should be:
+[qOpt_sk, ~, exitFlag] = quadprog(H, f, Aineq, bineq, Aeq_sk, beq_sk);
+
+qOpt_sk
+
+%% Solve Problem for Minimized Cable Tension - Mal/Ellande, Inequality Constraint
+% As of 2018-03-30, this is the version returned as 'restlengths' and is
+% used in the 2D MPC.
+
+disp('Relaxing the Mal/Ellande formulation:');
+
+% Let's just try to relax the Mal/Ellande formulation and see if the answer
+% changes.
+
+%disp('Solving the inequality relaxed version:');
+
+% As = A (it's already strings only, column-wise, and isn't 3n rows but it
+% should still match the other matrices.
+As = A;
+% Need the pseudoinverse
+Apinv = pinv(As);
+% The quantity V is I - A+ A
+% What's the side of A+ * A?
+% Answer: seems to be 4. Is that num cables???
+ApA = Apinv * As; % is, necessarily, square.
+ApA_dim = size(ApA, 1); % ...so either dimension can be taken.
+V = eye(ApA_dim) - ApA;
+
+% Now we can formulate the relaxed problem:
+H_lax = V' * V;
+f_lax = V' * Apinv * p;
+A_ineq_lax = -V;
+% Calculate the minumum force densities from the min cable tension and
+% length. l_cables is an 8 dimensional vector. (capital L is diag version.)
+% let's just do element-wise division for ease.
+min_force_densities = minCableTension*ones(s,1) ./ l_cables;
+% the b term here is Apinv * p - c. 
+% MIGHT BE NEGATIVE OF THIS. actually, prob not. Direction of inequality
+% flipped between Jeff's paper and the use of quadprog.
+b_ineq_lax = Apinv * p - min_force_densities;
+
+
+% Finally, let's see if we can solve. Dropping the equality terms.
+[qOpt_lax, ~, ~] = quadprog(H_lax, f_lax, A_ineq_lax, b_ineq_lax);
+
+qOpt_lax
+
+% Change the rest lengths to the relaxed values and see what changes in the
+% MPC simulation:
+tensions = L_cables*qOpt_lax; % N
+restLengths = l_cables - tensions/springConstant;
+
+% ...this seems to work now. We should check and confirm that both
+% solutions stabilize the vertebrae.
+
+
+%% Solve Problem for Minimized Cable Tension - Skelton/Friesen, Inequality Constraint
+
+% Jeff's code for DuCTT:
 % % Solve with YALMIP
 % yalmip('clear')
 % q = sdpvar(s,1);
@@ -395,57 +541,7 @@ p = [ 0; 0; M*g-R2-R3; M*g; 0];
 %        [],[],[],[],[],options); % misc stuff.
 %     q=A_g*F + V*w;
 
-% Solve with QUADPROG
-% The objective function, described by 0.5 * x' * H * x + f' * x
-% This minimizes the total force density in the cables, quadratically.
-H = 2*eye(4);
-f = zeros(4,1);
-% The force and moment balances are constraints for the optimization
-Aeq = A;
-beq = p;
-% Inequalities ensure a minimum cable tension
-Aineq = -L_cables;
-bineq = -minCableTension*ones(s,1);
-% opts = optimoptions(@quadprog,'Display','notify-detailed');
-[qOpt, ~, exitFlag] = quadprog(H,f,Aineq,bineq,Aeq,beq);
-
-%disp('qOpt:');
-%disp(qOpt);
-
-if exitFlag == 1
-    tensions = L_cables*qOpt; % N
-    restLengths = l_cables - tensions/springConstant;
-    if any(restLengths <= 0)
-        display('WARNING: One or more rest lengths are negative. Position is not feasible with current spring constant.')
-    end
-else
-    display(['Quadprog exit flag: ' num2str(exitFlag)])
-    tensions = Inf*ones(s,1);
-    restLengths = -Inf*ones(s,1);
-end
-
-% Out of curiosity, let's see what we get when the moments are ignored:
-Aeq_ig = A(1:4, :);
-beq_ig = p(1:4);
-[qOpt_ig, ~, ~] = quadprog(H, f, Aineq, bineq, Aeq_ig, beq_ig);
-
-%qOpt_ig
-% seems to be the same for now? Is there a good reason why we can ignore
-% moments in the structure? YES, because this is just a point mass system.
-% That does not, however, mean we can ignore moments for the *whole
-% structure* when calculating the reaction forces!! E.g., the way that Mal
-% and Ellande did this, cutting off the last bit of "p" does not seem to
-% make a difference, BUT for the skelton formulation, we really do need to
-% include +R2 and +R3 in the p vector.
-disp('Using the Skelton formulation:');
-
-A_skelton_c
-p_skelton
-
-% let's do the optimization using the skelton formulation. Should be:
-[qOpt_sk, ~, exitFlag] = quadprog(H, f, Aineq, bineq, A_skelton_c, p_skelton)
-
-%qOpt_sk
+disp('Relaxing the Skelton formulation:');
 
 % Let's try relaxing the skelton formulation to see if we get a feasible
 % answer that way. Maybe it's just that quadprog has difficulty
@@ -477,52 +573,6 @@ b_sk_ineq_lax = A_sk_pinv * p_skelton - min_force_densities
 disp('Optimal q, relaxed Skelton formulation:');
 qOpt_sk_lax
 
-disp('Relaxing the Mal/Ellande formulation:');
-
-% Let's just try to relax the Mal/Ellande formulation and see if the answer
-% changes.
-
-%disp('Solving the inequality relaxed version:');
-
-% As = A (it's already strings only, column-wise, and isn't 3n rows but it
-% should still match the other matrices.
-As = A;
-% Need the pseudoinverse
-Apinv = pinv(As);
-% The quantity V is I - A+ A
-% What's the side of A+ * A?
-% Answer: seems to be 4. Is that num cables???
-ApA = Apinv * As; % is, necessarily, square.
-ApA_dim = size(ApA, 1); % ...so either dimension can be taken.
-V = eye(ApA_dim) - ApA;
-
-% Now we can formulate the relaxed problem:
-H_lax = V' * V;
-f_lax = V' * Apinv * p;
-A_ineq_lax = -V;
-% Calculate the minumum force densities from the min cable tension and
-% length. l_cables is an 8 dimensional vector. (capital L is diag version.)
-% let's just do element-wise division for ease.
-min_force_densities = minCableTension*ones(s,1) ./ l_cables;
-% the b term here is Apinv * p - c. 
-% MIGHT BE NEGATIVE OF THIS. actually, prob not. Direction of inequality
-% flipped between Jeff's paper and the use of quadprog.
-b_ineq_lax = Apinv * p - min_force_densities;
-
-
-% Finally, let's see if we can solve. Dropping the equality terms.
-[qOpt_lax, ~, ~] = quadprog(H_lax, f_lax, A_ineq_lax, b_ineq_lax);
-
-%qOpt_lax
-
-% Change the rest lengths to the relaxed values and see what changes in the
-% MPC simulation:
-tensions = L_cables*qOpt_lax; % N
-restLengths = l_cables - tensions/springConstant;
-
-% ...this seems to work now. We should check and confirm that both
-% solutions stabilize the vertebrae.
-
 %% Check Distance Vectors Symbollically
 
 % x1 = sym('x1','real');
@@ -553,3 +603,7 @@ restLengths = l_cables - tensions/springConstant;
 % q3 = sym('q3','real');
 % q4 = sym('q4','real');
 % qs = [q1 q2 q3 q4]'
+
+end
+
+% end of function.

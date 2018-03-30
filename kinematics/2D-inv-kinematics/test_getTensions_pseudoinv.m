@@ -14,9 +14,10 @@ addpath(dynamics_path);
 load('two_d_geometry.mat'); % loads a struct named "two_d_geometry"
 
 % define an example system state. Make the vertebra 10 cm separated,
-% as per the 2D MPC script.
+% as per the 2D MPC script, with a bit of rotation to make things more
+% interesting, with a bit of translation too.
 % This is x, z, g, dx, dz, dg.
-xi = [ 0; 0.1; 0; 0; 0; 0];
+xi = [ -0.005; 0.1; 0.1; 0; 0; 0];
 min_cable_tension = 5;
 
 % Call the fcn and let's see what happens:
