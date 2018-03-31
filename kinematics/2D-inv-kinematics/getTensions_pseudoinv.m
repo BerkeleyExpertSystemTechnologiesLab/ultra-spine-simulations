@@ -22,7 +22,7 @@ function [tensions, restLengths, A, p, A_skelton, qOpt, qOpt_lax] = getTensions_
 %   1) Mal/Ellande, Equality Constraint (original version)
 %   2) Skelton, Equality Constraint (uses algorithmic formulation of Aq=p
 %       and is thus more theoretically grounded)
-%   3) Mal/Elland, Inequality Constraint. Easier for quadprog to solve.
+%   3) Mal/Ellande, Inequality Constraint. Easier for quadprog to solve.
 %   4) Skeltn, Inequality Constraint. This is the Friesen ICRA 2014 paper,
 %       and is what we want to use from now on (if it works...)
 

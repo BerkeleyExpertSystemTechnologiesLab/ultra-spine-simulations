@@ -3,6 +3,7 @@ function BodyForceReader(q,A,p)
 % moments from cables on bodies.
 % Specifically, this compares the resulting forces/moments on the bodies
 % due to the cable tensions q against the desired applied forces, p.
+% In 2D.
 
 bodies = size(A,1)/6;
 
