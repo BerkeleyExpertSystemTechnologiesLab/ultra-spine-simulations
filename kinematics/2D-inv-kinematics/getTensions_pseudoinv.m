@@ -14,7 +14,7 @@
 % kinematics. The optimization is now inequality constrained. We'll see if
 % that works better.
 
-function [tensions, restLengths, A, p, A_skelton_c, qOpt, qOpt_lax] = getTensions_pseudoinv(xi, spineParameters, minCableTension)
+function [tensions, restLengths, A, p, A_skelton, qOpt, qOpt_lax] = getTensions_pseudoinv(xi, spineParameters, minCableTension)
 % Outputs:
 %   There are four solvers at work here, and this function is designed to
 %   return the A, p, and qOpt for all four. They are:
@@ -292,8 +292,8 @@ size(A_skelton)
 % the bars. (After all, we don't care about the compressive forces in the
 % bars right now.)
 % We've already cut out the C to include cables only (Cs),
-A_skelton_c = [ Cs' * diag(Cs * x);
-                Cs' * diag(Cs * z)]
+%A_skelton_c = [ Cs' * diag(Cs * x);
+%                Cs' * diag(Cs * z)]
 %size(A_skelton_c)
 
 % IMPORTANT NOTE: On 2018-03-30, talked with Jeff. Apparently the 
@@ -364,7 +364,7 @@ p = [ 0; 0; -M*g + R2 + R3; -M*g; 0];
 % We'll need to go gravity here for everything, but then also include the
 % vertical reaction forces for nodes 2 and 3 (which sit on the ground.)
 
-p_skelton = zeros(14,1);
+p_skelton = zeros(16,1);
 % v1, x, 4 nodes:
 p_skelton(1:4) = zeros(4,1);
 % v2, x, 4 nodes:
@@ -384,6 +384,10 @@ p_skelton(13:16) = -m_node * g;
 % to be downward?? They subtract R2 and R3, not add.
 p_skelton(10) = p_skelton(10) + R2;
 p_skelton(11) = p_skelton(11) + R3;
+
+% DEBUGGING: Let's see if the Skelton formulation can solve for a robot
+% floating in space (no gravity, no external forces.)
+%p_skelton = zeros(16,1);
 
 disp('p_skelton, size 2*n x 1, is:')
 p_skelton
@@ -469,8 +473,10 @@ disp('Using the Skelton formulation, equality:');
 % function is only q'q for now (NOT RELAXING YET).
 % Now, we're doing the full 10-vector for q, since need to include the bars
 % in the equality constraint.
-H_sk = 2 * eye(s + r); % s+r = 10;
-f_sk = zeros( s+r, 1); % zero vector size 10
+% BUT! Need to place zero weight on the bar forces. so,
+H_sk = zeros(s+r, s+r);
+H_sk(1:s, 1:s) = 2 * eye(s); % s+r = 10;
+f_sk = zeros(s+r, 1); % zero vector size 10
 
 % The force and moment balances are constraints for the optimization
 % A q = p,
@@ -493,7 +499,12 @@ bineq_sk = -minCableTension*ones(s,1);
 disp('Skelton Formulation Solution, Equality Constraint:');
 
 % let's do the optimization using the skelton formulation. Should be:
-[qOpt_sk, ~, exitFlag] = quadprog(H_sk, f_sk, Aineq_sk, bineq_sk, Aeq_sk, beq_sk);
+
+% DEBUGGING: is there a solution without constraining the cables?
+% E.g. is there any solution to A_skelton * q = p?.
+[qOpt_sk, ~, exitFlag] = quadprog(H_sk, f_sk, [], [], Aeq_sk, beq_sk);
+
+%[qOpt_sk, ~, exitFlag] = quadprog(H_sk, f_sk, Aineq_sk, bineq_sk, Aeq_sk, beq_sk);
 
 qOpt_sk
 
@@ -610,31 +621,31 @@ disp('Relaxing the Skelton formulation:');
 
 % As of 2018-03-30, let's use the full A_skelton matrix, and then 
 % hack out the bars part AFTER the pseudoinverse.
-A_sk = A_skelton % renamed.
-A_sk_pinv = pinv(A_sk)
+A_sk = A_skelton; % renamed.
+A_sk_pinv = pinv(A_sk);
 % We want to remove the last r columns of A_sk and the last r rows of
 % A_sk_pinv, so that A_sk is 16 x 4 and A_sk_pinv is 4 x 16
 A_sk = A_sk(:, 1:s);
 A_sk_pinv = A_sk_pinv(1:s, :);
 
 % continuing with Jeff's derivation...
-ApA_sk = A_sk_pinv * A_sk
-ApA_sk_dim = size(ApA_sk, 1) % ...so either dimension can be taken.
-V_sk = eye(ApA_sk_dim) - ApA_sk
+ApA_sk = A_sk_pinv * A_sk;
+ApA_sk_dim = size(ApA_sk, 1); % ...so either dimension can be taken.
+V_sk = eye(ApA_sk_dim) - ApA_sk;
 
 % Now we can formulate the relaxed problem:
-H_sk_lax = V_sk' * V_sk
-f_sk_lax = V_sk' * A_sk_pinv * p_skelton
+H_sk_lax = V_sk' * V_sk;
+f_sk_lax = V_sk' * A_sk_pinv * p_skelton;
 
 % The inequality constraint is really V * w >= -A_sk_pinv * p + c
 % Or just flip the signs, since quadprog does A*x <= b, so this becomes
 % - V*w <= A_sk_pinv * p - c
-A_sk_ineq_lax = -V_sk
+A_sk_ineq_lax = -V_sk;
 % Calculate the minumum force densities from the min cable tension and
 % length. l_cables is an s-dimensional vector. (capital L is diag version.)
 % let's just do element-wise division for ease.
 min_force_densities = minCableTension*ones(s,1) ./ l_cables;
-b_sk_ineq_lax = A_sk_pinv * p_skelton - min_force_densities
+b_sk_ineq_lax = A_sk_pinv * p_skelton - min_force_densities;
 
 % Finally, let's see if we can solve. Dropping the equality terms.
 [wOpt_sk_lax, ~, ~] = quadprog(H_sk_lax, f_sk_lax, A_sk_ineq_lax, b_sk_ineq_lax);
