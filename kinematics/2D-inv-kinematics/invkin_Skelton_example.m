@@ -23,12 +23,12 @@ spineParameters = two_d_geometry;
 
 % all parameters hard-coded.
 % Let's add one node, hanging from the center, to experiment with positive
-% tensions. at z=-h/3 x=0. Let's connect one cable, from node 1 to now-node
-% 5.
+% tensions. at z=-h/3 x=0. 
+% Let's connect three cables, from now-node 5 to nodes 1, 2, 3.
 
 % Number of bars, cables, and nodes
 r = 3; % bars
-s = 1; % cables
+s = 3; % cables
 n = 5; % nodes
 % Parameter that we need for the reaction forces: 
 
@@ -53,14 +53,16 @@ springConstant = spineParameters.k_vert;
 % Computation of General Networks."
 
 % Full connectivity matrix
-% Row 1 is the single cable
+% Row 1-3 are the cables
 % Rows 2-4 are bars (used to be 5-10)
 % Columns 1-4 are bottom tetra nodes. Column 5 is the new hanging mass.
 %    1  2  3  4  5
 C = [1  0  0  0  -1;  %  1
-     1 -1  0  0  0;   %  2
-     1  0 -1  0  0;   %  3
-     1  0  0 -1  0];  %  4
+     0  1  0  0  -1;  %  2
+     0  0  1  0  -1;  %  3
+     1 -1  0  0  0;   %  4
+     1  0 -1  0  0;   %  5
+     1  0  0 -1  0];  %  6
  
 % Checked on 2018-02-08 and confirmed that this matches Jeff Friesen's
 % paper's formulation of the connectivity matrix. In (s+r) x n, 10x8.
@@ -92,6 +94,9 @@ z = [z_bot; -h/3];
 % return;
 
 %% Lengths of Bars and Cables
+
+% UNUSED RIGHT NOW - change for future, conversion from  min force
+% densitites to min cable forces.
 
 % Row 1 is the cable, from node 1 to 5
 % Rows 2-4 are bars (was 5-10)
@@ -292,7 +297,7 @@ S(1:s, 1:s) = -eye(s);
 % c also needs to be [ones(s)*c; 0], so no "other side" for the compression
 % elements.
 % The homogenous solution seemed to be -1.2 something something for the bars, so try -1
-c_tension = 0;
+c_tension = 5;
 c = [ones(s,1)* c_tension; zeros(r, 1)]; %c is size s+r x 1, or length(q) x 1
 
 % So we have S q <= -c,
@@ -322,7 +327,6 @@ b_ineq_lax = -S * A_pinv * p - c;
 
 % ...actually, this is the w vector, NOT q. Still need to do q=A_g*F + V*w;
 qOpt_sk_lax = A_pinv * p + V * wOpt_sk_lax;
-% ...this is EXACTLY THE SAME AS THE EQUALITY CONSTRAINT SOLUTION!!!
 
 disp('Optimal q, relaxed Skelton formulation:');
 qOpt_sk_lax
