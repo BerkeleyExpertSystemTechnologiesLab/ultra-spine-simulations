@@ -2,9 +2,8 @@
 % Authors: Drew Sabelhaus
 % Modified: 3/31/18
 
-% This script tests out the Skelton formulation of Aq=p, for one vertebra
-% without cables, just to get a better understanding of how quadprog works
-% with the A matrix.
+% This script tests out the Skelton formulation of Aq=p, hard-coding
+% various numbers of vertebrae and cables.
 
 % function used to return [tensions, restLengths, A, p, A_skelton, qOpt, qOpt_lax]
 
@@ -22,14 +21,12 @@ spineParameters = two_d_geometry;
 %% Spine Parameters
 
 % all parameters hard-coded.
-% Let's add one node, hanging from the center, to experiment with positive
-% tensions. at z=-h/3 x=0. 
-% Let's connect three cables, from now-node 5 to nodes 1, 2, 3.
+% Let's do the two vertebrae, with 4 nodes and 3 bars each.
 
 % Number of bars, cables, and nodes
-r = 3; % bars
-s = 3; % cables
-n = 5; % nodes
+r = 6; % bars
+s = 4; % cables
+n = 8; % nodes
 % Parameter that we need for the reaction forces: 
 
 % Geometric parameters
@@ -53,16 +50,21 @@ springConstant = spineParameters.k_vert;
 % Computation of General Networks."
 
 % Full connectivity matrix
-% Row 1-3 are the cables
-% Rows 2-4 are bars (used to be 5-10)
-% Columns 1-4 are bottom tetra nodes. Column 5 is the new hanging mass.
-%    1  2  3  4  5
-C = [1  0  0  0  -1;  %  1
-     0  1  0  0  -1;  %  2
-     0  0  1  0  -1;  %  3
-     1 -1  0  0  0;   %  4
-     1  0 -1  0  0;   %  5
-     1  0  0 -1  0];  %  6
+% Row 1-4 are the cables, connecting vertebrae at (top, bottom): 2->2,
+% 3->3, 4->2, 4->3. That's 2->6, 3->7, 4->6, 4->7.
+% Rows 5-10 are bars 
+% Columns 1-4 are bottom tetra nodes, 5-8 are top.
+%    1  2  3  4  5  6  7  8
+C = [0  1  0  0  0 -1  0  0;  %  1
+     0  0  1  0  0  0 -1  0;  %  2
+     0  0  0  1  0 -1  0  0;  %  3
+     0  0  0  1  0  0 -1  0;  %  4
+     1 -1  0  0  0  0  0  0;  %  5
+     1  0 -1  0  0  0  0  0;  %  6
+     1  0  0 -1  0  0  0  0;  %  7
+     0  0  0  0  1 -1  0  0;  %  8
+     0  0  0  0  1  0 -1  0;  %  9
+     0  0  0  0  1  0  0 -1]; %  10
  
 % Checked on 2018-02-08 and confirmed that this matches Jeff Friesen's
 % paper's formulation of the connectivity matrix. In (s+r) x n, 10x8.
@@ -81,16 +83,21 @@ z_bot = [   0 -h/2 -h/2  h/2]';
 %   3) bottom right
 %   4) top
 
-% Combined nodal positions, with the hanging mass now at x=0, z=-h/3
-x = [x_bot; 0];
-z = [z_bot; -h/3];
+% Let's just translate the top one up by 0.1 for now.
+% Also do a little bit of x movement.
+x_top = x_bot - 0.005;
+z_top = z_bot + 0.09;
+
+% Combined nodal positions, both tetra.
+x = [x_bot; x_top];
+z = [z_bot; z_top];
 
 % % DEBUGGING
-% % Plot nodal positions
-% % ...looks good. 
-% figure
-% plot(x, z,'k.','MarkerSize',10)
-% hold on
+% Plot nodal positions
+% ...looks good. 
+figure
+plot(x, z,'k.','MarkerSize',10)
+hold on
 % return;
 
 %% Lengths of Bars and Cables
@@ -111,13 +118,13 @@ l = [norm([x(1),z(1)]-[x(5),z(5)])  % 1
   
 % Mallory and Ellande version: solve by hand.
 % Solve AR*[R2; R3] = bR, where AR will always be invertible
-% Now, include the force in z from the hanging mass, for which:
-% Sum forces in z needs another g*m_node in bR
-% Sum moments needs another g*m_node*(dist from node 2) for node 5
+% Now, include the force in z from the top vertebra, for which:
+% Sum forces in z needs another g*M in bR
+% Sum moments needs another g*M*(dist from node 5)
 AR = [1 1; ...
       0 (x(3)-x(2))];
   
-bR = [M*g + m_node*g; ...
+bR = [M*g + M*g; ...
       M*g*(x(1)-x(2)) + m_node*g*(x(5)-x(2))];
   
 R = AR\bR;
@@ -143,62 +150,16 @@ size(A)
 % configuration.
 
 % We don't need to sum moments here, since nodes are points.
-% p is an 10-vector: elements (1:5) are external forces in x, and (6:10) are
-% external forces in z. So:
+% p is an 2*n-vector: elements (1:n) are external forces in x, and (n+1:2n) are
+% external forces in z. That's p \in 16, first 8 elements, second 8
+% elements.
 
 p = zeros(2*n, 1);
 % Add the mass to the z-direction for all nodes
-p(6:10) = -m_node *g;
-% Add the z reaction forces at nodes 2 and 3 (elements 7,8)
-p(7) = p(7) + R2;
-p(8) = p(8) + R3;
-
-%% Solve Problem for Minimized Cable Tension - Skelton/Friesen, Equality Constraint
-
-% BUT for the skelton formulation, we really do need to
-% include +R2 and +R3 in the p vector.
-
-% Here, Drew does not think we can ignore the bars. Later, when we do the
-% pseudoinverse, maybe we could - although I still have to test Jeff's
-% theory on the matter, and maybe it's easier to just include all of them
-% and then put no minimization weight on the bars and no constraints (e.g.
-% set H = [eye; zeros] instead of eye, and c = [cs; 0] or something.)
-
-% disp('Using the Skelton formulation, equality:');
-% 
-% H = zeros(s+r, s+r); % since s=0, this is 3x3, since q \in 3.
-% H(1:r, 1:r) = 2 * eye(r); % s+r = 3;
-% f = zeros(s+r, 1); % zero vector size 3
-% 
-% % The force and moment balances are constraints for the optimization
-% % A q = p,
-% Aeq = A;  % size 16 x 10
-% beq = p;  % size 16 x 1
-% % ...these work with q size 10 x 1
-% 
-% % Inequalities ensure a minimum cable tension. With
-% %l_cables = l(1:s);
-% %L_cables = diag(l_cables);
-% % ...the L_cables matrix is diagonal with size s x s. We need to insert it into
-% % a zeros matrix with s+r columns now, to align with q of size s+r x 1.
-% %Aineq_sk = zeros(s, s+r);
-% %Aineq_sk(1:s, 1:s) = -L_cables;
-% % We can then keep the original b_inequality, since Aineq_sk * q is of size
-% % s x 1. E.g., only need the cable force constraints, and padding with
-% % zeros such that the dimensions fit for q.
-% %bineq_sk = -minCableTension*ones(s,1);
-% 
-% disp('Skelton Formulation Solution, Equality Constraint:');
-% 
-% % let's do the optimization using the skelton formulation. Should be:
-% 
-% % DEBUGGING: is there a solution without constraining the cables?
-% % E.g. is there any solution to A_skelton * q = p?.
-% [qOpt_sk, ~, exitFlag] = quadprog(H, f, [], [], Aeq, beq);
-% 
-% %[qOpt_sk, ~, exitFlag] = quadprog(H_sk, f_sk, Aineq_sk, bineq_sk, Aeq_sk, beq_sk);
-% 
-% qOpt_sk
+p(9:16) = -m_node *g;
+% Add the z reaction forces at nodes 2 and 3 (elements n+2, n+3 = 10, 11)
+p(10) = p(10) + R2;
+p(11) = p(11) + R3;
 
 
 %% Solve Problem for Minimized Cable Tension - Skelton/Friesen, Inequality Constraint
@@ -297,7 +258,7 @@ S(1:s, 1:s) = -eye(s);
 % c also needs to be [ones(s)*c; 0], so no "other side" for the compression
 % elements.
 % The homogenous solution seemed to be -1.2 something something for the bars, so try -1
-c_tension = 5;
+c_tension = 0;
 c = [ones(s,1)* c_tension; zeros(r, 1)]; %c is size s+r x 1, or length(q) x 1
 
 % So we have S q <= -c,
