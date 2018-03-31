@@ -249,6 +249,14 @@ disp('Relaxing the Skelton formulation:');
 % formulated the problem incorrectly?)
 % See the comments below for what each term means.
 
+% ALSO: IMPORANT! If we remove the bars' rows/columns here, then ApA
+% becomes = I, V=0, and our problem degenerates. So at least in this case,
+% we can't select elements out of A in order to do ApA.
+% Conclusion: we will need to do the optimization for ALL tensions, BUT, we
+% can zero out the constraints for the bar elements by pre-multiplying the
+% "q" with a diagonal matrix of 1s and 0s, see below.
+
+% The pseudoinverse:
 A_pinv = pinv(A);
 
 % continuing with Jeff's derivation...
@@ -268,25 +276,31 @@ f_lax = V' * A_pinv * p;
 % through this whole process... but it would be important to discuss in the
 % paper that we could relax it and have things be OK.
 
-% Let's put a constraint that q <= -c, for bars in compression, force
-% density less than -c, and positive force density q >= c for tension
-% elements.
-% That's the same as q <= -c for q(2:4) and -q <= -c for q(1).
+% Let's put a constraint for positive force density q >= c for tension
+% elements, and no constraint for the compression elements.
+% That's the same as -q <= -c for q(1).
 % We can multiply q by a diagonal matrix to change its sign, where S is the
 % full dimension of q, and its upper block is minus the identity matrix of
-% size s, and lower block is the identity matrix of size r.
+% size s, and lower block is zeros.
 % Let's make it the identity then change the sign for the s-block.
-S = eye(s+r);
+
+% S multiplies q, so should be size s+r (same as q).
+S = zeros(s+r, s+r);
+% multiple the first s elements of q by -1
 S(1:s, 1:s) = -eye(s);
+
+% c also needs to be [ones(s)*c; 0], so no "other side" for the compression
+% elements.
+% The homogenous solution seemed to be -1.2 something something for the bars, so try -1
+c_tension = 0;
+c = [ones(s,1)* c_tension; zeros(r, 1)]; %c is size s+r x 1, or length(q) x 1
 
 % So we have S q <= -c,
 % S (A_pinv * p + V w) <= -c, (was A_pinv * p + V w <= -c,)
 % S*V*w <= -S * A_pinv * p - c, (was V * w <= -A_pinv * p - c)
 
-% The homogenous solution seemed to be -1.2 something something for the bars, so try -1
-c = -1.2;
 A_ineq_lax = S * V;
-b_ineq_lax = -S * A_pinv * p + c;
+b_ineq_lax = -S * A_pinv * p - c;
 
 % This seems to work!!! 
 
