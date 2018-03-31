@@ -46,7 +46,9 @@ w = sqrt(ll^2-(h/2)^2); % m, width from center of tetra
 g = spineParameters.g; % m/s^2, acceleration due to gravity
 M = spineParameters.total_m; % kg/tetra
 springConstant = spineParameters.k_vert; % structure has vertical and horizontal k, but they're the same, so ignore for now
-m_node = spineParameters.m; % kg/node
+m_node = spineParameters.m; % kg/node FOR ALL NODES!
+% Thus, change it to one node:
+m_node = m_node(1); % To-do: check this!!!
 M = spineParameters.total_m; % kg/tetra
 springConstant = spineParameters.k_vert;
 
