@@ -538,7 +538,6 @@ b_ineq_lax = Apinv * p - min_force_densities;
 [wOpt_lax, ~, ~] = quadprog(H_lax, f_lax, A_ineq_lax, b_ineq_lax);
 
 % ...actually, this is the w vector, NOT q. Still need to do q=A_g*F + V*w;
-
 qOpt_lax = Apinv*p + V*wOpt_lax
 % ...this is EXACTLY THE SAME AS THE EQUALITY CONSTRAINT SOLUTION!!!
 
@@ -599,17 +598,26 @@ restLengths = l_cables - tensions/springConstant;
 disp('Relaxing the Skelton formulation:');
 
 % 2018-03-30: ISSUE: the inequality constraint that constrains the cables
-% plus bars. 
+% plus bars. We'd have to flip some signs to make sure that the densitites
+% for the bars were compressive! So, alternatively, let's do Jeff's code
+% and remove the force densities of the bars.
 
 % Let's try relaxing the skelton formulation to see if we get a feasible
 % answer that way. Maybe it's just that quadprog has difficulty
 % initializing? (Or is it really that no solutions exist, and we've
 % formulated the problem incorrectly?)
 % See the comments below for what each term means.
-% As of 2018-03-30, let's use the full A_skelton matrix, and then maybe (if
-% we want) hack out the bars part AFTER the pseudoinverse.
-A_sk = A_skelton_c % renamed.
+
+% As of 2018-03-30, let's use the full A_skelton matrix, and then 
+% hack out the bars part AFTER the pseudoinverse.
+A_sk = A_skelton % renamed.
 A_sk_pinv = pinv(A_sk)
+% We want to remove the last r columns of A_sk and the last r rows of
+% A_sk_pinv, so that A_sk is 16 x 4 and A_sk_pinv is 4 x 16
+A_sk = A_sk(:, 1:s);
+A_sk_pinv = A_sk_pinv(1:s, :);
+
+% continuing with Jeff's derivation...
 ApA_sk = A_sk_pinv * A_sk
 ApA_sk_dim = size(ApA_sk, 1) % ...so either dimension can be taken.
 V_sk = eye(ApA_sk_dim) - ApA_sk
@@ -629,7 +637,11 @@ min_force_densities = minCableTension*ones(s,1) ./ l_cables;
 b_sk_ineq_lax = A_sk_pinv * p_skelton - min_force_densities
 
 % Finally, let's see if we can solve. Dropping the equality terms.
-[qOpt_sk_lax, ~, ~] = quadprog(H_sk_lax, f_sk_lax, A_sk_ineq_lax, b_sk_ineq_lax);
+[wOpt_sk_lax, ~, ~] = quadprog(H_sk_lax, f_sk_lax, A_sk_ineq_lax, b_sk_ineq_lax);
+
+% ...actually, this is the w vector, NOT q. Still need to do q=A_g*F + V*w;
+qOpt_sk_lax = A_sk_pinv * p_skelton + V_sk * wOpt_sk_lax;
+% ...this is EXACTLY THE SAME AS THE EQUALITY CONSTRAINT SOLUTION!!!
 
 disp('Optimal q, relaxed Skelton formulation:');
 qOpt_sk_lax
