@@ -142,7 +142,8 @@ A = [ C' * diag(C * x);
       C' * diag(C * z)]
 size(A)
 
-% ...this is size s+r = 3, so the size of q will be 3.
+% ...this is size s+r = 10, so the size of q will be 10 (though we only
+% care about the first four, the cables.)
 
 %% Skelton's external force vector
 
@@ -161,6 +162,14 @@ p(9:16) = -m_node *g;
 p(10) = p(10) + R2;
 p(11) = p(11) + R3;
 
+
+%% Check the existence of solutions
+
+disp('Checking existence conditions for solutions:');
+
+A * pinv(A)
+A * pinv(A) * p
+A * pinv(A) * p - p
 
 %% Solve Problem for Minimized Cable Tension - Skelton/Friesen, Inequality Constraint
 

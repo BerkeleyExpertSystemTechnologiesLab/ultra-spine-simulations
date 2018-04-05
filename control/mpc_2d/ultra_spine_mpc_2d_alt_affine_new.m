@@ -140,7 +140,7 @@ u_traj_relaxed = zeros(size(u_traj));
 for i = 1:opt_params.num_pts+opt_params.horizon_length+1
     % There are a LOT of outputs here, all used for debugging, so only the
     % 'restlengths' are used.
-    [~, u_traj_relaxed(:,i), ~, ~, ~, ~, ~] = getTensions_pseudoinv(xi_traj(:,i), opt_params.spine_params, ...
+    [~, u_traj_relaxed(:,i), ~, ~, ~] = getTensions_pseudoinv(xi_traj(:,i), opt_params.spine_params, ...
                             min_cable_tension);
 %     disp(xi_traj(:,i))
 end

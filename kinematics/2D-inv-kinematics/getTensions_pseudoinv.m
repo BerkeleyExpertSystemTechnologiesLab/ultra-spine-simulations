@@ -14,7 +14,7 @@
 % kinematics. The optimization is now inequality constrained. We'll see if
 % that works better.
 
-function [tensions, restLengths, A, p, A_skelton, qOpt, qOpt_lax] = getTensions_pseudoinv(xi, spineParameters, minCableTension)
+function [tensions, restLengths, A, p, qOpt_lax] = getTensions_pseudoinv(xi, spineParameters, minCableTension)
 % Outputs:
 %   There are four solvers at work here, and this function is designed to
 %   return the A, p, and qOpt for all four. They are:
@@ -227,6 +227,11 @@ R3 = R(2);
 dx = C*x;
 dz = C*z;
 
+% Some extra math to try out what we write in linear algebra for the paper,
+% "L" paper is "Lc" here
+% Lc = [ C*x; C*z]
+% Af = 
+
 % Define A*q = p, where q is a vector of the cable force densities and p is
 % a vector of the external forces. Note that A is not a full rank matrix
 % (not invertible).
@@ -234,10 +239,6 @@ A = [ -dx(1) -dx(2) -dx(3) -dx(4);  % horizontal forces, bottom tetra
        dx(1)  dx(2)  dx(3)  dx(4);  % horizontal forces, top tetra
       -dz(1) -dz(2) -dz(3) -dz(4);  % vertical forces, bottom tetra
        dz(1)  dz(2)  dz(3)  dz(4)]; % vertical forces, top tetra
-   
-%disp('A, initially, from manual derivation:');
-%A
-%size(A)
 
 % In the manual derivation formulation, each row of A is the force balance
 % in one dimension, for all cable tensions. Example: A(1,:) is the
@@ -255,14 +256,18 @@ qfun = @(a,b,c) (x(b)-x(a))*(z(c)-z(b)) - (z(b)-z(a))*(x(c)-x(b));
 % the Y-axis of the top vertebra.
 % Here, note that the "center of mass" node is 5 for the top vertebra, 1 for the center of mass of the bottom node.
 A = [A;
+     qfun(1,2,6) qfun(1,3,7) qfun(1,4,6) qfun(1,4,7);
      qfun(5,6,2) qfun(5,7,3) qfun(5,6,4) qfun(5,7,4)];
-%      qfun(1,2,6) qfun(1,3,7) qfun(1,4,6) qfun(1,4,7)];
 
 %disp('A, augmented, from manual derivation:');
 %A
 
 
-
+% disp('A, initially, from manual derivation:');
+% A
+% size(A)
+% disp('Rank of A with rigid body derivation:');
+% rank(A)
 
 
 % Alternatively: Skelton/Friesen formulation, using C ' diag(C x) etc.
@@ -281,11 +286,15 @@ A = [A;
 %                          0     L/2    h/2  1];%D
 
 % 
-disp('Debugging: lets see the Skelton full A matrix, with size:');
 
+% disp('Debugging: lets see the Skelton full A matrix, with size:');
+% 
 A_skelton = [ C' * diag(C * x);
-              C' * diag(C * z)]
-size(A_skelton)
+              C' * diag(C * z)];
+% size(A_skelton)
+% 
+% disp('Rank of A with graph formulation:');
+% rank(A_skelton)
 
 % ...this is size s+r = 10, so the size of q will be 10.
           
@@ -331,7 +340,18 @@ size(A_skelton)
 %p = [ 0; 0; M*g-R2-R3; M*g; 0];
 % ...seems to be a much more reasonable answer. Rrrrgh need to re-run the
 % MPC now at least.
-p = [ 0; 0; -M*g + R2 + R3; -M*g; 0];
+% On 2018-04-05: did sum of moments around both vertebrae, now p \in R
+% (3*d), or: 2 x-balance, 2 z-balance, 2-moment balance.
+% Also, the moment balance for the bottom vertebra has an external
+% component, which is the reaction forces at nodes 2 and 3, so these are -(x(2)*R2) + (x(3)*R3).
+% Or, in the terms we'll use in the paper, (x(1) - x(2))*R2 + (x(3) - x(1))*R3
+p = [ 0; 0; -M*g + R2 + R3; -M*g; -(x(2)*R2) + x(3)*R3; 0];
+
+% ...just to confirm, we did the direction properly, right???
+%p = [ 0; 0; M*g - R2 - R3; M*g; -(x(2)*R2) + x(3)*R3; 0];
+% ...result: this seemed not to make a difference. That sounds right, the
+% vertebra is moving "way too fast" anyway.
+
 
 %% Skelton's external force vector
 
@@ -391,53 +411,66 @@ p_skelton(11) = p_skelton(11) + R3;
 % floating in space (no gravity, no external forces.)
 %p_skelton = zeros(16,1);
 
-disp('p_skelton, size 2*n x 1, is:')
-p_skelton
-
-disp('Comparison: p (from Mallory/Ellande) is:');
-p
+% disp('p_skelton, size 2*n x 1, is:')
+% p_skelton
+% 
+% disp('Comparison: p (from Mallory/Ellande) is:');
+% p
 
 % YES! This works. p_skelton(1:4) == p_mallory(1), to numerical precision. Except, the signs seem
 % to be flipped for the x and z for the 2nd vertebra, elements p_mallory(3)
 % and 4 versus p_skelton(9:12), 13:16.
 % Might need to flip gravity...?
 
-disp('Do the external forces sum to zero? Sum is:')
-sum(p_skelton)
+% disp('Do the external forces sum to zero? Sum is:')
+% sum(p_skelton)
+
+% %% A quick check on the number of solutions for both sets of equations.
+% 
+% disp('Checking the number of solutions for both formulations of Aq=p:');
+% 
+% % Solutions exist to nonsquare Aq=p if A pin(A) p = p.
+% 
+% disp('A pinv(A) p , for Mal/Ellande:');
+% 
+% A * pinv(A)
+% A * pinv(A) * p
+% 
+% A * pinv(A) * p - p
 
 
 %% Solve Problem for Minimized Cable Tension - Mal/Ellande, Equality Constraint
 
-disp('Solving Mal/Ellande, Equality Constraint:');
-
-% Solve with QUADPROG
-% The objective function, described by 0.5 * x' * H * x + f' * x
-% This minimizes the total force density in the cables, quadratically.
-H = 2*eye(4);
-f = zeros(4,1);
-% The force and moment balances are constraints for the optimization
-Aeq = A;
-beq = p;
-% Inequalities ensure a minimum cable tension
-Aineq = -L_cables;
-bineq = -minCableTension*ones(s,1);
-% opts = optimoptions(@quadprog,'Display','notify-detailed');
-[qOpt, ~, exitFlag] = quadprog(H,f,Aineq,bineq,Aeq,beq);
-
-disp('qOpt, Mal/Ellande, Equality:');
-qOpt
-
-if exitFlag == 1
-    tensions = L_cables*qOpt; % N
-    restLengths = l_cables - tensions/springConstant;
-    if any(restLengths <= 0)
-        display('WARNING: One or more rest lengths are negative. Position is not feasible with current spring constant.')
-    end
-else
-    display(['Quadprog exit flag: ' num2str(exitFlag)])
-    tensions = Inf*ones(s,1);
-    restLengths = -Inf*ones(s,1);
-end
+% disp('Solving Mal/Ellande, Equality Constraint:');
+% 
+% % Solve with QUADPROG
+% % The objective function, described by 0.5 * x' * H * x + f' * x
+% % This minimizes the total force density in the cables, quadratically.
+% H = 2*eye(4);
+% f = zeros(4,1);
+% % The force and moment balances are constraints for the optimization
+% Aeq = A;
+% beq = p;
+% % Inequalities ensure a minimum cable tension
+% Aineq = -L_cables;
+% bineq = -minCableTension*ones(s,1);
+% % opts = optimoptions(@quadprog,'Display','notify-detailed');
+% [qOpt, ~, exitFlag] = quadprog(H,f,Aineq,bineq,Aeq,beq);
+% 
+% disp('qOpt, Mal/Ellande, Equality:');
+% qOpt
+% 
+% if exitFlag == 1
+%     tensions = L_cables*qOpt; % N
+%     restLengths = l_cables - tensions/springConstant;
+%     if any(restLengths <= 0)
+%         display('WARNING: One or more rest lengths are negative. Position is not feasible with current spring constant.')
+%     end
+% else
+%     display(['Quadprog exit flag: ' num2str(exitFlag)])
+%     tensions = Inf*ones(s,1);
+%     restLengths = -Inf*ones(s,1);
+% end
 
 % DEBUGGING:
 % Out of curiosity, let's see what we get when the moments are ignored:
@@ -456,59 +489,59 @@ end
 
 %% Solve Problem for Minimized Cable Tension - Skelton/Friesen, Equality Constraint
 
-% BUT for the skelton formulation, we really do need to
-% include +R2 and +R3 in the p vector.
-
-% Here, Drew does not think we can ignore the bars. Later, when we do the
-% pseudoinverse, maybe we could - although I still have to test Jeff's
-% theory on the matter, and maybe it's easier to just include all of them
-% and then put no minimization weight on the bars and no constraints (e.g.
-% set H = [eye; zeros] instead of eye, and c = [cs; 0] or something.)
-
-disp('Using the Skelton formulation, equality:');
-
-%DEBUGGING
-%A_skelton
-%p_skelton
-
-% From above, we had H = 2*eye(4); f = zeros(4,1); since the objective
-% function is only q'q for now (NOT RELAXING YET).
-% Now, we're doing the full 10-vector for q, since need to include the bars
-% in the equality constraint.
-% BUT! Need to place zero weight on the bar forces. so,
-H_sk = zeros(s+r, s+r);
-H_sk(1:s, 1:s) = 2 * eye(s); % s+r = 10;
-f_sk = zeros(s+r, 1); % zero vector size 10
-
-% The force and moment balances are constraints for the optimization
-% A q = p,
-Aeq_sk = A_skelton;  % size 16 x 10
-beq_sk = p_skelton;  % size 16 x 1
-% ...these work with q size 10 x 1
-
-% Inequalities ensure a minimum cable tension. With
-%l_cables = l(1:s);
-%L_cables = diag(l_cables);
-% ...the L_cables matrix is diagonal with size s x s. We need to insert it into
-% a zeros matrix with s+r columns now, to align with q of size s+r x 1.
-Aineq_sk = zeros(s, s+r);
-Aineq_sk(1:s, 1:s) = -L_cables;
-% We can then keep the original b_inequality, since Aineq_sk * q is of size
-% s x 1. E.g., only need the cable force constraints, and padding with
-% zeros such that the dimensions fit for q.
-bineq_sk = -minCableTension*ones(s,1);
-
-disp('Skelton Formulation Solution, Equality Constraint:');
-
-% let's do the optimization using the skelton formulation. Should be:
-
-% DEBUGGING: is there a solution without constraining the cables?
-% E.g. is there any solution to A_skelton * q = p?.
-[qOpt_sk, ~, exitFlag] = quadprog(H_sk, f_sk, [], [], Aeq_sk, beq_sk);
-
-%[qOpt_sk, ~, exitFlag] = quadprog(H_sk, f_sk, Aineq_sk, bineq_sk, Aeq_sk, beq_sk);
-
-qOpt_sk
+% % BUT for the skelton formulation, we really do need to
+% % include +R2 and +R3 in the p vector.
+% 
+% % Here, Drew does not think we can ignore the bars. Later, when we do the
+% % pseudoinverse, maybe we could - although I still have to test Jeff's
+% % theory on the matter, and maybe it's easier to just include all of them
+% % and then put no minimization weight on the bars and no constraints (e.g.
+% % set H = [eye; zeros] instead of eye, and c = [cs; 0] or something.)
+% 
+% disp('Using the Skelton formulation, equality:');
+% 
+% %DEBUGGING
+% %A_skelton
+% %p_skelton
+% 
+% % From above, we had H = 2*eye(4); f = zeros(4,1); since the objective
+% % function is only q'q for now (NOT RELAXING YET).
+% % Now, we're doing the full 10-vector for q, since need to include the bars
+% % in the equality constraint.
+% % BUT! Need to place zero weight on the bar forces. so,
+% H_sk = zeros(s+r, s+r);
+% H_sk(1:s, 1:s) = 2 * eye(s); % s+r = 10;
+% f_sk = zeros(s+r, 1); % zero vector size 10
+% 
+% % The force and moment balances are constraints for the optimization
+% % A q = p,
+% Aeq_sk = A_skelton;  % size 16 x 10
+% beq_sk = p_skelton;  % size 16 x 1
+% % ...these work with q size 10 x 1
+% 
+% % Inequalities ensure a minimum cable tension. With
+% %l_cables = l(1:s);
+% %L_cables = diag(l_cables);
+% % ...the L_cables matrix is diagonal with size s x s. We need to insert it into
+% % a zeros matrix with s+r columns now, to align with q of size s+r x 1.
+% Aineq_sk = zeros(s, s+r);
+% Aineq_sk(1:s, 1:s) = -L_cables;
+% % We can then keep the original b_inequality, since Aineq_sk * q is of size
+% % s x 1. E.g., only need the cable force constraints, and padding with
+% % zeros such that the dimensions fit for q.
+% bineq_sk = -minCableTension*ones(s,1);
+% 
+% disp('Skelton Formulation Solution, Equality Constraint:');
+% 
+% % let's do the optimization using the skelton formulation. Should be:
+% 
+% % DEBUGGING: is there a solution without constraining the cables?
+% % E.g. is there any solution to A_skelton * q = p?.
+% [qOpt_sk, ~, exitFlag] = quadprog(H_sk, f_sk, [], [], Aeq_sk, beq_sk);
+% 
+% %[qOpt_sk, ~, exitFlag] = quadprog(H_sk, f_sk, Aineq_sk, bineq_sk, Aeq_sk, beq_sk);
+% 
+% qOpt_sk
 
 %% Solve Problem for Minimized Cable Tension - Mal/Ellande, Inequality Constraint
 % As of 2018-03-30, this is the version returned as 'restlengths' and is
@@ -608,56 +641,56 @@ restLengths = l_cables - tensions/springConstant;
 %        [],[],[],[],[],options); % misc stuff.
 %     q=A_g*F + V*w;
 
-disp('Relaxing the Skelton formulation:');
-
-% 2018-03-30: ISSUE: the inequality constraint that constrains the cables
-% plus bars. We'd have to flip some signs to make sure that the densitites
-% for the bars were compressive! So, alternatively, let's do Jeff's code
-% and remove the force densities of the bars.
-
-% Let's try relaxing the skelton formulation to see if we get a feasible
-% answer that way. Maybe it's just that quadprog has difficulty
-% initializing? (Or is it really that no solutions exist, and we've
-% formulated the problem incorrectly?)
-% See the comments below for what each term means.
-
-% As of 2018-03-30, let's use the full A_skelton matrix, and then 
-% hack out the bars part AFTER the pseudoinverse.
-A_sk = A_skelton; % renamed.
-A_sk_pinv = pinv(A_sk);
-% We want to remove the last r columns of A_sk and the last r rows of
-% A_sk_pinv, so that A_sk is 16 x 4 and A_sk_pinv is 4 x 16
-A_sk = A_sk(:, 1:s);
-A_sk_pinv = A_sk_pinv(1:s, :);
-
-% continuing with Jeff's derivation...
-ApA_sk = A_sk_pinv * A_sk;
-ApA_sk_dim = size(ApA_sk, 1); % ...so either dimension can be taken.
-V_sk = eye(ApA_sk_dim) - ApA_sk;
-
-% Now we can formulate the relaxed problem:
-H_sk_lax = V_sk' * V_sk;
-f_sk_lax = V_sk' * A_sk_pinv * p_skelton;
-
-% The inequality constraint is really V * w >= -A_sk_pinv * p + c
-% Or just flip the signs, since quadprog does A*x <= b, so this becomes
-% - V*w <= A_sk_pinv * p - c
-A_sk_ineq_lax = -V_sk;
-% Calculate the minumum force densities from the min cable tension and
-% length. l_cables is an s-dimensional vector. (capital L is diag version.)
-% let's just do element-wise division for ease.
-min_force_densities = minCableTension*ones(s,1) ./ l_cables;
-b_sk_ineq_lax = A_sk_pinv * p_skelton - min_force_densities;
-
-% Finally, let's see if we can solve. Dropping the equality terms.
-[wOpt_sk_lax, ~, ~] = quadprog(H_sk_lax, f_sk_lax, A_sk_ineq_lax, b_sk_ineq_lax);
-
-% ...actually, this is the w vector, NOT q. Still need to do q=A_g*F + V*w;
-qOpt_sk_lax = A_sk_pinv * p_skelton + V_sk * wOpt_sk_lax;
-% ...this is EXACTLY THE SAME AS THE EQUALITY CONSTRAINT SOLUTION!!!
-
-disp('Optimal q, relaxed Skelton formulation:');
-qOpt_sk_lax
+% disp('Relaxing the Skelton formulation:');
+% 
+% % 2018-03-30: ISSUE: the inequality constraint that constrains the cables
+% % plus bars. We'd have to flip some signs to make sure that the densitites
+% % for the bars were compressive! So, alternatively, let's do Jeff's code
+% % and remove the force densities of the bars.
+% 
+% % Let's try relaxing the skelton formulation to see if we get a feasible
+% % answer that way. Maybe it's just that quadprog has difficulty
+% % initializing? (Or is it really that no solutions exist, and we've
+% % formulated the problem incorrectly?)
+% % See the comments below for what each term means.
+% 
+% % As of 2018-03-30, let's use the full A_skelton matrix, and then 
+% % hack out the bars part AFTER the pseudoinverse.
+% A_sk = A_skelton; % renamed.
+% A_sk_pinv = pinv(A_sk);
+% % We want to remove the last r columns of A_sk and the last r rows of
+% % A_sk_pinv, so that A_sk is 16 x 4 and A_sk_pinv is 4 x 16
+% A_sk = A_sk(:, 1:s);
+% A_sk_pinv = A_sk_pinv(1:s, :);
+% 
+% % continuing with Jeff's derivation...
+% ApA_sk = A_sk_pinv * A_sk;
+% ApA_sk_dim = size(ApA_sk, 1); % ...so either dimension can be taken.
+% V_sk = eye(ApA_sk_dim) - ApA_sk;
+% 
+% % Now we can formulate the relaxed problem:
+% H_sk_lax = V_sk' * V_sk;
+% f_sk_lax = V_sk' * A_sk_pinv * p_skelton;
+% 
+% % The inequality constraint is really V * w >= -A_sk_pinv * p + c
+% % Or just flip the signs, since quadprog does A*x <= b, so this becomes
+% % - V*w <= A_sk_pinv * p - c
+% A_sk_ineq_lax = -V_sk;
+% % Calculate the minumum force densities from the min cable tension and
+% % length. l_cables is an s-dimensional vector. (capital L is diag version.)
+% % let's just do element-wise division for ease.
+% min_force_densities = minCableTension*ones(s,1) ./ l_cables;
+% b_sk_ineq_lax = A_sk_pinv * p_skelton - min_force_densities;
+% 
+% % Finally, let's see if we can solve. Dropping the equality terms.
+% [wOpt_sk_lax, ~, ~] = quadprog(H_sk_lax, f_sk_lax, A_sk_ineq_lax, b_sk_ineq_lax);
+% 
+% % ...actually, this is the w vector, NOT q. Still need to do q=A_g*F + V*w;
+% qOpt_sk_lax = A_sk_pinv * p_skelton + V_sk * wOpt_sk_lax;
+% % ...this is EXACTLY THE SAME AS THE EQUALITY CONSTRAINT SOLUTION!!!
+% 
+% disp('Optimal q, relaxed Skelton formulation:');
+% qOpt_sk_lax
 
 %% Check Distance Vectors Symbollically
 
