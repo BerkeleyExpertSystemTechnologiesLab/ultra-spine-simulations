@@ -209,6 +209,7 @@ dyn_type = 2;
 % Main loop iterating through the length of the trajectory
 for i = 1:opt_params.num_pts
     
+    tic;
     fprintf('Iteration: %g\n',i)
 
     xi_ref = xi_traj(:,i:i+opt_params.horizon_length+1);
@@ -258,6 +259,7 @@ for i = 1:opt_params.num_pts
     
     [u,s,v] = svd(A_k);
     s_step(:,:,i) = s;
+    toc
     
 end
 
@@ -287,7 +289,10 @@ figure;
 hold on;
 axis equal;
 % used to be: [-0.2, 0.2, -0.1, 0.3]
-axis([-0.2, 0.2, -0.1, 0.2]);
+% Making it the same as the 3D model for the picture in the front page of
+% the T-CST paper.
+%axis([-0.2, 0.2, -0.1, 0.2]);
+axis([-0.2, 0.2, -0.1, 0.38]);
 % coloring:
 cmaps = gray(512); 
 colormap(cmaps(1:256,:));
@@ -298,15 +303,20 @@ lighting phong
 
 % Labels and text
 xlabel('X (m)')
-ylabel('Y (m)')
-zlabel('Z (m)')
-title('Spine Model')
+% brief renaming: the vertical direction we're calling Z.
+ylabel('Z (m)')
+% ylabel('Y (m)');
+%zlabel('Z (m)')
+% To differentiate from the 3D model - name it "... 2D"
+title('Spine Model, 2D')
 
 % Size everything properly
 %xlim([-0.2 0.2])
 %ylim([-0.2 0.2]) % Note, we use 'axis' above instead
 %zlim([-0.1, 0.4])
-fontsize = 20;
+% Was 20 for just this figure alone, but to match up with the 3D figure's
+% sizing, we're going to make it smaller.
+fontsize = 18;
 set(gca,'FontSize',fontsize)
 
 % Plot the first location of the spine:
@@ -409,7 +419,7 @@ subplot(3,1,3)
 plot(1:opt_params.num_pts+1,180/pi*xi_traj(3,1:opt_params.num_pts+1),'-b','LineWidth',1.5)
 hold on
 plot(1:opt_params.num_pts+1,180/pi*xi_cl(3,:),'-xg','LineWidth',1.5)
-ylabel('\theta /��')
+ylabel('\theta')
 grid
 
 %% Plot the input trajectory results of open loop control
@@ -536,7 +546,7 @@ ylabel('AE(z)/cm');
 subplot(3,1,3)
 plot(180/pi*e_abs_3,'.-','LineWidth',1.25);
 grid;
-ylabel('AE(\theta)/��');
+ylabel('AE(\theta)');
 xlabel('steps');
 
 %% PLOT THE X-Z POSITION
@@ -568,7 +578,7 @@ hold on;
 plot(xi_cl(3,1)*180/pi,'oy','LineWidth',3.5);
 xlabel('steps');
 % ylabel(' \theta /arc');
-ylabel(' \theta /��');
+ylabel(' \theta');
 title('Plot of \theta over steps');
 legend('reference','tractory','start point','location','best');
 %% PLOT X-Y-Theta IN 3D
@@ -588,6 +598,6 @@ hold on;
 plot3(100*xi_cl(1,1), 100*xi_cl(2,1),180/pi*xi_cl(3,1),'yo','LineWidth',3.5);
 xlabel('X /cm');
 ylabel('Z /cm');
-zlabel(' \theta /��');
+zlabel(' \theta');
 title('Plot of states X - Z - \theta');
 legend('tractory','reference','start point','location','best');

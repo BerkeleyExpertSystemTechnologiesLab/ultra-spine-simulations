@@ -21,4 +21,4 @@ xi = [ -0.005; 0.1; 0.1; 0; 0; 0];
 min_cable_tension = 5;
 
 % Call the fcn and let's see what happens:
-[tensions, restLengths, A, p, A_skelton_c, qOpt, qOpt_lax] = getTensions_pseudoinv(xi, two_d_geometry, min_cable_tension);
+[tensions, restLengths, A, p, qOpt_lax] = getTensions_pseudoinv(xi, two_d_geometry, min_cable_tension);

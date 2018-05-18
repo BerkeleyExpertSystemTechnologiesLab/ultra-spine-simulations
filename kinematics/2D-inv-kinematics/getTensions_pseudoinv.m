@@ -317,41 +317,6 @@ A_skelton = [ C' * diag(C * x);
 % and compare. s=4 here. 
 %A_skelton_c_after = A_skelton(:,1:s)
 % Result: this is the same as A_skelton_c.
- 
-
-%% Mallory / Ellande's External Force Vector
-
-% Note R2 and R3 cannot be negative, but this constraint is not imposed
-% here. However, a condition under which R2 or R3 becomes negative creates
-% an infeasible problem for the cable tensions, so the issue solves itself.
-% It's possible that a more generalized problem would need to solve for
-% reaction forces using a solver in order to impose this constraint.
-
-% p = [ 0; 0; M*g-R2-R3; M*g; 0; (R2-R3)*w];
-
-% The p vector is the right-hand side of the force balance.
-% The zeros come from \sum F = 0 in the X direction, for vertebra 1 and vertebra 2.
-% 3rd, 4th rows are \sum F = 0 in the Z direction, for vertebra 1 and vertebra 2.
-% 5th row is moment balance, = 0.
-%disp('p, manual derivation:');
-
-% ON 2018-03-18: ...shouldn't this be -mg, and then +R2, +R3? Change it and
-% see what happens:
-%p = [ 0; 0; M*g-R2-R3; M*g; 0];
-% ...seems to be a much more reasonable answer. Rrrrgh need to re-run the
-% MPC now at least.
-% On 2018-04-05: did sum of moments around both vertebrae, now p \in R
-% (3*d), or: 2 x-balance, 2 z-balance, 2-moment balance.
-% Also, the moment balance for the bottom vertebra has an external
-% component, which is the reaction forces at nodes 2 and 3, so these are -(x(2)*R2) + (x(3)*R3).
-% Or, in the terms we'll use in the paper, (x(1) - x(2))*R2 + (x(3) - x(1))*R3
-p = [ 0; 0; -M*g + R2 + R3; -M*g; -(x(2)*R2) + x(3)*R3; 0];
-
-% ...just to confirm, we did the direction properly, right???
-%p = [ 0; 0; M*g - R2 - R3; M*g; -(x(2)*R2) + x(3)*R3; 0];
-% ...result: this seemed not to make a difference. That sounds right, the
-% vertebra is moving "way too fast" anyway.
-
 
 %% Skelton's external force vector
 
@@ -438,6 +403,50 @@ p_skelton(11) = p_skelton(11) + R3;
 % 
 % A * pinv(A) * p - p
 
+%% Mallory / Ellande's External Force Vector
+
+% Note R2 and R3 cannot be negative, but this constraint is not imposed
+% here. However, a condition under which R2 or R3 becomes negative creates
+% an infeasible problem for the cable tensions, so the issue solves itself.
+% It's possible that a more generalized problem would need to solve for
+% reaction forces using a solver in order to impose this constraint.
+
+% p = [ 0; 0; M*g-R2-R3; M*g; 0; (R2-R3)*w];
+
+% The p vector is the right-hand side of the force balance.
+% The zeros come from \sum F = 0 in the X direction, for vertebra 1 and vertebra 2.
+% 3rd, 4th rows are \sum F = 0 in the Z direction, for vertebra 1 and vertebra 2.
+% 5th row is moment balance, = 0.
+%disp('p, manual derivation:');
+
+% ON 2018-03-18: ...shouldn't this be -mg, and then +R2, +R3? Change it and
+% see what happens:
+%p = [ 0; 0; M*g-R2-R3; M*g; 0];
+% ...seems to be a much more reasonable answer. Rrrrgh need to re-run the
+% MPC now at least.
+% On 2018-04-05: did sum of moments around both vertebrae, now p \in R
+% (3*d), or: 2 x-balance, 2 z-balance, 2-moment balance.
+% Also, the moment balance for the bottom vertebra has an external
+% component, which is the reaction forces at nodes 2 and 3, so these are -(x(2)*R2) + (x(3)*R3).
+% Or, in the terms we'll use in the paper, (x(1) - x(2))*R2 + (x(3) - x(1))*R3
+
+% Written by hand:
+%p = [ 0; 0; -M*g + R2 + R3; -M*g; -(x(2)*R2) + x(3)*R3; 0];
+
+% BETTER VERSION USING LINEAR ALGEBRA:
+% We should be able to collapse the p_skelton into this p, by using a
+% kronecker product to collapse each set of 4 rows into one.
+% That's I_4 (kron) 1_s^\top, e.g., four rows of blocks of row vectors of ones.
+
+p_collapsed = kron( eye(4), ones(1,4) ) * p_skelton;
+
+% Then add back the moment balance constraints.
+p = [ p_collapsed; -(x(2)*R2) + x(3)*R3; 0];
+
+% ...just to confirm, we did the direction properly, right???
+%p = [ 0; 0; M*g - R2 - R3; M*g; -(x(2)*R2) + x(3)*R3; 0];
+% ...result: this seemed not to make a difference. That sounds right, the
+% vertebra is moving "way too fast" anyway.
 
 %% Solve Problem for Minimized Cable Tension - Mal/Ellande, Equality Constraint
 

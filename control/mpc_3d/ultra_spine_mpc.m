@@ -156,7 +156,7 @@ optimization_parameters.opt_time_limit = 8; % seconds
 %   It is then inserted into the flags struct, before passing in to ultra_spine_mpc_single_simulation.
 
 flags.noise = 1;
-flags.save_video = 1;
+flags.save_video = 0;
 flags.save_data = 1;
 flags.stringEnable = 1;
 flags.run_lqr = 0;

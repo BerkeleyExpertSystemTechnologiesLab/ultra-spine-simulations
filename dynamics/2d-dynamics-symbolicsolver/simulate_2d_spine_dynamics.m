@@ -31,6 +31,26 @@ assert( num_steps > 0, 'num_steps must be positive.');
 % The time interval for each step is:
 dt_step = dt / num_steps;
 
+% 2018-05-17: Adding noise, for comparison with 3D MPC results.
+% The 3D results used the following:
+%noise_mag_pos = 0.0005;
+%noise_mag_vel = 0.0002;
+% To keep things consistent, compare with the bottom vertebra, which for
+% the 3D case moved the same distance. Thus, with the same total length,
+% just divide by the number of points, which here is 80 /400 as in 3D vs
+% 2D. Since 80/400 = 0.2,
+% ALSO! Since we're comparing top vertebra in 3D versus bottom vertebra in
+% 2D, scale the noise again by the ratio of size travelled on the top
+% vertebra in 3D to the bottom vertebra. With a bit of math from the 2017
+% ACC paper, the top vertebra of the 3D spine moves 0.0015 m each step in
+% x, and the bottom vertebra moves 0.00025 m each each step, so that's
+% another conversion of 0.00025 / 0.0015 = 0.16 repeating.
+% Multiplying 0.2 * 0.16 = 0.033. Wow! That's small!
+noise_mag_pos = 0.0005 * 0.033;
+noise_mag_vel = 0.0002 * 0.033;
+% Turn noise on or off.
+noise_flag = 1;
+
 % Forward simulate for the given number of steps
 for i = 1:num_steps
     % At this timestep, we need to calculate xi_dot.
@@ -91,6 +111,16 @@ for i = 1:num_steps
 %                 ', had tension :', num2str(tensions(j))));
 %         end
 %     end
+end
+
+% Added in May 2018: add noise for a meaningful comparison to the 3D model.
+% TO-DO: the magnitude may need to be less here, since the distance changes
+% are MUCH smaller between timesteps.
+if( noise_flag )
+   % Add to the positions
+   xi_kp1(1:3) = xi_kp1(1:3) + noise_mag_pos*randn(1);
+   % add to the velocities
+   xi_kp1(4:6) = xi_kp1(4:6) + noise_mag_vel*randn(1);
 end
 
 % done! xi_kp1 is returned.
