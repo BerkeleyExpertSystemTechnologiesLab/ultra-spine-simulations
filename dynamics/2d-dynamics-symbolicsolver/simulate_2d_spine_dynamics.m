@@ -49,7 +49,7 @@ dt_step = dt / num_steps;
 noise_mag_pos = 0.0005 * 0.033;
 noise_mag_vel = 0.0002 * 0.033;
 % Turn noise on or off.
-noise_flag = 1;
+noise_flag = 0;
 
 % Forward simulate for the given number of steps
 for i = 1:num_steps

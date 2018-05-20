@@ -1,137 +1,59 @@
 % mpc_error_analysis_2D
-% Copyright 2017 Andrew P. Sabelhaus and Berkeley Emergent Space Tensegrities Lab
+% Copyright 2017-18 Andrew P. Sabelhaus and Berkeley Emergent Space Tensegrities Lab
 % This script does the error analysis of the 2D Model-Predictive Controller for the spine.
-% As of 2017-04-16, just makes the plots of Shirley's data for Drew's qualifying exam.
+% May 2018: this script adapted to make the same plots as the ACC2017
+% paper but for the 2D MPC data.
 
-% This script ASSUMES that the following variables are in the workspace:
-% xi_cl, xi_traj, u_cl, u_traj, opt_params
+function [ errors ] = mpc_error_analysis_2D( file_name, path_to_data_folder)
+% Inputs:
+%   file_name = name of the data file, needs to include '.mat'
+%   path_to_data_folder = location of the data file to read in.
+%   plots_flag = create plots (1) or do not make plots (0).
+% Outputs:
+%   errors = a struct containing all the types of errors that were calculated 
 
-% Modeling things after the mpc_error_analysis 3D script,
+% Read in the data file.
+data_path = strcat( path_to_data_folder, file_name );
+data = load(data_path);
 
-fontsize = 12;
-% Calculate the time in seconds at each point.
-% We'll use the following variables a few times here, so pick it out for cleanliness:
-num_pts = opt_params.num_pts;
-dt = opt_params.dt;
-t = dt : dt : num_pts*dt;
-% Adjust time so that everything is in milliseconds. This makes things clearer.
-t = t * 1000;
+% A quick guide to Shirley's variable naming conventions...
+% xi_traj = reference state trajectory
+% xi_cl = closed loop results (after running MPC)
+% opt_params = struct with all parameters, see the MPC script for a def'n.
 
-%% States plot:
+% ...not used here, but could be meaningful?
+% u_traj = reference inv kin inputs
+% u_cl = closed loop calculated controls from the MPC algorithm
 
-% A good figure window setup is 'Position',[100,100,500,300].
+% The algorithm that's currently used calculates a trajectory out past the
+% last timestep: e.g., there are timesteps + horizon number of datapoints.
+% Thus, remove the last N points from the reference state traj.
+% Rows are states, columns are timesteps.
+N = 4; %horizon length
 
-% Plot the XZG errors on one plot.
-xzg_handle = figure;
-hold on;
-set(gca,'FontSize',fontsize);
-set(xzg_handle,'Position',[100,100,550,400]);
+xi_traj = data.xi_traj(:, 1 : end-N);
+xi_cl = data.xi_cl; % for convenience, so we don't keep having to do data.whatever
 
-% For the first subplot (x), ...
-subplot_handle = subplot(3, 1, 1);
-hold on;
-set(gca,'FontSize',fontsize);
-% Plot x, adjusting the distances to cm
-% Reference is
-plot(t, xi_traj(1, 1:num_pts)*100, 'b.-', 'LineWidth', 1.5 , 'markersize', 15);
-% Closed-loop behavior is
-plot(t, xi_cl(1, 1:num_pts)*100, 'g.-', 'LineWidth', 1.5 , 'markersize', 10);
-% Labels
-title('State Tracking with Inv. Kin. Inputs');
-ylabel('X (cm)');
-%xlabel('time (msec)');
-% Make the legend
-legend('Reference', 'Result', 'Location', 'Southwest');
+% Append these to a struct to return.
+% BUT, rename according to the 3D naming convention, that way we can re-use
+% the 3D analysis code.
+errors.ref_traj = xi_traj;
+errors.result_traj = xi_cl;
+errors.opt_params = data.opt_params;
 
-% For the second subplot (z), ...
-subplot_handle = subplot(3, 1, 2);
-hold on;
-set(gca,'FontSize',fontsize);
-% Plot z, adjusting the distances to cm
-% Reference is
-plot(t, xi_traj(2, 1:num_pts)*100, 'b.-', 'LineWidth', 1.5 , 'markersize', 15);
-% Closed-loop behavior is
-plot(t, xi_cl(2, 1:num_pts)*100, 'g.-', 'LineWidth', 1.5 , 'markersize', 10);
-% Labels
-ylabel('Z (cm)');
-%xlabel('time (msec)');
+% calculate what's needed for the combined plots. specifically, that's:
 
-% For the third subplot (theta), ...
-subplot_handle = subplot(3, 1, 3);
-hold on;
-set(gca,'FontSize',fontsize);
-% Plot theta, adjusting radians to degrees
-% Reference is
-plot(t, xi_traj(3, 1:num_pts)*180/pi, 'b.-', 'LineWidth', 1.5 , 'markersize', 15);
-% Closed-loop behavior is
-plot(t, xi_cl(3, 1:num_pts)*180/pi, 'g.-', 'LineWidth', 1.5 , 'markersize', 10);
-% Labels
-ylabel('\theta (deg)');
-% Put the time label below the bottom graph.
-xlabel('time (msec)');
+% Relative errors for the states:
+tracking_error = xi_cl - xi_traj;
+errors.tracking_error = tracking_error;
 
-%% Inputs plot.
+% save some other misc things for easier use
+errors.dt = data.opt_params.dt;
+% the number of points is really num_pts + 1, since this traj includes the
+% 0-th state.
+errors.num_pts = data.opt_params.num_pts + 1; % e.g., 399 + 1 = 400
 
-% Plot the XZG errors on one plot.
-u_handle = figure;
-hold on;
-set(gca,'FontSize',fontsize);
-set(u_handle,'Position',[100,100,500,500]);
-
-% For the first subplot (u1), ...
-subplot_handle = subplot(4, 1, 1);
-hold on;
-set(gca,'FontSize',fontsize);
-% Plot input 1 length, adjusting the distances to cm
-% Reference is
-plot(t, u_traj(1, 1:num_pts)*100, 'b.-', 'LineWidth', 1.5 , 'markersize', 15);
-% Closed-loop behavior is
-plot(t, u_cl(1, 1:num_pts)*100, 'g.-', 'LineWidth', 1.5 , 'markersize', 10);
-% Labels
-title('Input Tracking with Inv. Kin. Inputs');
-ylabel('U1 (cm)');
-%xlabel('time (msec)');
-% Make the legend
-legend('Reference', 'Result', 'Location', 'Best');
-
-% For the second subplot (u2), ...
-subplot_handle = subplot(4, 1, 2);
-hold on;
-set(gca,'FontSize',fontsize);
-% Plot u2, adjusting the distances to cm
-% Reference is
-plot(t, u_traj(2, 1:num_pts)*100, 'b.-', 'LineWidth', 1.5 , 'markersize', 15);
-% Closed-loop behavior is
-plot(t, u_cl(2, 1:num_pts)*100, 'g.-', 'LineWidth', 1.5 , 'markersize', 10);
-% Labels
-ylabel('U2 (cm)');
-%xlabel('time (msec)');
-
-% For the third subplot (u3), ...
-subplot_handle = subplot(4, 1, 3);
-hold on;
-set(gca,'FontSize',fontsize);
-% Plot u3, adjusting the distances to cm
-% Reference is
-plot(t, u_traj(3, 1:num_pts)*100, 'b.-', 'LineWidth', 1.5 , 'markersize', 15);
-% Closed-loop behavior is
-plot(t, u_cl(3, 1:num_pts)*100, 'g.-', 'LineWidth', 1.5 , 'markersize', 10);
-% Labels
-ylabel('U3 (cm)');
-%xlabel('time (msec)');
-
-% For the fourth subplot (u4), ...
-subplot_handle = subplot(4, 1, 4);
-hold on;
-set(gca,'FontSize',fontsize);
-% Plot u4
-% Reference is
-plot(t, u_traj(3, 1:num_pts)*100, 'b.-', 'LineWidth', 1.5 , 'markersize', 15);
-% Closed-loop behavior is
-plot(t, u_cl(3, 1:num_pts)*100, 'g.-', 'LineWidth', 1.5 , 'markersize', 10);
-% Labels
-ylabel('U4 (cm)');
-% Put the time label below the bottom graph.
-xlabel('time (msec)');
+% the 'combined' script will do all the plotting for us.
+end
 
 
