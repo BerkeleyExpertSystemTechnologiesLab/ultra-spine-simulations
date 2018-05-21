@@ -7,8 +7,13 @@ function [] = plotCurvedArrows_2D()
     hold on
     
     % Rotation label for \theta around the Y-axis.
+    % "bottom" section
     CreateCurvedArrow3([0, -0.03, .2], [0.03, 0, .2], [0, 0, .2])
-    CreateCurvedArrow3([0.03, 0, .2], [0, 0.03, .2], [0, 0, .2])
+    % "top" section
+    % full semi-circle:
+    %CreateCurvedArrow3([0.03, 0, .2], [0, 0.03, .2], [0, 0, .2])
+    % partial circle, for arrow not intersecting z-axis
+    CreateCurvedArrow3([0.03, 0, .2], [0.01, 0.02, .2], [0, 0, .2])
     % ...removing the section of the -x axis.
     %CreateCurvedArrow3([0, 0.03, .2], [-0.03, 0, .2], [0, 0, .2])
     

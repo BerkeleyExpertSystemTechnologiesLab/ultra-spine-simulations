@@ -104,19 +104,24 @@ plotCurvedArrows_2D;
 % add the text labels
 zlabel = text(0.03, 0.12, 0, 'Z'); zlabel.FontWeight = 'bold'; zlabel.FontSize = 28;
 xlabel = text(0.14, 0.03, 0, 'X'); xlabel.FontWeight = 'bold'; xlabel.FontSize = 28;
-tlabel = text(0.03, 0.03, 0, '\theta'); tlabel.FontWeight = 'bold'; tlabel.FontSize = 28;
+% was 0.03, 0.03, 0, when arrow was on the bottom.
+tlabel = text(0.035, 0.035, 0, '\gamma'); tlabel.FontWeight = 'bold'; tlabel.FontSize = 32; % was 28 for \theta.
 
 
 %plabel = text(0, -0.09, 0.18, '\phi'); plabel.FontWeight = 'bold'; plabel.FontSize = 12;
 %tlabel = text(0.2, 0, 0.065, '\tau'); tlabel.FontWeight = 'bold'; tlabel.FontSize = 12;
 %glabel = text(0, 0.2, 0.065, '\gamma'); glabel.FontWeight = 'bold'; glabel.FontSize = 12;
 
-% Add the arrowhead to the theta axis
+% Add the arrowhead to the gamma axis
 %from = [0; -0.2];
 %to = [-0.1; -0.2];
 % in normalized coordinates?
-from = [ 0.495; 0.31];
-to = [ 0.475; 0.31];
+% for the full semi-circle, left-handed, on the bottom:
+%from = [ 0.495; 0.31];
+%to = [ 0.475; 0.31];
+% for the partial circle, right-handed, on top:
+from = [ 0.525; 0.505];
+to = [ 0.515; 0.515];
 arrow = annotation(gcf, 'arrow', [from(1), to(1)], [from(2), to(2)], 'Color', [0 0 1]);
 arrow.HeadWidth = 24;
 arrow.HeadLength = 14;
