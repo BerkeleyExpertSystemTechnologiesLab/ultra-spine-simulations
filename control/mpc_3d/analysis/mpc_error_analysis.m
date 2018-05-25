@@ -95,7 +95,7 @@ if plots_flag
     % Calculate the time in seconds at each point.
     t = data.dt: data.dt : (data.num_points_ref_traj-1)*data.dt;
     % Adjust time so that everything is in milliseconds. This makes things clearer.
-    t = t * 100;
+    t = t * 1000; % for the ACC paper, accidentally did 100 here, off by 10. oops. Corrected for T-CST submission.
     % A good figure window setup is 'Position',[100,100,500,300].
     size(t)
     
@@ -131,15 +131,20 @@ if plots_flag
     ylabel('e_X (cm)');
     % Only create a title for the first plot, that will serve for all the others too.
     %title('Tracking Errors in X Y Z  \theta \gamma \psi');
-    title('   Postitions (No Disturbance)');
+    % for no disturbances:
+    title('                       Position Errors, Smoothing (No Disturbances)');
+    % with disturbances:
+    %title('                       Position Errors, Smoothing (With Disturbances)');
     % Scale the plot. A good scale here is...
     %ylim([-1.0 1.5]);
-    ylim([-2.0 3.5]);
+    %ylim([-2.0 3.5]);
+    ylim([-1.0 1.5]);
     
     % Move the plot very slightly to the left
     P = get(subplot_handle,'Position')
     %set(subplot_handle,'Position',[P(1)-0.05 P(2) P(3) P(4)])
-    set(subplot_handle,'Position',[P(1)-0.06 P(2)+0.05 P(3)+0.01 P(4)-0.04])
+    %set(subplot_handle,'Position',[P(1)-0.06 P(2)+0.05 P(3)+0.01 P(4)-0.04])
+    set(subplot_handle,'Position',[P(1)-0.07 P(2)+0.05 P(3)+0.01 P(4)-0.04])
     hold off;
     
     % Title the whole plot
@@ -164,12 +169,14 @@ if plots_flag
     % Scale the plot. A good scale here is...
     % used to be -0.2 to 0.1
     %ylim([-1 1]);
-    ylim([-2 3.5]);
+    %ylim([-2 3.5]);
+    ylim([-1.0 1.5]);
     %ylim([-2 2]);    
     % Move the plot very slightly to the left
     % For these lower figures, move them upwards a bit more.
     P = get(subplot_handle,'Position')
-    set(subplot_handle,'Position',[P(1)-0.06 P(2)+0.07 P(3)+0.01 P(4)-0.04])
+    % Was left coordinate of P(1)-0.06
+    set(subplot_handle,'Position',[P(1)-0.07 P(2)+0.07 P(3)+0.01 P(4)-0.04])
     
     hold off;
     
@@ -191,13 +198,14 @@ if plots_flag
     % Scale the plot. A good scale here is...
     % Used to be -0.2 to 0.2
     %ylim([-1 1]);
-    ylim([-2 3.5]);
+    %ylim([-2 3.5]);
+    ylim([-1.0 1.5]);
     %ylim([-2 2]);
     % make a x-label here, for the position states.
     xlabel('Time (msec)');    
     % Move the plot very slightly to the left
     P = get(subplot_handle,'Position')
-    set(subplot_handle,'Position',[P(1)-0.06 P(2)+0.10 P(3)+0.01 P(4)-0.04])
+    set(subplot_handle,'Position',[P(1)-0.07 P(2)+0.10 P(3)+0.01 P(4)-0.04])
     
     hold off;
     
@@ -219,13 +227,18 @@ if plots_flag
     %title('Tracking Error in \theta');
     % Scale the plot. A good scale here is...
     % Used to be: [-1 1]
-    ylim([-10 15]);
+    %ylim([-10 15]);
+    % for the ACC paper, used
+    ylim([-1, 3]);
     %ylim([-2 2]);
     % Make a title here, for the angle states
-    title('   Angles (No Disturbance)');    
+    % for no disturbances:
+    title('                  Angle Errors, Smoothing (No Disturbances)');
+    % with disturbances:
+    %title('                  Angle Errors, Smoothing (With Disturbances)');
     % Move the plot very slightly to the left
     P = get(subplot_handle,'Position')
-    set(subplot_handle,'Position',[P(1)-0.06 P(2)+0.05 P(3)+0.01 P(4)-0.04])
+    set(subplot_handle,'Position',[P(1)-0.07 P(2)+0.05 P(3)+0.01 P(4)-0.04])
     
     hold off;
     
@@ -245,10 +258,12 @@ if plots_flag
     ylabel('e_\gamma (deg)');
     %title('Tracking Error in \gamma');
     % Scale the plot. A good scale here is...
-    ylim([-10 15]);    
+    %ylim([-10 15]);    
+    % for the ACC paper, used
+    ylim([-1, 3]);
     % Move the plot very slightly to the left
     P = get(subplot_handle,'Position')
-    set(subplot_handle,'Position',[[P(1)-0.06 P(2)+0.07 P(3)+0.01 P(4)-0.04]])
+    set(subplot_handle,'Position', [P(1)-0.07 P(2)+0.07 P(3)+0.01 P(4)-0.04])
     
     hold off;
     
@@ -268,7 +283,7 @@ if plots_flag
     ylabel('e_\psi (deg)');    
     % Move the plot very slightly to the left
     P = get(subplot_handle,'Position')
-    set(subplot_handle,'Position',[[P(1)-0.06 P(2)+0.10 P(3)+0.01 P(4)-0.04]])
+    set(subplot_handle,'Position', [P(1)-0.07 P(2)+0.10 P(3)+0.01 P(4)-0.04])
     
     
     % Make the legend
@@ -285,12 +300,16 @@ if plots_flag
     % Bottom right, 1x6 plot:
     %legend_position = [0.82 0.042 0 0];
     % Bottom right, 3x2 plot:
-    legend_position = [0.935 0.6 0.001 0];
+    %legend_position = [0.935 0.6 0.001 0];
+    % Moved slightly to the left to keep it in-frame
+    legend_position = [0.93 0.6 0.001 0];
     set(legend_handle,'Position', legend_position);
     %title('Tracking Error in \psi');
     % Scale the plot. A good scale here is...
     % Used to be: [-2 2]
-    ylim([-10 15]);
+    %ylim([-10 15]);
+    % for the ACC paper, used
+    ylim([-1, 3]);
     %ylim([-2 2]);
     hold off;
     

@@ -4,7 +4,7 @@
 % plots a comparison.
 % For the 2D MPC results.
 
-function mpc_error_analysis_combined_2D( file_name1, file_name2, path_to_data_folder, plots_flag )
+function [errors1, errors2] = mpc_error_analysis_combined_2D( file_name1, file_name2, path_to_data_folder, plots_flag )
 % Inputs:
 %   file_name1,2 = name of the data file, needs to include '.mat'
 %   path_to_data_folder = location of the data file to read in.
