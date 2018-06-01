@@ -441,7 +441,10 @@ p_skelton(11) = p_skelton(11) + R3;
 p_collapsed = kron( eye(4), ones(1,4) ) * p_skelton;
 
 % Then add back the moment balance constraints.
-p = [ p_collapsed; -(x(2)*R2) + x(3)*R3; 0];
+% TO-DO: SHOULDN'T x(2) ALREADY BE NEGATIVE?? DON'T ADD EXTRA NEGATIVE
+% HERE...
+% was -(x(2)*R2) + x(3)*R3
+p = [ p_collapsed; (x(2)*R2) + x(3)*R3; 0];
 
 % ...just to confirm, we did the direction properly, right???
 %p = [ 0; 0; M*g - R2 - R3; M*g; -(x(2)*R2) + x(3)*R3; 0];
