@@ -582,7 +582,8 @@ for k=1:N
     % For this unit, calculate the kinetic energy, (1/2)mv^2,
     % as in T = (1/2)* sum( m(i)*r_dot(i)^2), for point masses i.
     % Add in an extra simplify step to make things go faster, later.
-    T = sym;
+    %T = sym;
+    syms T;
     for p=1:num_pm_unit
         % Add the kinetic energy for this point mass,
         % noting that the vector m has the masses for each point mass.
@@ -592,7 +593,8 @@ for k=1:N
     % Similarly, calculate the potential energy for this unit.
     % The potential energy is gravity times the z component of each unit.
     % Since the point masses may have different mass, do a loop.
-    V = sym;
+    %V = sym;
+    syms V;
     for p=1:num_pm_unit
         % Add the potential energy of this point mass,
         % noting that the z component is the second row of r.
@@ -1160,14 +1162,14 @@ for i=1:(N-1)*3  %length(d2xi_solved_un) = 6
     
 % i.e., tensions_sub = replace_derivatives(tensions, xi, num_states_per_unit, debugging);
     
-%  d2xi_solved_un(i) = replace_derivatives(getfield(d2xi_solved, char(d2xi(i))), ...
-%      xi, num_states_per_unit, debugging);
-% 
+ d2xi_solved_un(i) = replace_derivatives(getfield(d2xi_solved, char(d2xi(i))), ...
+     xi, num_states_per_unit, debugging);
+
 %   d2xi_solved_un(i) = replace_derivatives(getfield(d2xi_solved_ty, mat2cell(d2xi(i))), ...
 %       xi, num_states_per_unit, debugging);
 
-   d2xi_solved_un(i) = replace_derivatives(d2xi(i), ...
-         xi, num_states_per_unit, debugging);
+%    d2xi_solved_un(i) = replace_derivatives(d2xi(i), ...
+%          xi, num_states_per_unit, debugging);
     
 end
 
