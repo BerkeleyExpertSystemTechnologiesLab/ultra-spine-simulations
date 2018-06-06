@@ -126,11 +126,11 @@ u_traj = zeros(opt_params.num_inputs,opt_params.num_pts+opt_params.horizon_lengt
 min_cable_tension = 5; % Newtons, I think? Depends on units in inv kin.
 % was 30 for the working version.
 
-for i = 1:opt_params.num_pts+opt_params.horizon_length+1
-    [~, u_traj(:,i)] = getTensions(xi_traj(:,i), opt_params.spine_params, ...
-                            min_cable_tension);
-%     disp(xi_traj(:,i))
-end
+% for i = 1:opt_params.num_pts+opt_params.horizon_length+1
+%     [~, u_traj(:,i)] = getTensions(xi_traj(:,i), opt_params.spine_params, ...
+%                             min_cable_tension);
+% %     disp(xi_traj(:,i))
+% end
 opt_params.xi = xi_traj(:,1);
 opt_params.xip1 = xi_traj(:,2);
 % opt_params.xi(:,1:2) = xi_traj(:,1:2);
@@ -147,7 +147,7 @@ end
 
 % let's swap out the relaxed-formulation trajectory and see if anything
 % changes. Hypothesis is that nothing much happens.
-u_traj_eqconstr = u_traj;
+%u_traj_eqconstr = u_traj;
 u_traj = u_traj_relaxed;
 
 % Some debugging - just look at the reference trajectory

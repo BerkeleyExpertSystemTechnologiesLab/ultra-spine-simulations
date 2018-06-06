@@ -49,17 +49,25 @@ w6 = 1;
 % Build system dynamics constraints, input constraints, and collision
 % contstraints
 constraints = [xi(:,1)==xi_0];
+% On 2018-06-05, removed the spine_geo.h/2 as the constraint, and
+% hard-coded it. This is more consistent with our algorithm for the T-CST
+% paper now: we don't need a concept of 'height' and can just use the local
+% frame of the moving vertebra ('a') on its own.
 for i = 1:N
     %     constraints = [constraints u_lim_L<=u(:,i)<=u_lim_U ...
     %         xi_lim_L<=xi(:,i)<=xi_lim_U ...
     %         xi(:,i+1)==A_t*xi(:,i)+B_t*u(:,i)+c_t ...
     %         xi(2,i)>=spine_geo.h/2];
     
+%     constraints = [constraints xi(:,i+1)==A_t*xi(:,i)+B_t*u(:,i)+c_t ...
+%         xi(2,i)>=spine_geo.h/2 ...
+%         u_lim_L<=u(:,i)];
+    
     constraints = [constraints xi(:,i+1)==A_t*xi(:,i)+B_t*u(:,i)+c_t ...
-        xi(2,i)>=spine_geo.h/2 ...
-        u_lim_L<=u(:,i)];
+    xi(2,i) >= 0.0750 ...
+    u_lim_L <= u(:,i)];
 end
-constraints = [constraints xi(2,N+1)>=spine_geo.h/2];
+constraints = [constraints xi(2,N+1) >= 0.0750];
 
 % Build constraints from ACC 2017 paper
 % constraints = [constraints norm(u(:,1)-prev_in,inf)<=w1];

@@ -37,10 +37,10 @@ n = 8; % nodes
 % Parameter that we need for the reaction forces: 
 
 % Geometric parameters
-ll = spineParameters.l; % m, length of long bars
-h = spineParameters.h; % m, height from top to bottom of tetra
-ls = h/2; % m, length of short bar
-w = sqrt(ll^2-(h/2)^2); % m, width from center of tetra
+%ll = spineParameters.l; % m, length of long bars
+%h = spineParameters.h; % m, height from top to bottom of tetra
+%ls = h/2; % m, length of short bar
+%w = sqrt(ll^2-(h/2)^2); % m, width from center of tetra
 
 % Mass and force parameters
 g = spineParameters.g; % m/s^2, acceleration due to gravity
@@ -86,8 +86,16 @@ Cs = C(1:s,:);
 
 % Nodal positions of bottom tetrahedra
 %           1    2    3    4
-x_bot = [   0   -w    w    0]';
-z_bot = [   0 -h/2 -h/2  h/2]';
+%x_bot = [   0   -w    w    0]';
+%z_bot = [   0 -h/2 -h/2  h/2]';
+
+% We can actually just use the 'a' matrix directly from the geometry
+% struct, since that's easier and doesn't need width or height.
+% The 'a' matrix is d x \eta, 2 dimensions by 4 nodes per rigid body,
+% so the top row is the x_bot vector and bottom row is z_bot vector.
+x_bot = spineParameters.a(1,:)';
+z_bot = spineParameters.a(2,:)';
+
 % Nodes are:
 %   1) center node
 %   2) bottom left
@@ -146,19 +154,27 @@ z = [z_bot; z_top];
 
 % Rows 1-4 are cables
 % Rows 5-10 are bars
-l = [norm([x(2),z(2)]-[x(6),z(6)]); %  1
-     norm([x(3),z(3)]-[x(7),z(7)]); %  2
-     norm([x(4),z(4)]-[x(6),z(6)]); %  3
-     norm([x(4),z(4)]-[x(7),z(7)]); %  4
-     ll;                            %  5
-     ll;                            %  6
-     ls;                            %  7
-     ll;                            %  8
-     ll;                            %  9
-     ls];                           % 10
+% l = [norm([x(2),z(2)]-[x(6),z(6)]); %  1
+%      norm([x(3),z(3)]-[x(7),z(7)]); %  2
+%      norm([x(4),z(4)]-[x(6),z(6)]); %  3
+%      norm([x(4),z(4)]-[x(7),z(7)]); %  4
+%      ll;                            %  5
+%      ll;                            %  6
+%      ls;                            %  7
+%      ll;                            %  8
+%      ll;                            %  9
+%      ls];                           % 10
+%l_cables = l(1:s);
+ 
+% 2018-06-05: changing to cables only, since we're not using the lengths of
+% the bars anywhere, and that eliminates the need to use the 'll' and 'ls'
+% variables. We can just use the 'a' matrix from two_d_geometry now!
 
 % Cable diagonal length matrix
-l_cables = l(1:s);
+l_cables = [norm([x(2),z(2)]-[x(6),z(6)]); %  1
+     norm([x(3),z(3)]-[x(7),z(7)]); %  2
+     norm([x(4),z(4)]-[x(6),z(6)]); %  3
+     norm([x(4),z(4)]-[x(7),z(7)])]; %  4
 L_cables = diag(l_cables);
 
 %% Solve for Reaction Forces

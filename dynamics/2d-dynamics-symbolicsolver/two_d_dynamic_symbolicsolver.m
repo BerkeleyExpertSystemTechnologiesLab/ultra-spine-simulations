@@ -326,13 +326,17 @@ two_d_geometry.m = m;
 two_d_geometry.total_m = sum(m);
 % For backwards compatibility: if the leg length and height variables
 % are declared, save them too.
-if exist('leg','var')
-    % I had called this "l" in the past.
-    two_d_geometry.l = leg;
-end
-if exist('h','var')
-    two_d_geometry.h = h;
-end
+% On 2018-06-05: removed these variables just to be sure that the 'a' frame
+% is the only variable used in the MPC and plotting. E.g., we should just
+% be able to declare 'a' here, and have it used everywhere, without having
+% to fiddle with widths and heights.
+% if exist('leg','var')
+%     % I had called this "l" in the past.
+%     two_d_geometry.l = leg;
+% end
+% if exist('h','var')
+%     two_d_geometry.h = h;
+% end
 
 % For the logistic barrier function, declare two constants that control
 % its form and location.
