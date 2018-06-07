@@ -107,11 +107,13 @@ prev_u = opt_params.u;
 % [traj, ~] = get_ref_traj_zero(opt_params.num_pts,opt_params.horizon_length,opt_params.num_states);
 % [xi_traj, u_traj, ~] = get_ref_traj_eq(opt_params.num_pts,opt_params.horizon_length);
 
-% For the larger Y-shape: the vertebra top is 0.13 in Z, and the legs are
+% For the larger Y-shape: the symmetric one was leg=0.13, but now
+% the vertebra top is 0.20 in Z, and the legs are
 % the same height in -Z. So, if we want the top vertebra to be roughly
-% halfway "inside" the other, move to 0.13 * 1.5, = 0.2
+% halfway "inside" the other, move to 0.20 * 1.5, = 0.3 Make a bit smaller
+% actually, to compensate a bit:
 %[xi_traj, ~] = get_ref_traj_invkin_XZG_new(0.1,opt_params.num_pts+opt_params.horizon_length+1,-1,opt_params.dt);
-[xi_traj, ~] = get_ref_traj_invkin_XZG_new(0.2,opt_params.num_pts+opt_params.horizon_length+1,-1,opt_params.dt);
+[xi_traj, ~] = get_ref_traj_invkin_XZG_new(0.3,opt_params.num_pts+opt_params.horizon_length+1,-1,opt_params.dt);
 
 
 % Let's add some regulation to see if the controller stabilizes better

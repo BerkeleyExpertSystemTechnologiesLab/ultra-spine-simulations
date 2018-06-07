@@ -167,7 +167,9 @@ w = 2 * sqrt(leg^2 - (h/2)^2);
 % 2018-06-05: changed to a different Y-shape for testing out the 2D MPC
 % with different geometries. Just a symmetric Y, really.
 % Approximately 13 cm for all relevant dimensions.
-leg = 0.13;
+%leg = 0.13;
+% 2018-06-07: made the spine larger for an example application.
+leg = 0.20;
 
 a = [ 0,        0; ...
       -leg,     -leg; ...
@@ -238,7 +240,10 @@ m = zeros(num_pm_unit, 1);
 % First, a version where all the masses are equal
 if equal_masses
     % Let's say each unit has a certain total mass:
-    unit_total_mass = 0.1360;
+    % 2018-06-07: For a larger spine, increase the mass. Say for example
+    % the vertebra is now 0.? kg.
+    %unit_total_mass = 0.1360;
+    unit_total_mass = 0.2;
     % Then, the mass of each point will be:
     m_each = unit_total_mass / num_pm_unit;
     % Put into our vector of masses:
