@@ -46,10 +46,21 @@ dt_step = dt / num_steps;
 % x, and the bottom vertebra moves 0.00025 m each each step, so that's
 % another conversion of 0.00025 / 0.0015 = 0.16 repeating.
 % Multiplying 0.2 * 0.16 = 0.033. Wow! That's small!
-noise_mag_pos = 0.0005 * 0.033;
-noise_mag_vel = 0.0002 * 0.033;
+%noise_mag_pos = 0.0005 * 0.033;
+%noise_mag_vel = 0.0002 * 0.033;
+% For the slightly larger spine vertebra, here's how we'll scale.
+% The larger robot still has the 0.2 conversion due to datapoints. The step
+% size is now, however, only about 1/2 that of the top vertebra of the
+% larger spine. I estimate this based on looking at the max position (was
+% about -12 in X for the top vert 3D, -2 for the lowest vertebra in 2D, and
+% -6 for the larger single vertebra.) This makes sense since the 12/2 = 1/6
+% = 0.16, what I used previously.
+% So, now we've got 0.2 * 0.5 = 0.1, not 0.033.
+noise_mag_pos = 0.0005 * 0.1;
+noise_mag_vel = 0.0002 * 0.1;
+
 % Turn noise on or off.
-noise_flag = 0;
+noise_flag = 1;
 
 % Forward simulate for the given number of steps
 for i = 1:num_steps
