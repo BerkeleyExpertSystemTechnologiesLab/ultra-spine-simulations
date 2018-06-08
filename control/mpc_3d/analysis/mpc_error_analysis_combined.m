@@ -59,10 +59,11 @@ if plots_flag
     % Scale the lengths here to get cm.
     plot( result_traj1(25,:)*100, result_traj1(27,:)*100, 'g','LineWidth',2);
     plot( result_traj2(25,:)*100, result_traj2(27,:)*100, 'm','LineWidth',2);
-    legend('Reference', 'Result, No Dist.','Result, With Dist.','Location','Southeast');
+    % 2018-06-08: changed 'disturbance' to 'noise'
+    legend('Reference', 'Result, No Noise','Result, With Noise','Location','Southeast');
     xlabel('Position in X (cm)');
     ylabel('Position in Z (cm)');
-    title('Position of Top Vertebra');
+    title('Position of Top Vertebra, Smoothing Controller');
     set(gca,'FontSize',fontsize);
     % Scale the plot?
     hold off;
@@ -78,7 +79,7 @@ if plots_flag
     % Scale the lengths here to get cm.
     plot( result_traj1(13,:)*100, result_traj1(15,:)*100, 'g','LineWidth',2);
     plot( result_traj2(13,:)*100, result_traj2(15,:)*100, 'm','LineWidth',2);
-    legend('Reference', 'Result, No Dist.', 'Result, With Dist.','Location','Southeast');
+    legend('Reference', 'Result, No Noise', 'Result, With Noise','Location','Southeast');
     xlabel('Position in X (cm)');
     ylabel('Position in Z (cm)');
     title('Position of Middle Vertebra');
@@ -97,7 +98,7 @@ if plots_flag
     % Scale the lengths here to get cm.
     plot( result_traj1(1,:)*100, result_traj1(3,:)*100, 'g','LineWidth',2);
     plot( result_traj2(1,:)*100, result_traj2(3,:)*100, 'm','LineWidth',2);
-    legend('Reference', 'Result, No Dist.', 'Result, With Dist.','Location','Southeast');
+    legend('Reference', 'Result, No Noise', 'Result, With Noise','Location','Southeast');
     xlabel('Position in X (cm)');
     ylabel('Position in Z (cm)');
     title('Position of Lower Vertebra');
@@ -150,7 +151,7 @@ if plots_flag
     plot( result_traj2(1,:)*100, result_traj1(3,:)*100, 'm.-');
     
     % Make a legend. Since all vertebrae are the same color, we only need two labels.
-    legend('Reference Traj.', 'Result, No Disturbances', 'Result, With Disturbances', 'Location', 'Southwest');
+    legend('Reference Traj.', 'Result, No Noise', 'Result, With Noise', 'Location', 'Southwest');
     
     %% Plot the total sum-squared error for positions and angles
     
@@ -179,7 +180,7 @@ if plots_flag
     % Make the second plot:
     % Make a legend
     %legend('No Dist.', 'With Dist.', 'Location', 'Northwest');
-    legend('No Dist.', 'With Dist.', 'Location', 'Northeast')
+    legend('No Noise', 'With Noise', 'Location', 'Northeast')
     hold off;
     subplot(2, 1, 2);
     hold on;
