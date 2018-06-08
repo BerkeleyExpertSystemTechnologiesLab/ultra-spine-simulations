@@ -57,13 +57,16 @@ if plots_flag
     % Scale the lengths here to get cm.
     plot( result_traj1(1,:)*100, result_traj1(2,:)*100, 'g','LineWidth',2);
     plot( result_traj2(1,:)*100, result_traj2(2,:)*100, 'm','LineWidth',2);
-    legend('Reference', 'Result, No Dist.', 'Result, With Dist.','Location','Southeast');
+    % We're talking about it as 'noise' now, not disturbance.
+    legend('Reference', 'Result, No Noise', 'Result, With Noise','Location','Southeast');
     xlabel('Position in X (cm)');
     ylabel('Position in Z (cm)');
     title('Position of Vertebra, Input Ref. Tracking');
     set(gca,'FontSize',fontsize);
     % Set the limits more intelligently.
+    % For the larger spine, more around -6.
     xlim([-2.05, 0]);
+    %xlim([-6.05, 0]);
     ylim([9.79, 10.03]);
     % Scale the plot?
     hold off;
@@ -112,8 +115,8 @@ if plots_flag
     ylim([-0.1, 0.55]);
     
     % Make the legend
-    nodisturblabel = sprintf('No disturb.');
-    disturblabel = sprintf('With disturb.');
+    nodisturblabel = sprintf('No Noise');
+    disturblabel = sprintf('With Noise');
     legend_handle = legend(nodisturblabel, disturblabel, 'Location', 'North', 'Orientation', 'horizontal');
     
     % Move the plot very slightly to the left
