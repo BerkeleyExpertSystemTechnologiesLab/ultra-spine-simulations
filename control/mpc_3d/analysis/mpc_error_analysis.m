@@ -132,9 +132,9 @@ if plots_flag
     % Only create a title for the first plot, that will serve for all the others too.
     %title('Tracking Errors in X Y Z  \theta \gamma \psi');
     % for no disturbances:
-    title('                       Position Errors, Smoothing (No Disturbances)');
+    %title('                       Position Errors, Smoothing (No Noise)');
     % with disturbances:
-    %title('                       Position Errors, Smoothing (With Disturbances)');
+    title('                       Position Errors, Smoothing (With Noise)');
     % Scale the plot. A good scale here is...
     %ylim([-1.0 1.5]);
     %ylim([-2.0 3.5]);
@@ -233,9 +233,9 @@ if plots_flag
     %ylim([-2 2]);
     % Make a title here, for the angle states
     % for no disturbances:
-    title('                  Angle Errors, Smoothing (No Disturbances)');
+    %title('                  Angle Errors, Smoothing (No Noise)');
     % with disturbances:
-    %title('                  Angle Errors, Smoothing (With Disturbances)');
+    title('                  Angle Errors, Smoothing (With Noise)');
     % Move the plot very slightly to the left
     P = get(subplot_handle,'Position')
     set(subplot_handle,'Position',[P(1)-0.07 P(2)+0.05 P(3)+0.01 P(4)-0.04])
