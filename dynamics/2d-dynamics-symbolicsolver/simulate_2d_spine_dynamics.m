@@ -56,11 +56,16 @@ dt_step = dt / num_steps;
 % -6 for the larger single vertebra.) This makes sense since the 12/2 = 1/6
 % = 0.16, what I used previously.
 % So, now we've got 0.2 * 0.5 = 0.1, not 0.033.
-noise_mag_pos = 0.0005 * 0.1;
-noise_mag_vel = 0.0002 * 0.1;
+% noise_mag_pos = 0.0005 * 0.1;
+% noise_mag_vel = 0.0002 * 0.1;
+
+% 2018-07-27: for the IROS workshop paper, more noise, just for
+% illustration.
+noise_mag_pos = 0.0005 * 0.2;
+noise_mag_vel = 0.0002 * 0.2;
 
 % Turn noise on or off.
-noise_flag = 0;
+noise_flag = 1;
 
 % Forward simulate for the given number of steps
 for i = 1:num_steps

@@ -1,10 +1,12 @@
-% mpc_error_analysis_combined_2D.m
+% invkin_error_analysis_combined_2D.m
 % Copyright 2018 Andrew P. Sabelhaus, Berkeley Emergent Space Tensegrities Lab
 % This function loads in a set of saved data from multiple MPC runs and
 % plots a comparison.
 % For the 2D MPC results.
 
-function [errors1, errors2] = mpc_error_analysis_combined_2D( file_name1, file_name2, path_to_data_folder, plots_flag )
+% July 2018 - for inverse kinematics.
+
+function [errors1, errors2] = invkin_error_analysis_combined_2D( file_name1, file_name2, path_to_data_folder, plots_flag )
 % Inputs:
 %   file_name1,2 = name of the data file, needs to include '.mat'
 %   path_to_data_folder = location of the data file to read in.
@@ -21,8 +23,8 @@ close all;
 fontsize = 12;
 
 % Call mpc_error_analysis)2D to calculate all the errors for both MPC runs.
-errors1 = mpc_error_analysis_2D( file_name1, path_to_data_folder);
-errors2 = mpc_error_analysis_2D( file_name2, path_to_data_folder);
+errors1 = invkin_error_analysis_2D( file_name1, path_to_data_folder);
+errors2 = invkin_error_analysis_2D( file_name2, path_to_data_folder);
 
 % Make plots, if flag is set
 if plots_flag
@@ -55,16 +57,19 @@ if plots_flag
     plot( ref_traj(1,:)*100, ref_traj(2, :)*100, 'b','LineWidth',2);
     % Plot the output of the MPC:
     % Scale the lengths here to get cm.
-    plot( result_traj1(1,:)*100, result_traj1(2,:)*100, 'g','LineWidth',2);
+    % 2018-07-27: switched ordering to put noise-less version "in front"
     plot( result_traj2(1,:)*100, result_traj2(2,:)*100, 'm','LineWidth',2);
-    legend('Reference', 'Result, No Dist.', 'Result, With Dist.','Location','Southeast');
+    plot( result_traj1(1,:)*100, result_traj1(2,:)*100, 'g','LineWidth',2);
+    legend('Target Trajectory', 'Result, With Noise', 'Result, No Noise', 'Location','Southeast');
     xlabel('Position in X (cm)');
     ylabel('Position in Z (cm)');
-    title('Position of Vertebra, Input Ref. Tracking');
+    title('Position of Vertebra, Inv. Kin. Control');
     set(gca,'FontSize',fontsize);
     % Set the limits more intelligently.
-    xlim([-2.05, 0]);
-    ylim([9.79, 10.03]);
+    xlim([-6.05, 0]);
+    %ylim([29.1, 30.05]);
+    % for a better sense of how big the model error is:
+    ylim([27.5, 30.5]);
     % Scale the plot?
     hold off;
     

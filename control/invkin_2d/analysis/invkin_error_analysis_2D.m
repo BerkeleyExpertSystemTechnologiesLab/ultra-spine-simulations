@@ -1,10 +1,12 @@
-% mpc_error_analysis_2D
+% invkin_error_analysis_2D
 % Copyright 2017-18 Andrew P. Sabelhaus and Berkeley Emergent Space Tensegrities Lab
 % This script does the error analysis of the 2D Model-Predictive Controller for the spine.
 % May 2018: this script adapted to make the same plots as the ACC2017
 % paper but for the 2D MPC data.
 
-function [ errors ] = mpc_error_analysis_2D( file_name, path_to_data_folder)
+% July 2018 - for the inverse kinematics from mpc.
+
+function [ errors ] = invkin_error_analysis_2D( file_name, path_to_data_folder)
 % Inputs:
 %   file_name = name of the data file, needs to include '.mat'
 %   path_to_data_folder = location of the data file to read in.

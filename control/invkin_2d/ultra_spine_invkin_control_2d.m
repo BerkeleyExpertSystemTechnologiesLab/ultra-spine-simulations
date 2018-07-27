@@ -313,7 +313,13 @@ axis equal;
 % Making it the same as the 3D model for the picture in the front page of
 % the T-CST paper.
 %axis([-0.2, 0.2, -0.1, 0.2]);
-axis([-0.2, 0.2, -0.1, 0.38]);
+%axis([-0.2, 0.2, -0.1, 0.38]);
+
+% For the inverse kinematics of the larger spine:
+% the following seems like a good window size for a square-ish result for
+% the figure at the front of the IROS 2018 soft robotics workshop paper
+axis([-0.4, 0.4, -0.25, 0.55]);
+
 % coloring:
 cmaps = gray(512); 
 colormap(cmaps(1:256,:));
