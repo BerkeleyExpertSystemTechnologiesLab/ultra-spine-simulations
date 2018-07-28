@@ -318,7 +318,8 @@ axis equal;
 % For the inverse kinematics of the larger spine:
 % the following seems like a good window size for a square-ish result for
 % the figure at the front of the IROS 2018 soft robotics workshop paper
-axis([-0.4, 0.4, -0.25, 0.55]);
+%axis([-0.4, 0.4, -0.25, 0.55]);
+axis([-0.49, 0.49, -0.25, 0.55]);
 
 % coloring:
 cmaps = gray(512); 
