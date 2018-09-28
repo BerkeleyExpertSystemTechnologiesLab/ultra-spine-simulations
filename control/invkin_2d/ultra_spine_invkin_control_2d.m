@@ -33,9 +33,6 @@ addpath(inv_kin_path)
 % Reference trajectories path
 ref_traj_path = './reference_trajectories';
 addpath(ref_traj_path)
-% YALMIP controllers path
-yalmip_controllers_path = './yalmip_controllers';
-addpath(yalmip_controllers_path)
 % For plotting the vertebra:
 plotting_path = './plotting';
 addpath(plotting_path);
@@ -44,10 +41,13 @@ addpath(plotting_path);
 % passes in the paths to the data and videos folders to the mpc function.
 % Call this struct 'paths'.
 
-% The path to our videos repository now needs to be set, since we're no longer pushing videos to this simulations repository.
-% Drew (on 2016-04-19) put the ultra-spine-videos repository in the same folder as ultra-spine-simulations, which means
-% the path to the MPC videos folder will be:
-% paths.path_to_videos_folder = '../../../ultra-spine-videos/simulations/control/mpc/';
+% For recording a video, 
+path_to_videos_folder = '../../../ultra-spine-videos/simulations/control/mpc/';
+
+% a variable to turn video recording on or off
+save_video = 1;
+% video quality
+video_quality = 'high';
 
 % The path to the folder where we'll store the .mat data from this simulation also needs to be set:
 paths.path_to_data_folder = '../../data/mpc_2d_data/';
@@ -99,6 +99,47 @@ C = eye(opt_params.num_states);
 opt_params.num_outputs = size(C,1);
 
 prev_u = opt_params.u;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Initialize the movie if flag is set
+
+% Record the current time in a string, used later in the path name for saving data and videos.
+start_time_string = datestr(datetime('now'));
+% Remove the colons and spaces from this string so that Windows doesn't complain when this repository is cloned
+% colons become dashes, spaces become underscores. Regular expressions to the rescue!
+start_time_string = regexprep(start_time_string, ':', '-');
+start_time_string = regexprep(start_time_string, ' ', '_');
+
+% Initialize the video, if flagged.
+if(save_video)
+    %break;
+    % create the filename for this video by concatenating with the path to the video folders, defined above
+    videoPath = strcat( path_to_videos_folder, 'ultra-spine-invkin_', start_time_string );
+    %videoObject = VideoWriter( strcat('../../videos/ultra-spine-mpc_', datestr(datetime('now'))) );
+    % Depending on the specified quality of the video, create a VideoWriter object and adjust its parameters.
+    % Use the strcmp function to compare strings. Returns 1 if strings are equal.
+    if( strcmp(video_quality, 'low') )
+        % Use the compressed Motion JPEG 2000 format.
+        videoObject = VideoWriter( videoPath, 'Motion JPEG 2000' );
+        disp('Generating a low-quality video.');
+        %videoObject.Quality = 75;
+        videoObject.FrameRate = 20;
+        videoObject.CompressionRatio = 60;
+        %videoObject.VideoCompressionMethod('Motion JPEG 2000');
+    elseif( strcmp(video_quality, 'high') )
+        % Use the default settings. This will produce a LARGE video file.
+        % NOTE: Using the MATLAB on the BEST Lab Server will produce lower-quality videos
+        % no matter what, since it uses software OpenGL rendering, for which smoothing is disabled.
+        % For high quality videos, run this script on a computer with hardware openGL (most desktop or laptop computers.)
+        disp('Generating a high-quality video.');
+        %videoObject = VideoWriter( videoPath );
+        %videoObject = VideoWriter( videoPath, 'Archival' );
+        videoObject = VideoWriter( videoPath, 'Motion JPEG AVI' );
+        %videoWriter.Quality = 100;
+    else
+        error( strcat('Video quality property not set correctly inside ultra_spine_mpc_single_simulation. Video quality is:', video_quality) );
+    end
+end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Get trajectory for top vertebra
@@ -385,6 +426,10 @@ line_z = traj_line_offset * ones(1, pts_cl);
 %    'LineWidth', trajectory_thickness);
 %drawnow;
 
+% For making the video, plot every other frame to make it go faster.
+% This means we need to keep a count:
+current_frame = 1;
+
 for i=1:opt_params.num_pts
     fprintf('Plot iteration: %g\n',i)
     % Plot the vertebrae at this timestep:
@@ -397,6 +442,22 @@ for i=1:opt_params.num_pts
     %handles = plot_2d_tensegrity(xi_cl(:,i+1), opt_params.spine_params);
     handles = plot_2d_tensegrity_surfaced(xi_cl(:,i+1), opt_params.spine_params, gca);
     drawnow;
+    % Record this frame for a video
+    % drawnow is needed here or else the MPC script with multiple iterations of MPC will destroy the video.
+    drawnow;
+    % Only record every third frame to make the video play faster.
+    % Just the even ones.
+    if mod(i, 3) == 0
+        videoFrames(current_frame) = getframe(gcf);
+        current_frame = current_frame + 1;
+    end
+end
+
+% Save the video, if the save_video flag is set
+if(save_video)
+    open(videoObject);
+    writeVideo(videoObject, videoFrames);
+    close(videoObject);
 end
 
 % Plot the trajectory of the centers of mass of the moving vertebra.
