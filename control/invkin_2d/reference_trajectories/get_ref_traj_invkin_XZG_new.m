@@ -155,7 +155,7 @@ end
 dg_ref(num_points,:) = dg_ref(num_points-1,:);
 
 % Finally, place all of these points into a big array of all points in the trajectory.
-% We need this to be a concatenation of row vectors: traj is 36 rows by num_points columns.
+% We need this to be a concatenation of row vectors: traj is 6N rows by num_points columns.
 
 % For each of the three tetrahedra:
 traj = zeros(num_vertebrae * 6, num_points);
@@ -163,15 +163,9 @@ traj = zeros(num_vertebrae * 6, num_points);
 % Now, for the first half of the trajectory, plug in x_ref, z_ref, and g_ref.
 for i=1:num_vertebrae
     % Plug in the x, z, and g references
-    % The x position will be at 1, 13, 25
     traj( 6*(i-1) + 1, :) = x_ref(:,i)';
-%     traj( 12*(i-1) + 1, 1:(num_points/2)) = x_ref(:,i)';
-    % z is at 3, 15, 27
     traj( 6*(i-1) + 2, :) = z_ref(:,i)';
-%     traj( 12*(i-1) + 3, 1:(num_points/2)) = z_ref(:,i)';
-    % g is at 5, 17, 29
     traj( 6*(i-1) + 3, :) = g_ref(:,i)';
-%     traj( 12*(i-1) + 5, 1:(num_points/2)) = g_ref(:,i)';
     traj( 6*(i-1) + 4, :) = dx_ref(:,i)';
     traj( 6*(i-1) + 5, :) = dz_ref(:,i)';
     traj( 6*(i-1) + 6, :) = dg_ref(:,i)';

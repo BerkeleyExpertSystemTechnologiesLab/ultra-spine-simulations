@@ -27,9 +27,10 @@ disp('ULTRA Spine InvKin Control 2D')
 dynamics_path = '../../dynamics/2d-dynamics-symbolicsolver';
 addpath(dynamics_path)
 % Inverse kinematics solver
-inv_kin_path = '../../kinematics/2D-inv-kinematics';
+%inv_kin_path = '../../kinematics/2D-inv-kinematics';
 % inv_kin_path = '../../kinematics/2D-inv-kinematics-new';
-addpath(inv_kin_path)
+inv_kin_path = '~/repositories/tInvKin';
+addpath(genpath(inv_kin_path));
 % Reference trajectories path
 ref_traj_path = './reference_trajectories';
 addpath(ref_traj_path)
@@ -174,8 +175,11 @@ u_traj = zeros(opt_params.num_inputs,opt_params.num_pts+opt_params.horizon_lengt
 
 % Use the inverse kinematics for the 2D spine to generate reference inputs.
 % To-do: parameterize the pretension force? That's the third input here.
-min_cable_tension = 5; % Newtons, I think? Depends on units in inv kin.
+%min_cable_tension = 5; % Newtons, I think? Depends on units in inv kin.
 % was 30 for the working version.
+
+% Was 0.5 for the newer invkin. N/m, force density.
+min_cable_tension = 0.5; 
 
 % for i = 1:opt_params.num_pts+opt_params.horizon_length+1
 %     [~, u_traj(:,i)] = getTensions(xi_traj(:,i), opt_params.spine_params, ...
@@ -187,22 +191,21 @@ opt_params.xip1 = xi_traj(:,2);
 % opt_params.xi(:,1:2) = xi_traj(:,1:2);
 
 % Let's compare the reference trajectories with the new formulation:
-u_traj_relaxed = zeros(size(u_traj));
+% u_traj_relaxed = zeros(size(u_traj));
+
 for i = 1:opt_params.num_pts+opt_params.horizon_length+1
     % There are a LOT of outputs here, all used for debugging, so only the
     % 'restlengths' are used.
-    [~, u_traj_relaxed(:,i), ~, ~, ~] = getTensions_pseudoinv(xi_traj(:,i), opt_params.spine_params, ...
+    % Former script:
+%     [~, u_traj_relaxed(:,i), ~, ~, ~] = getTensions_pseudoinv(xi_traj(:,i), opt_params.spine_params, ...
+%                             min_cable_tension);
+    % newer tInvKin use script:
+    [~, u_traj(:,i)] = ultra_spine_invkin_tInvKin(xi_traj(:,i), opt_params.spine_params, ...
                             min_cable_tension);
-%     disp(xi_traj(:,i))
 end
 
-% let's swap out the relaxed-formulation trajectory and see if anything
-% changes. Hypothesis is that nothing much happens.
-%u_traj_eqconstr = u_traj;
-u_traj = u_traj_relaxed;
-
 % Some debugging - just look at the reference trajectory
-%return
+% return
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Create controller
